@@ -1746,7 +1746,8 @@
     return { mouth: [o.x - 0.068 * h, o.y - 0.691 * h], hn: [o.x - 0.153 * h, o.y - 0.553 * h], hf: [o.x - 0.208 * h, o.y - 0.478 * h] };
   }
   function violinist(q, x, y, h, t) {
-    const o = { x, y, h, pose: 'stand', arms: 'reach', aim: -0.2, t, flip: true, seed: VIOLIN_SEED, color: VIOLIN_COL, headPose: 'tilt', expr: 'content' };
+    // 街头拉琴的人也是路人剪影（琴和弓照常画在上面）
+    const o = Object.assign({ x, y, h, pose: 'stand', arms: 'reach', aim: -0.2, t, flip: true, seed: VIOLIN_SEED, color: VIOLIN_COL, headPose: 'tilt', expr: 'content' }, mob(VIOLIN_COL));
     who(q, 'crowd', o);
     const P = violinPts(o), chin = [P.mouth[0] + 0.035 * h, P.mouth[1] + 0.08 * h];
     const ang = atan2(P.hf[1] - chin[1], P.hf[0] - chin[0]), k = hypot(P.hf[0] - chin[0], P.hf[1] - chin[1]) / 95;
@@ -2965,7 +2966,8 @@
       const still = hash(seed, i, 4) < (o.stand || 0);
       const v = still ? 0 : (C && C.gait ? C.gait('crowd', { h, pose: 'walk' }).speed : 90);
       const x = xa + (xb - xa) * hash(seed, i, 2) + dir * v * (t - T0);
-      who(q, 'crowd', { x, y: y - hash(seed, i, 5) * 10, h, pose: still ? 'stand' : 'walk', t: t + i * 0.37, flip: dir < 0, seed: seed * 7 + i, color: ['#6a5a8a', '#8a5a4a', '#4a6a7a', '#7a7a5a', '#9a6a7a', '#5a6a5a'][i % 6], sha: 0.3 });
+      const color = ['#6a5a8a', '#8a5a4a', '#4a6a7a', '#7a7a5a', '#9a6a7a', '#5a6a5a'][i % 6];
+      who(q, 'crowd', Object.assign({ x, y: y - hash(seed, i, 5) * 10, h, pose: still ? 'stand' : 'walk', view: still ? 'back' : undefined, t: t + i * 0.37, flip: dir < 0, seed: seed * 7 + i, color, sha: 0.3 }, mob(color)));
     }
   }
   /**
@@ -2975,9 +2977,17 @@
    */
   function stride(name, o, dist) {
     const C = E.cast, g1 = C && C.gait ? C.gait(name, Object.assign({}, o, { speed: 1 })).speed : 0;
-    const tt = (o.t || 0) + (o.phase || 0);
+    // 动画时钟 = (t + phase) × speed。把时钟的零点挪到这个镜头开始前 1 秒（phase 在镜头内不变），
+    // speed 就不会小到接近 0（官方小人把“手绘步速 ≤ 1 像素/秒”当成没给，会退回默认步频 → 打滑）
+    const T0 = shotT0(o.t || 0), ph = (o.phase || 0) - T0 + 1, tt = (o.t || 0) + ph;
     if (!(g1 > 0) || !(tt > 0.01)) return {};
-    return { speed: max(1e-4, dist) / (g1 * tt) };
+    return { speed: max(1e-4, dist) / (g1 * tt), phase: ph };
+  }
+  /** t 所在镜头的开始时刻（SHOTS 按时间排好） */
+  function shotT0(t) {
+    let a = 0;
+    for (const sh of SHOTS) { if (sh.t0 <= t) a = sh.t0; else break; }
+    return a;
   }
   /** 小黑羊蹦着跑（跑得比腿快的时候）：每 per 秒一跳，落地的一瞬间才着地，不会有“滑步”。per 在一个镜头里要保持不变（相位 = t / per） */
   const bound = (per) => ({ pose: 'jump', speed: 1 / (1.3 * per) });
@@ -2990,8 +3000,18 @@
     const L = list.slice().sort((a, b) => a[2] - b[2]);
     for (const [x0, dir, y, seed, color, h, face] of L) {
       const v = dir && C && C.gait ? C.gait('crowd', { h, pose: 'walk' }).speed : 0;
-      who(q, 'crowd', { x: x0 + dir * v * (t - T0), y, h, pose: dir ? 'walk' : 'stand', t: t + seed * 0.37, flip: (dir || face || 1) < 0, seed, color, sha: 0.3 });
+      // 站着的人背对我们（在看橱窗 / 摊子）；所有路人都是浅色的平涂剪影（背景里的“路人”，不抢戏、不露脸）
+      who(q, 'crowd', Object.assign({ x: x0 + dir * v * (t - T0), y, h, pose: dir ? 'walk' : 'stand', view: dir ? undefined : 'back', t: t + seed * 0.37, flip: (dir || face || 1) < 0, seed, color, sha: 0.3 }, mob(color)));
     }
+  }
+  /**
+   * 路人（手绘）在画面里看得清的时候，画成浅色的平涂剪影 + 一道细边光：像动画里的“路人剪影”，
+   * 退到背景里，不和官方小人比精细。颜色 = 他衣服的颜色和暖白混一半
+   */
+  function mob(color, rim = '255,244,226') {
+    const c = /^#([0-9a-f]{6})$/i.exec(color || '') ? color : '#7a6a7a', w = [0xea, 0xdc, 0xcb];
+    const m = (i) => Math.round(parseInt(c.slice(1 + i * 2, 3 + i * 2), 16) * 0.45 + w[i] * 0.55).toString(16).padStart(2, '0');
+    return { sil: '#' + m(0) + m(1) + m(2), rim, rimW: 0.8, rimGlow: 0 };
   }
   /** 近处路沿上的矮东西（系船柱一样的铁桩、花箱）：前景视差，但矮到挡不住任何人的脸 */
   function kerbProps(q, xs, y, s) {
@@ -3223,7 +3243,7 @@
   function stairPath(tt, arc = 50) {
     if (tt < STAIR_T0) { const k = clamp((tt - 17.76) / (STAIR_T0 - 17.76)); return { x: lerp(380, 580, k), y: 660, dir: 1, mode: 'run', d: 200 * k, v: 200 / (STAIR_T0 - 17.76) }; }
     if (tt < STAIR_T1) {
-      const H = hops(STAIR_HOPS, tt - STAIR_T0, STAIR_HOP, arc), i = min(STAIR_HOPS.length - 2, floor((tt - STAIR_T0) / STAIR_HOP));
+      const H = hops(STAIR_HOPS, tt - STAIR_T0, STAIR_HOP, arc, true), i = min(STAIR_HOPS.length - 2, floor((tt - STAIR_T0) / STAIR_HOP));
       return { x: H.x, y: H.y, yl: H.y + arc * 4 * H.u * (1 - H.u), dir: STAIR_HOPS[i + 1][0] >= STAIR_HOPS[i][0] ? 1 : -1, mode: 'hop', u: H.u };
     }
     const k = clamp((tt - STAIR_T1) / (21.76 - STAIR_T1));
@@ -3492,15 +3512,25 @@
       const kneeX = hipX + sw * 150 * s, kneeY = hipY + 330 * s - lift * 80 * s;
       const footX = kneeX + sw * 120 * s - lift * 60 * s, footY = base - lift * 160 * s;
       g.lineCap = 'round';
-      g.beginPath(); g.moveTo(hipX, hipY); g.lineTo(kneeX, kneeY); g.lineTo(footX, footY - 60 * s); g.lineWidth = 92 * s; g.strokeStyle = INK; g.stroke(); g.lineWidth = 80 * s; g.strokeStyle = SKIN; g.stroke();
-      g.beginPath(); g.moveTo(kneeX + (footX - kneeX) * 0.35, kneeY + (footY - 60 * s - kneeY) * 0.35); g.lineTo(footX, footY - 60 * s); g.lineWidth = 92 * s; g.strokeStyle = INK; g.stroke(); g.lineWidth = 80 * s; g.strokeStyle = '#fbfaf6'; g.stroke();
+      // 和官方小人一样的打扮：深色打底裤、白色靴筒上交叉的红鞋带、深棕色靴底，大腿外侧垂着一条红色系带
+      const bx = kneeX + (footX - kneeX) * 0.4, by = kneeY + (footY - 60 * s - kneeY) * 0.4;
+      g.beginPath(); g.moveTo(hipX, hipY); g.lineTo(kneeX, kneeY); g.lineTo(footX, footY - 60 * s); g.lineWidth = 92 * s; g.strokeStyle = INK; g.stroke(); g.lineWidth = 80 * s; g.strokeStyle = '#3d3642'; g.stroke();
+      g.lineWidth = 12 * s; g.strokeStyle = 'rgba(255,255,255,.1)'; g.beginPath(); g.moveTo(hipX - 18 * s, hipY); g.lineTo(kneeX - 18 * s, kneeY); g.stroke();
+      if (!leg) { g.lineWidth = 11 * s; g.strokeStyle = '#c8363c'; g.beginPath(); g.moveTo(hipX + 30 * s, hipY - 20 * s); g.quadraticCurveTo(lerp(hipX, kneeX, 0.5) + 36 * s, lerp(hipY, kneeY, 0.5), kneeX + 30 * s + sw * 10 * s, kneeY - 10 * s); g.stroke(); }
+      g.beginPath(); g.moveTo(bx, by); g.lineTo(footX, footY - 60 * s); g.lineWidth = 100 * s; g.strokeStyle = INK; g.stroke(); g.lineWidth = 88 * s; g.strokeStyle = '#f4f1f1'; g.stroke();
+      { const ux = (footX - bx), uy = (footY - 60 * s - by), L = hypot(ux, uy) || 1, nx = -uy / L, ny = ux / L; g.strokeStyle = '#c8363c'; g.lineWidth = 9 * s; g.beginPath(); for (let k = 0.2; k < 0.9; k += 0.28) { const px = bx + ux * k, py = by + uy * k; g.moveTo(px - nx * 30 * s, py - ny * 30 * s); g.lineTo(px + ux * 0.14 + nx * 30 * s, py + uy * 0.14 + ny * 30 * s); g.moveTo(px + nx * 30 * s, py + ny * 30 * s); g.lineTo(px + ux * 0.14 - nx * 30 * s, py + uy * 0.14 - ny * 30 * s); } g.stroke(); }
       g.save(); g.translate(footX, footY - 30 * s); g.rotate(-sw * 0.3 - lift * 0.4);
-      g.beginPath(); rrect(g, -60 * s, -46 * s, 190 * s, 84 * s, 38 * s); fs(g, '#5a2e22', 6 * s); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(-20 * s, -38 * s, 80 * s, 10 * s);
-      g.beginPath(); rrect(g, -10 * s, -52 * s, 18 * s, 30 * s, 6 * s); fs(g, '#5a2e22', 4 * s);
+      g.beginPath(); rrect(g, -62 * s, -48 * s, 192 * s, 88 * s, 34 * s); fs(g, '#4a2c26', 6 * s); g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(-20 * s, -40 * s, 80 * s, 10 * s);
+      g.beginPath(); rrect(g, -64 * s, 26 * s, 196 * s, 18 * s, 8 * s); fs(g, '#2a1a16', 4 * s);
       g.restore();
     }
-    g.beginPath(); g.moveTo(cx - 280 * s, base - 1100 * s); g.lineTo(cx + 280 * s, base - 1100 * s); g.lineTo(cx + 320 * s + sin(t * 12.5) * 20 * s, base - 640 * s); g.lineTo(cx - 320 * s, base - 640 * s); g.closePath(); fs(g, '#2e3a5a', 6 * s);
-    g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 6 * s; for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(cx + i * 100 * s, base - 1080 * s); g.lineTo(cx + i * 120 * s, base - 650 * s); g.stroke(); }
+    // 深色的短裙（下摆一道红边、参差的下摆）
+    const sway = sin(t * 12.5) * 20 * s;
+    g.beginPath(); g.moveTo(cx - 280 * s, base - 1100 * s); g.lineTo(cx + 280 * s, base - 1100 * s); g.lineTo(cx + 320 * s + sway, base - 640 * s);
+    for (let i = 1; i <= 8; i++) { const k = i / 8, x = lerp(cx + 320 * s + sway, cx - 320 * s, k); g.lineTo(x + 20 * s, base - (i % 2 ? 612 : 650) * s); }
+    g.lineTo(cx - 320 * s, base - 640 * s); g.closePath(); fs(g, '#2f2830', 6 * s);
+    g.strokeStyle = '#c8363c'; g.lineWidth = 12 * s; g.beginPath(); g.moveTo(cx - 312 * s, base - 690 * s); g.lineTo(cx + 314 * s + sway, base - 690 * s); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 6 * s; for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(cx + i * 100 * s, base - 1080 * s); g.lineTo(cx + i * 120 * s, base - 700 * s); g.stroke(); }
   }
   /** 贴地镜头的石子路（2400 宽，严格周期：每排石头的宽度凑满 2400，两张首尾相接时看不出接缝） */
   reg('cobbles-close', 2400, 700, (q, w, h) => {
@@ -3561,9 +3591,11 @@
    * 一连串的跳：P = [[x, y], …] 是依次的落点（落点都在台阶面上），每跳 dur 秒、弧高 hgt。
    * 返回 { x, y, u（这一跳的进度 0..1，落地时为 0 / 1）}；在空中时横着走，落地的那一刻正好踩在台阶面上
    */
-  function hops(P, lt, dur, hgt) {
+  function hops(P, lt, dur, hgt, soft = false) {
     const n = P.length - 1, f = clamp(lt / dur, 0, n), i = min(n - 1, floor(f)), u = f - i, a = P[i], b = P[i + 1];
-    return { x: lerp(a[0], b[0], u), y: lerp(a[1], b[1], u) - hgt * 4 * u * (1 - u), u: f >= n ? 1 : u };
+    // soft：水平方向在起跳 / 落地的一瞬间速度为 0（脚着地时不往前滑）
+    const ux = soft ? u * u * (3 - 2 * u) : u;
+    return { x: lerp(a[0], b[0], ux), y: lerp(a[1], b[1], u) - hgt * 4 * u * (1 - u), u: f >= n ? 1 : u };
   }
   /** 第 i 级台阶面的中点；小羊的四只蹄子都踩在同一级上（蹄子的中点在身体原点后面约 0.065h） */
   const tread = (i, dx = 0) => [STEP0 + (i + 0.5) * STEP_RUN + dx, CAMPUS_G - (i + 1) * STEP_RISE];
@@ -3656,7 +3688,9 @@
     const key = cwKey(seed, h, sp), W = h * 0.8, H = h * 1.25, n = stand ? 1 : CW_N;
     if (!PAINT[key]) reg(key, W * CW_Z * n, H * CW_Z, (q) => {
       q.scale(CW_Z, CW_Z);
-      for (let j = 0; j < n; j++) who(q, 'crowd', { x: W / 2 + j * W, y: h * 1.1, h, pose: stand ? 'stand' : 'walk', t: stand ? 0.4 : (j / CW_N) * cwPer(h, sp), speed: sp || 1, seed });
+      // 学生们也是浅色的路人剪影（站着的背对我们看公告栏）
+      const col = ['#6a5a8a', '#8a5a4a', '#4a6a7a', '#7a7a5a', '#9a6a7a', '#5a6a5a'][seed % 6];
+      for (let j = 0; j < n; j++) who(q, 'crowd', Object.assign({ x: W / 2 + j * W, y: h * 1.1, h, pose: stand ? 'stand' : 'walk', view: stand ? 'back' : undefined, t: stand ? 0.4 : (j / CW_N) * cwPer(h, sp), speed: sp || 1, seed }, mob(col)));
     });
     return key;
   }
@@ -3757,7 +3791,7 @@
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'hall-side', -240, 0);
       shaft(q, 600, 0, -0.5, 400, 1300, 0.3); shaft(q, 1100, 0, -0.5, 400, 1300, 0.25);
-      who(q, 'liese', { x: 740, y: 900, h: HT('liese', U), pose: 'sit', arms: raised ? 'cover' : 'write', t, expr: raised ? 'laugh' : 'smile', look: [1, 0], shadow: false });
+      // （同桌只留芳汀：本片镜头里的同学只用官方小人）
       // 芳汀、阿黛尔：官方小人坐着（腿在长桌后面）；答题时她一下子站了起来（蹦一下）
       const F = { x: 1000, y: 900, h: HT('fontaine', U), pose: 'sit', t, shadow: false };
       who(q, 'fontaine', F);
@@ -3841,8 +3875,8 @@
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'library');
       libraryDyn(q, s, t);
-      // 远处的芳汀和莉瑟：坐在长桌两边的小凳上看书（面朝桌子，在桌子旁边，不是坐在桌面上）
-      for (const [X, Z, name, H0, fl] of [[-1.42, 8.2, 'fontaine', 118, false], [1.42, 9.6, 'liese', 104, true]]) {
+      // 远处的芳汀：坐在长桌边的小凳上看书（面朝桌子，在桌子旁边，不是坐在桌面上）
+      for (const [X, Z, name, H0, fl] of [[-1.42, 8.2, 'fontaine', 118, false]]) {
         const [px, py] = lp(X, -3, Z), k = 9.2 / Z, hh = H0 * k, seat = hh * 0.24;
         q.beginPath(); q.rect(px - hh * 0.2, py - seat, hh * 0.4, hh * 0.05); q.rect(px - hh * 0.17, py - seat, hh * 0.05, seat); q.rect(px + hh * 0.12, py - seat, hh * 0.05, seat); fs(q, '#6a4228', 1.5);
         // 芳汀是官方小人（坐着；书摊在他面前的长桌上），莉瑟手绘（捧着书）
@@ -3878,8 +3912,7 @@
       const sh = { x: sx, y: 1010, h: HT('sheep-black', U), pose: lt < 0.5 ? 'jump' : 'sit', air: lt < 0.5 ? sin(PI * lt / 0.5) * 0.6 : 0, t, expr: 'laugh', heat: 0.9 };
       sheepWithBooks(q, t, sh, 7, 1, top);
       who(q, 'adele-child', { x: 1180, y: 1030, h: HT('adele-child', U), pose: lt > 1.5 ? 'cheer' : 'look-up', t, expr: 'laugh', outfit: 'school', look: [0.3, -1] });
-      who(q, 'liese', { x: 620, y: 1040, h: HT('liese', U), pose: 'look-up', t, expr: 'surprise', look: [0.4, -1] });
-      who(q, 'fontaine', { x: 860, y: 1050, h: HT('fontaine', U), pose: 'look-up', t, expr: 'smile', look: [0.3, -1] });
+      who(q, 'fontaine', { x: 820, y: 1050, h: HT('fontaine', U), pose: 'look-up', t, expr: 'smile', look: [0.3, -1] });
       // 书页像鸟一样从倒下的书里飞起来，绕着光柱往上（和场景在同一层：跟着镜头走，起点一直在书那里）
       const t0 = B(29) + 0.1;
       E.field(q, t, { n: 46, every: 0.035, life: 5.5, seed: 49, loop: false, t0,
@@ -3906,8 +3939,7 @@
       const arms = frozen ? 'cover' : sneak > 0 ? (run ? undefined : 'cover') : 'read';
       const prop = frozen || sneak > 0 ? null : 'book';
       const gaitOf = (name, h) => (sneak > 0 ? stride(name, { h, pose: run ? 'run' : 'walk', t: tf }, dx) : {});
-      const hl = HT('liese', U), hf = HT('fontaine', U), ha = HT('adele-child', U);
-      who(q, 'liese', Object.assign({ x: 420 + dx, y: 900, h: hl, pose: pose('sit'), arms, prop, t: tf, expr: frozen ? 'surprise' : run ? 'laugh' : shh ? 'surprise' : 'laugh', shadow: false }, gaitOf('liese', hl)));
+      const hf = HT('fontaine', U), ha = HT('adele-child', U);
       // 芳汀、阿黛尔：官方小人（坐着看书 → 被“嘘”得定住（动画停在那一帧）→ 起身溜走 → 跑）；书摊在他们面前的桌上
       const F = Object.assign({ x: 900 + dx, y: 900, h: hf, pose: pose('sit'), t: tf, shadow: false }, gaitOf('fontaine', hf));
       who(q, 'fontaine', F);
@@ -3955,12 +3987,10 @@
     glow(g, 1500, 120, 500, '255,250,230', 0.5, 'lighter', false);
     riverScene(g, s, cam, 'afternoon', { mid: (q) => {
       willow(q, t, 60, 1000, 1.1);
-      who(q, 'crowd', { x: 1800, y: 905, h: HT('crowd', UR) * 0.8, pose: 'stand', t, flip: true, seed: 4, color: '#d8845a' });
       // 跑下河坡：先冲、后放慢、停住。腿的相位跟着跑过的路程（刚冲出来步子快，快停下时步子也慢下来，不会原地蹬腿 / 滑着走）
       const run = (i) => { const k = clamp((lt - i * 0.25) / 3.3), e = easeO(k), x0 = -200 - i * 150, x1 = 1060 - i * 190, y1 = 900 + i * 10; return [lerp(x0, x1, e), lerp(1020, y1, e), k, e * hypot(x1 - x0, y1 - 1020)]; };
-      const [ax, ay, ak, ad] = run(0), [fx, fy, fk, fd] = run(1), [lx, ly, lk, ld] = run(2), [sx, sy, sk] = run(0.5);
+      const [ax, ay, ak, ad] = run(0), [fx, fy, fk, fd] = run(1), [sx, sy, sk] = run(0.5);
       const runner = (name, x, y, k, d, o) => { const h = HT(name, UR), tt = o.t ?? t; who(q, name, Object.assign({ x, y, h, pose: k < 1 ? 'run' : 'stand', t: tt }, o, k < 1 ? stride(name, { h, pose: 'run', t: tt }, d) : {})); };
-      runner('liese', lx, ly, lk, ld, { expr: 'laugh', prop: 'cello' });
       runner('fontaine', fx, fy, fk, fd, { t: t + 0.3, expr: 'smile' });
       // 小黑羊一蹦一蹦地冲下坡（快的时候蹦得远），停下来就站着
       const sheepMove = sk < 0.9;
@@ -4008,9 +4038,9 @@
         const a0 = atan2(foot[1] - head[1], foot[0] - head[0]);
         q.save(); q.translate(hx, hy); q.rotate(dir - a0); who(q, name, Object.assign(O, { x: -head[0], y: -head[1] })); q.restore();
       };
-      lie('liese', 850, 500, PI + 0.55, { h: 320, pose: 'lie', expr: 'laugh' });
-      lie('fontaine', 1075, 505, -0.55, { h: 360, pose: 'sleep' });
-      lie('adele-child', 960, 650, PI / 2, { h: 330, pose: 'sleep', outfit: 'school' });
+      // 两个人头挨着头：她的身子朝下、芳汀的身子朝右（两个头并排，不叠在一起）
+      lie('fontaine', 1085, 585, -0.18, { h: 360, pose: 'sleep' });
+      lie('adele-child', 925, 640, PI / 2 + 0.12, { h: 330, pose: 'sleep', outfit: 'school' });
       who(q, 'sheep-black', { x: 1360, y: 830, h: 230, pose: 'sleep', t, shadow: false, heat: 0.3 });
       recorder(q, 640, 800, 0.5, { t, rec: 1, spin: 0.6, shadow: false, rot: -0.3 });
     });
@@ -4082,9 +4112,12 @@
     const U = 560;
     skyClouds(g, s, 'noon', 10);
     riverScene(g, s, cam, 'afternoon', { mid: (q) => {
+      // 琴声从柳树后面传来（拉琴的同学藏在树干后面，只看得见从树后探出来的一截弓）：音符从树干边上飘出来
+      const bw = sin(t * 4.2) * 46;
+      q.save(); q.lineCap = 'round'; q.strokeStyle = '#3a2418'; q.lineWidth = 6; q.beginPath(); q.moveTo(440 + bw, 700 - bw * 0.25); q.lineTo(560 + bw, 668 - bw * 0.25); q.stroke();
+      q.strokeStyle = 'rgba(250,245,230,.95)'; q.lineWidth = 2; q.stroke(); q.restore();
       willow(q, t, 380, 1000, 1.25);
-      who(q, 'liese', { x: 610, y: 930, h: HT('liese', U), pose: 'play', prop: 'cello', t, expr: 'closed' });
-      notesFrom(q, t, 700, 520, 12, 21, 'rgba(58,38,32,.85)', 1.6);
+      notesFrom(q, t, 470, 600, 12, 21, 'rgba(58,38,32,.85)', 1.6);
       // 芳汀（官方小人）坐在河边的大石头上听，书摊在石头上；阿黛尔提着录音机录莉瑟的琴声
       const RX = 1235, RY = 962, RH = 96;
       q.beginPath(); q.moveTo(RX - 120, RY + 6); q.quadraticCurveTo(RX - 128, RY - RH + 10, RX - 60, RY - RH); q.quadraticCurveTo(RX + 40, RY - RH - 14, RX + 110, RY - RH + 16); q.quadraticCurveTo(RX + 138, RY - 30, RX + 124, RY + 6); q.closePath(); fs(q, '#a8a098', 4);
@@ -4115,7 +4148,6 @@
       const thrown = t > 96.95, cheer = t > 98.3;
       // 芳汀（官方小人）：站着瞄准 → 甩出去以后抬手（他的基建 Interact）；阿黛尔（官方小人）看着石头跳，跳到第三下高兴得原地蹦起来
       who(q, 'fontaine', { x: 600, y: 970, h: HT('fontaine', U), pose: thrown ? 'wave' : 'stand', t, phase: thrown ? -96.95 : 0 });
-      who(q, 'liese', { x: 300, y: 985, h: HT('liese', U), pose: cheer ? 'clap' : 'stand', t, expr: cheer ? 'laugh' : 'smile' });
       const jy = cheer ? 46 * abs(sin(PI * (t - 98.3) / 0.42)) : 0;
       shadow(q, 1030, 990, 70, 0.4 * (1 - jy / 90));
       who(q, 'adele-child', { x: 1030, y: 990 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false });
@@ -4142,12 +4174,11 @@
       if (!grab) { const [ex] = at(Object.assign({}, sh, { pose: 'eat' }), 'sheep', 'mouth'); recorder(q, ex, 978, sh.h * 0.0013, { t, rec: 1, spin: 0.6 }); }
       else recInMouth(q, sh, tf, { spin: 0.8 });
       const notice = t > 102.26;
-      // 她和莉瑟坐在河边的长椅上；发现录音机被叼走——她吓得一下子站起来（官方小人的 Interact：吓一跳），莉瑟捂住嘴
+      // 她坐在河边的长椅上；发现录音机被叼走——她吓得一下子站起来（官方小人的 Interact：吓一跳）
       const BX = 560, BY = 995, BH = 112;
       q.beginPath(); q.rect(BX - 250, BY - BH + 18, 18, BH - 18); q.rect(BX + 232, BY - BH + 18, 18, BH - 18); fs(q, '#5a3a24', 3.5);
       q.beginPath(); rrect(q, BX - 270, BY - BH, 540, 24, 6); fs(q, '#8a5a36', 4); q.fillStyle = 'rgba(255,230,190,.25)'; q.fillRect(BX - 262, BY - BH + 4, 524, 5);
       shadow(q, BX, BY + 4, 280, 0.35);
-      who(q, 'liese', { x: 420, y: BY, h: HT('liese', U), pose: notice ? 'cover' : 'sit', seat: notice ? undefined : BH, t: tf, expr: notice ? 'surprise' : 'laugh', shadow: false });
       if (notice) who(q, 'adele-child', Object.assign({ x: 700, y: BY + 4, h: HT('adele-child', U), t: tf, outfit: 'school' }, startle(102.26)));
       else who(q, 'adele-child', { x: 690, y: BY, h: HT('adele-child', U), pose: 'sit', seat: BH, t: tf, outfit: 'school', shadow: false });
       // 背后的长椅靠背（在人后面画会被挡住：这里画在前面的只有扶手的一小截）
@@ -4191,14 +4222,15 @@
       // 每个人一条“跑道”（dz：往远处错开一点），彼此拉开距离，不会叠成一团；路线不在终点停住（跑到最后也一直在跑）
       const put = (name, lag, Hh, dz, o) => {
         const u = max(0, (lt - lag * 0.8 + 0.3) / 3.6); const [X, Z0] = path(u), Z = Z0 + dz; const [x, y] = sp(X, G, Z);
-        const tt = t + lag, d = u * hypot(7.6, 2.5) * SQ.f;
+        // 路程 = 画面上横向走过的距离 × 当时的纵深（侧面的跑姿只能抵消横向的位移：透视里越跑越远、横向越来越慢，步子也跟着慢）
+        let d = 0; { const N = 24; let [pX, pZ] = path(0); pZ += dz; for (let i = 1; i <= N; i++) { const [cX, cZ0] = path(u * i / N), cZ = cZ0 + dz; d += abs(SQ.f * cX / cZ - SQ.f * pX / pZ) * (cZ + pZ) / 2; pX = cX; pZ = cZ; } }
+        const tt = t + lag;
         const O = Object.assign({ x, y, h: SQ.f * Hh / Z, t: tt }, name === 'sheep-black' ? bound(0.22) : Object.assign({ pose: 'run' }, stride(name, { h: SQ.f * Hh, pose: 'run', t: tt }, d)), o);
         who(q, name, O); return O;
       };
       // 鸽子被惊起（在人后面）
       for (let i = 0; i < 8; i++) { const tt = 104.3 + i * 0.12, a = t - tt; const [bx, by] = sp(-4 + i * 1.1, G, 8 + (i % 3)); if (a < 0) pigeon(q, bx, by, 0.9, i % 2 === 0, 0, 0); else if (a < 3) pigeon(q, bx + a * 260, by - a * 420 + a * a * 20, 1.0, false, 1, t * 20 + i); }
       // 远的先画
-      put('liese', 1.5, 1.22, 0.9, { expr: 'laugh', prop: 'cello' });
       put('fontaine', 1.05, 1.3, 0.45, { expr: 'smile' });
       const sh = put('sheep-black', 0, 0.53, 0.1, { expr: 'laugh', heat: 0.6 });
       recInMouth(q, sh, t);
@@ -4228,7 +4260,6 @@
       const sh = Object.assign({ x: X, y: 960 + weave, h: HT('sheep-black', U), t, expr: 'laugh', heat: 0.7 }, bound(0.2));
       const runner = (name, x, y, tt, o) => { const h = HT(name, U); who(q, name, Object.assign({ x, y, h, pose: 'run', t: tt }, o, stride(name, { h, pose: 'run', t: tt }, lt * 760 + 400))); };
       if (sh.y < 990) { who(q, 'sheep-black', sh); recInMouth(q, sh, t); }
-      runner('liese', X - 640, 990, t + 0.4, { expr: 'laugh', prop: 'cello' });
       runner('fontaine', X - 480, 1000, t + 0.2, { expr: 'smile' });
       if (sh.y >= 990) { who(q, 'sheep-black', sh); recInMouth(q, sh, t); }
       runner('adele-child', X - 290, 1010, t, { expr: 'laugh', outfit: 'school', wind: 1 });
@@ -4265,7 +4296,6 @@
       // 远的先画（y 小 = 远）
       runner('adele-child', -560, 985, t, { expr: 'laugh', outfit: 'school', wind: 1 });
       runner('fontaine', -770, 990, t + 0.3, { expr: 'laugh' });
-      runner('liese', -950, 995, t + 0.5, { prop: 'cello', expr: 'laugh' });
     } });
   }
   /** 追逐的“速度”镜头：背景抽象成飞快掠过的草、河、光斑 */
@@ -4274,15 +4304,18 @@
     g.fillStyle = lg(g, 0, 0, 0, VH, [[0, '#ffcf96'], [0.55, '#f6a86e'], [0.56, '#d8a060'], [1, '#9a8a40']]); g.fillRect(0, 0, VW, VH);
     for (let i = 0; i < 18; i++) { const y = 380 + hash(93, i) * 200, w = 200 + hash(94, i) * 700, x = ((hash(95, i) * 3000 - t * (900 + hash(96, i) * 600)) % 3000 + 3000) % 3000 - 500; g.globalAlpha = 0.35; g.fillStyle = i % 3 ? '#fff0d0' : '#b8806a'; g.fillRect(x, y, w, 6 + hash(97, i) * 10); }
     g.globalAlpha = 1;
-    for (let i = 0; i < 60; i++) { const x = ((hash(98, i) * 2400 - t * 2600) % 2400 + 2400) % 2400 - 240, y = 640 + hash(99, i) * 440; g.strokeStyle = i % 2 ? 'rgba(80,90,30,.5)' : 'rgba(240,220,140,.5)'; g.lineWidth = 3 + hash(100, i) * 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 120 + hash(101, i) * 200, y); g.stroke(); }
+    // 原地跑（背景往后掠）：近处草地的掠过速度 = 她（和小羊）脚下往后蹬的速度，腿和地面对得上
+    const SCROLL = 1600, C = E.cast;
+    const gA = C && C.gait ? C.gait('adele-child', { h: 560, pose: 'run', speed: 1 }).speed : 0, gS = C && C.gait ? C.gait('sheep-black', { h: 300, pose: 'run', speed: 1 }).speed : 0;
+    for (let i = 0; i < 60; i++) { const x = ((hash(98, i) * 2400 - t * SCROLL * (0.8 + 0.4 * hash(102, i))) % 2400 + 2400) % 2400 - 240, y = 640 + hash(99, i) * 440; g.strokeStyle = i % 2 ? 'rgba(80,90,30,.5)' : 'rgba(240,220,140,.5)'; g.lineWidth = 3 + hash(100, i) * 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 120 + hash(101, i) * 200, y); g.stroke(); }
     const hh = hand0(s, 103, 7);
     const sx = 1230 + sin(lt * 3) * 60 + hh.sx;
     glow(g, sx, 800, 340, '255,110,40', 0.5 + 0.1 * sin(t * 20));
     steamTrail(g, t, sx - 80, 740, 1, -1, 18, 1.2);
-    const sh = { x: sx, y: 900, h: 300, pose: 'run', t, speed: 2, expr: 'determined', heat: 1 };
+    const sh = { x: sx, y: 900, h: 300, pose: 'run', t, speed: gS > 0 ? SCROLL / gS : 2, expr: 'determined', heat: 1 };
     who(g, 'sheep-black', sh);
     recInMouth(g, sh, t);
-    who(g, 'adele-child', { x: 520 + sin(lt * 2.4) * 40, y: 1060, h: 560, pose: 'run', t, speed: 2, expr: 'laugh', outfit: 'school', wind: 1 });
+    who(g, 'adele-child', { x: 520 + sin(lt * 2.4) * 40, y: 1060, h: 560, pose: 'run', t, speed: gA > 0 ? SCROLL / gA : 2, expr: 'laugh', outfit: 'school', wind: 1 });
     speedLines(g, t, 0.7, 'rgba(255,245,230,.85)', PI, 34);
   }
   function shotSheepFace(g, s) {
@@ -4349,9 +4382,8 @@
       const jy = laugh ? 40 * abs(sin(PI * (t - 121.2) / 0.45)) : 0;
       if (shield) who(q, 'adele-child', Object.assign({ x: 370, y: 1030, h: HT('adele-child', U), t, outfit: 'school' }, startle(119.76)));
       else { shadow(q, 370, 1030, 80, 0.4 * (1 - jy / 80)); who(q, 'adele-child', { x: 370, y: 1030 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false }); }
-      who(q, 'liese', { x: 1610, y: 1040, h: HT('liese', U), pose: shield ? 'cover' : laugh ? 'clap' : 'stand', t, flip: true, expr: lt > 1.6 ? 'laugh' : 'surprise', prop: 'cello' });
       // 溅在他们身上的水珠
-      if (lt > 0.2 && lt < 2.5) for (let i = 0; i < 16; i++) { const x = [260, 470, 1600][i % 3] + (hash(151, i) - 0.5) * 200, y = 520 + hash(152, i) * 380 + (lt - 0.2) * 60; q.globalAlpha = 0.8 * (1 - (lt - 0.2) / 2.3); q.fillStyle = '#eef8ff'; q.beginPath(); ell(q, x, y, 5, 8); q.fill(); }
+      if (lt > 0.2 && lt < 2.5) for (let i = 0; i < 16; i++) { const x = [200, 330, 470][i % 3] + (hash(151, i) - 0.5) * 200, y = 520 + hash(152, i) * 380 + (lt - 0.2) * 60; q.globalAlpha = 0.8 * (1 - (lt - 0.2) / 2.3); q.fillStyle = '#eef8ff'; q.beginPath(); ell(q, x, y, 5, 8); q.fill(); }
       q.globalAlpha = 1;
     });
     s.post.fill(g, '#fff', hit * 0.4, 'lighter');
@@ -4369,8 +4401,7 @@
       const ph = (s.beat % 2) / 2;
       if (ph < 0.4) for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, r = 110 + ph * 500; q.globalAlpha = 1 - ph / 0.4; q.fillStyle = '#f0f8ff'; q.beginPath(); circ(q, 1000 + cos(a) * r, 770 + sin(a) * r * 0.6, 6); q.fill(); }
       q.globalAlpha = 1;
-      who(q, 'liese', { x: 420, y: 1060, h: HT('liese', U), pose: 'sit', seat, arms: 'clap', t, expr: 'laugh', prop: 'cello', shadow: false });
-      who(q, 'fontaine', { x: 700, y: 1060, h: HT('fontaine', U), pose: 'sit', seat, t, expr: 'laugh', shadow: false });
+      who(q, 'fontaine', { x: 600, y: 1060, h: HT('fontaine', U), pose: 'sit', seat, t, expr: 'laugh', shadow: false });
       // 阿黛尔（官方小人）坐在池沿上，录音机放在身边，正在回放刚才录下的声音
       const A = { x: 1420, y: 1060, h: HT('adele-child', U), pose: 'sit', seat, t, outfit: 'school', flip: true, shadow: false };
       who(q, 'adele-child', A);
@@ -4390,7 +4421,7 @@
   }
   function shotWalkHome(g, s) {
     const t = s.t, lt = s.lt;
-    // 一起往右走 → 1.8 秒在岔路口分手：莉瑟转身往左走、芳汀往右走，边走边回头挥手；阿黛尔和小羊停下来挥手送他们
+    // 一起往右走 → 1.8 秒在岔路口分手：芳汀回身挥手、再往右走；阿黛尔和小羊停下来目送他
     const V = 150, TS = 2.46; // 大家一起走的速度；阿黛尔停下的时刻
     const X = 200 + V * lt;
     const camX = 200 + V * (lt < 2.2 ? lt : 2.2 + 0.6 * (1 - Math.exp(-(lt - 2.2) / 0.6)));
@@ -4405,13 +4436,12 @@
       // 芳汀（走在最前面）：走到 1.8 秒停下、回身挥手，2.1 秒起往右走（边走边挥手）。不从阿黛尔身后穿过去
       const fT = 280, fx = lt < 1.8 ? 730 + V * lt : lt < 2.1 ? 1000 : 1000 + fT * (lt - 2.1);
       // （官方小人：停下时回身抬手 = 他的 Interact；走的时候就是走）
-      walker('fontaine', { x: fx, y: 955, h: HT('fontaine', U), pose: lt < 1.8 || lt >= 2.1 ? 'walk' : 'wave', phase: lt < 2.1 ? -129.57 : 0, flip: lt >= 1.8 && lt < 2.1, t, sha: 0.6, rim }, lt < 1.8 ? V * lt : fT * (lt - 2.1));
-      // 莉瑟：停下、转身，2.1 秒起往左走（面朝左，边走边挥手）
-      const lT = 170, lx = lt < 1.8 ? V * lt : lt < 2.1 ? 270 : 270 - lT * (lt - 2.1);
-      walker('liese', { x: lx, y: 960, h: HT('liese', U), pose: lt < 1.8 || lt >= 2.1 ? 'walk' : 'stand', arms: lt >= 1.8 ? 'wave' : undefined, flip: lt >= 1.8, t, expr: 'smile', prop: 'cello', sha: 0.6, rim }, lt < 1.8 ? V * lt : lT * (lt - 2.1));
-      // 阿黛尔：走到 TS 停下，先朝左挥手送莉瑟，再朝右挥手送芳汀
+      // phase 只给挥手（Interact 从 1.8 秒起从头播）；走路的相位完全由走过的路程决定
+      const fWalk = lt < 1.8 || lt >= 2.1;
+      walker('fontaine', { x: fx, y: 955, h: HT('fontaine', U), pose: fWalk ? 'walk' : 'wave', phase: fWalk ? 0 : -129.57, flip: lt >= 1.8 && lt < 2.1, t, sha: 0.6, rim }, lt < 1.8 ? V * lt : fT * (lt - 2.1));
+      // 阿黛尔：走到 TS 停下，回身挥手送芳汀
       const ax = 510 + V * min(lt, TS);
-      walker('adele-child', { x: ax, y: 965, h: HT('adele-child', U), pose: lt < TS ? 'walk' : 'wave2', t, outfit: 'school', prop: 'satchel', flip: lt >= TS && lt < 2.94, sha: 0.6, rim }, V * lt);
+      walker('adele-child', { x: ax, y: 965, h: HT('adele-child', U), pose: lt < TS ? 'walk' : 'wave2', t, outfit: 'school', prop: 'satchel', sha: 0.6, rim }, V * lt);
       // 小黑羊跟着她走（小碎步），她停下它也停下
       walker('sheep-black', { x: 370 + V * min(lt, TS), y: 968, h: HT('sheep-black', U), pose: lt < TS ? 'walk' : 'stand', t, sha: 0.6 }, V * lt);
     } });
@@ -4889,7 +4919,9 @@
     const S = PSIL(MOON, '#1b1a38');
     q.save(); q.beginPath(); q.moveTo(-200, -400); q.lineTo(2200, -400); q.lineTo(2200, ridgeY(2200) + 2); q.lineTo(-200, ridgeY(-200) + 2); q.closePath(); q.clip();
     who(q, 'katia', Object.assign({ x: 760, y: ridgeY(760) + 8, h: UF, pose: 'sit-ground', view: 'back3', t, outfit: 'suit', shadow: false }, S));
-    const A = Object.assign({ x: 930, y: ridgeY(930) + 8, h: HT('adele-child', UF), pose: 'sit-ground', view: 'back3', rot: o.lean || 0, t, outfit: PJ, shadow: false }, S);
+    // 她是官方小人的坐姿剪影（剪影看不出朝向；腿在屋脊下面被截掉）
+    const hA = HT('adele-child', UF), sA = 0.22 * hA + 2;
+    const A = Object.assign({ x: 930, y: ridgeY(930) + sA, seat: sA, h: hA, pose: 'sit', rot: o.lean || 0, t, outfit: PJ, shadow: false }, S);
     who(q, 'adele-child', A);
     if (o.coat) coatSil(q, A, S.sil);
     who(q, 'magna', Object.assign({ x: 1090, y: ridgeY(1090) + 8, h: HT('magna', UF), pose: 'sit-ground', view: 'back3', t, outfit: 'home', flip: true, shadow: false }, S));
@@ -4918,12 +4950,16 @@
       const A = { x: 900, y: RY + S, seat: S, pose: 'sit', h: H, t, outfit: PJ, rim: MOON, shadow: false };
       who(q, 'sheep-black', { x: 1330, y: RY + 6, h: 360, pose: 'sleep', t, rim: MOON });
       drapedCoat(q, A, 'back', 1, drop);
-      // 妈妈的两只手：抓着外套的两个肩角（在她身后，先画），袖子伸出画面上沿
+      // 妈妈的两只手：抓着外套的两个肩角（在她身后，先画）。只有手和小臂被月光照到，再往上的手臂渐渐隐进夜色里
       const cx = A.x - 0.02 * H, sh = A.y - S - 0.3 * H - drop;
       for (const sx of [-1, 1]) {
         // 左手从左上方伸进来、右手从右上方（手指朝下、扣住外套的肩角）
-        const ang = PI / 2 + sx * 0.36, s2 = 0.8, gx = cx + sx * 0.28 * H, gy = sh + 0.01 * H;
-        hand(q, gx - cos(ang) * 58 * s2 + sx * rel * 80, gy - sin(ang) * 58 * s2 - rel * 760, s2, ang, 'hold', { sleeve: '#45375c', cuff: '#392d4e', sleeveLen: 1000, flip: sx > 0 });
+        const ang = PI / 2 + sx * 0.36, s2 = 0.8, SL = 300, gx = cx + sx * 0.28 * H, gy = sh + 0.01 * H;
+        const wx = gx - cos(ang) * 58 * s2 + sx * rel * 80, wy = gy - sin(ang) * 58 * s2 - rel * 760;
+        hand(q, wx, wy, s2, ang, 'hold', { sleeve: '#45375c', cuff: '#392d4e', sleeveLen: SL, flip: sx > 0 });
+        const dx = -cos(ang), dy = -sin(ang), nx = -dy, ny = dx, ex = wx + dx * (SL - 6) * s2, ey = wy + dy * (SL - 6) * s2, w0 = 64 * s2, w1 = 74 * s2, L2 = 460;
+        q.beginPath(); q.moveTo(ex + nx * w0, ey + ny * w0); q.lineTo(ex + dx * L2 + nx * w1, ey + dy * L2 + ny * w1); q.lineTo(ex + dx * L2 - nx * w1, ey + dy * L2 - ny * w1); q.lineTo(ex - nx * w0, ey - ny * w0); q.closePath();
+        q.fillStyle = lg(q, ex, ey, ex + dx * L2, ey + dy * L2, [[0, 'rgba(69,55,92,1)'], [0.45, 'rgba(40,34,70,.55)'], [1, 'rgba(30,28,64,0)']]); q.fill();
       }
       who(q, 'adele-child', A);
       drapedCoat(q, A, 'front', fk);
@@ -4955,7 +4991,7 @@
       // 爸爸妈妈走出门口几步、停下回头：朝着日出走，逆光里只是两个剪影；步子跟着走过的路程（放慢时步子也放慢）
       const out = up(lt, 0.2, 1.4, easeO), PS = PSIL(DAWN_RIM, '#4a2e4c');
       // 他们身后（街的那一头）是日出的逆光
-      q.save(); q.globalCompositeOperation = 'lighter'; glow(q, HOME_DOOR + 480, SY - 260, 560, '255,206,160', 0.5); q.restore();
+      glow(q, HOME_DOOR + 480, SY - 260, 680, '255,206,160', 0.6);
       const K = Object.assign({ x: HOME_DOOR + 110 + out * 280, y: SY, h: US, pose: out < 1 ? 'walk' : 'stand', t, outfit: 'field', prop: ['backpack', 'hammer'] }, PS);
       const M = Object.assign({ x: HOME_DOOR + 50 + out * 190, y: SY + 4, h: HT('magna', US), pose: out < 1 ? 'walk' : 'stand', t, outfit: 'field', prop: 'backpack' }, PS);
       who(q, 'katia', Object.assign(K, out < 1 ? stride('katia', { h: K.h, pose: 'walk', t }, out * 280) : {}));
@@ -4981,14 +5017,19 @@
       // 逆光里的一张剪影：妈妈跪下来把她搂进怀里（两个头挨着），爸爸弯腰把手搭在妈妈肩上。
       // 三个人都只剩轮廓和一圈暖色的边光（父母不露脸）
       const PS = Object.assign(PSIL(DAWN_RIM, '#3a2238'), { rimW: 1.3 });
-      const HM = HT('magna', U), mx = 1080, ax = mx - 0.2 * HM, kx = mx + 0.36 * HM;
-      q.save(); q.globalCompositeOperation = 'lighter'; glow(q, mx - 40, Y - 330, 520, '255,214,176', 0.55); q.restore();
+      const HM = HT('magna', U), HA = HT('adele-child', U), mx = 1080, ax = mx - 0.17 * HM, kx = mx + 0.36 * HM;
+      glow(q, mx - 40, Y - 330, 520, '255,214,176', 0.55);
       who(q, 'katia', Object.assign({ x: kx, y: Y, h: U, pose: 'reach', aim: -0.55, t, outfit: 'field', prop: 'backpack', flip: true, shadow: false }, PS));
-      const M = Object.assign({ x: mx, y: Y, h: HM, pose: 'kneel2', arms: 'hug', t, outfit: 'field', flip: true, shadow: false }, PS);
-      who(q, 'magna', M);
-      who(q, 'adele-child', Object.assign({ x: ax, y: Y, h: HT('adele-child', U), pose: 'stand', flip: true, t, outfit: PJ, shadow: false }, PS));
-      // 妈妈的两只手臂环在她背上：把妈妈手臂那一段再画一遍，盖在她身上
-      q.save(); q.beginPath(); q.rect(mx - 0.24 * HM, Y - 0.27 * HM, 0.27 * HM, 0.12 * HM); q.clip(); who(q, 'magna', M); q.restore();
+      // 妈妈往她那边低下头（身子前倾）
+      who(q, 'magna', Object.assign({ x: mx, y: Y, h: HM, pose: 'kneel2', arms: 'hug', rot: -0.1, t, outfit: 'field', flip: true, shadow: false }, PS));
+      who(q, 'adele-child', Object.assign({ x: ax, y: Y, h: HA, pose: 'stand', flip: true, rot: 0.05, t, outfit: PJ, shadow: false }, PS));
+      // 妈妈靠我们这边的手臂：从肩头绕过来搂在她背上（剪影 + 上沿一道边光）
+      const b = 0.015 * sin(t * 1.3);
+      const sx0 = mx - 0.1 * HM, sy0 = Y - 0.36 * HM, hx = ax - 0.17 * HA, hy = Y - (0.4 + b) * HA;
+      q.beginPath(); q.moveTo(sx0 + 10, sy0 - 26); q.quadraticCurveTo(ax + 0.02 * HA, sy0 - 34, hx - 6, hy - 14); q.quadraticCurveTo(hx - 20, hy + 4, hx - 4, hy + 20);
+      q.quadraticCurveTo(ax + 0.02 * HA, sy0 + 18, sx0 + 14, sy0 + 26); q.closePath(); q.fillStyle = PS.sil; q.fill();
+      q.strokeStyle = `rgba(${DAWN_RIM},.8)`; q.lineWidth = 3; q.lineCap = 'round';
+      q.beginPath(); q.moveTo(sx0 - 10, sy0 - 29); q.quadraticCurveTo(ax + 0.02 * HA, sy0 - 34, hx - 6, hy - 14); q.stroke();
     });
     s.post.leak(g, t, { x: 1900, y: 540, r: 900, rgb: '255,170,120', a: 0.45 });
   }
@@ -5209,10 +5250,10 @@
       ],
       cast: [
         { who: 'adele-child', o: { outfit: 'school', prop: 'satchel' }, role: '主角 · 十来岁的小学者' },
-        { who: 'katia', o: { outfit: 'suit' }, role: '父亲 · 源石技艺学院的教授' },
-        { who: 'magna', o: { outfit: 'home' }, role: '母亲 · 自然环境与生态学者' },
+        // 爸爸妈妈永远不露脸：演员表里也只放背影剪影
+        { who: 'katia', o: { outfit: 'suit', view: 'back', sil: '#2a1c28', rim: '255,206,160', rimW: 1.1 }, role: '父亲 · 源石技艺学院的教授' },
+        { who: 'magna', o: { outfit: 'home', view: 'back', sil: '#2a1c28', rim: '255,206,160', rimW: 1.1 }, role: '母亲 · 自然环境与生态学者' },
         { who: 'fontaine', role: '同一位教授课上的同学' },
-        { who: 'liese', o: { prop: 'cello' }, role: '同学（本页原创）' },
         { who: 'sheep-black', o: { heat: 0.6 }, role: '叼走录音机的小黑羊' },
       ],
       poster: 185.5, thumbs: [10.5, 74.5, 122.3], accent: '#ffb35c',

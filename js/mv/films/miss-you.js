@@ -1176,10 +1176,10 @@
         }
         // 迎面走过的路人（在她身后一点的人行道上，比她小一点）：城市里的人是没有五官的浅色剪影 + 一道天光的轮廓
         // （离得近、看得清的手绘路人站在官方小人旁边会显得粗糙；剪影是城市的一部分，焦点留给她）
-        for (const [x0, sil, sd, hh3] of [[wx + 900, '#9fb0c8', 21, 360], [wx + 1500, '#b8a8b4', 33, 380]]) {
+        for (const [x0, sil, sd, hh3] of [[wx + 900, '#71819c', 21, 360], [wx + 1500, '#86788c', 33, 380]]) {
           const pv = gaitSpeed('crowd', { h: hh3, pose: 'walk' }, 90), px = x0 - lt * pv;
           groundShadow(q, px, 896, hh3 * 0.24, 0.1);
-          cast(q, 'crowd', { x: px, y: 896, h: hh3, pose: 'walk', flip: true, t: t + sd, seed: sd, sil, rim: '255,255,255', rimDir: 0.4, rimGlow: 0.08, alpha: 0.92 });
+          cast(q, 'crowd', { x: px, y: 896, h: hh3, pose: 'walk', flip: true, t: t + sd, seed: sd, sil, rim: '255,255,255', rimDir: 0.4, rimGlow: 0.08, alpha: 0.95 });
         }
       });
     }, 0.85);
@@ -1960,7 +1960,7 @@
   shot('ri-lamb', bar(23), { pre: ['deck', 'fg-doctor'] }, (g, s) => {
     const t = s.t;
     // 和读唇那一镜同一个机位：越过博士（兜帽）的右肩看她；博士只是前景里柔焦的兜帽和肩膀
-    const cam = { x: 1030, y: 580, z: 1.16, ...s.handheld(82, t, 4) };
+    const cam = { x: 1010, y: 600, z: 1.0, ...s.handheld(82, t, 4) }; // 比读唇那一镜松一档（不是同景别的跳切），小羊跑出去的路也在画里
     const pop = bar(23) + BEAT * 2, grab = pop + BEAT * 0.9;
     s.layer(g, cam, 1, (q) => {
       q.drawImage(C(s, 'deck'), -96, -54, 2112, 1188);
@@ -1991,7 +1991,7 @@
     });
     // 前景：博士的兜帽和右肩（和读唇同一张柔焦的前景）；小羊冒出来时往后一仰，叼走冰淇淋后跟着转过去
     const jolt = t > pop ? sstep(pop, pop + 0.25, t) * (1 - sstep(grab + 0.3, grab + 1.2, t)) : 0, follow = sstep(grab, grab + 0.9, t);
-    const bx = 560 - 26 * jolt + 24 * follow, by = 600 + sin(t * 1.4) * 4 - 10 * jolt, rot = -0.05 * jolt + 0.05 * follow;
+    const bx = 480 - 26 * jolt + 24 * follow, by = 700 + sin(t * 1.4) * 4 - 10 * jolt, rot = -0.05 * jolt + 0.05 * follow;
     s.layer(g, cam, 1.4, (q) => {
       q.save(); q.translate(bx, by); q.rotate(rot);
       E.glow(q, 150, -120, 260, '255,226,196', 0.16, 'screen', false);
@@ -2356,12 +2356,12 @@
       // 她：听完（看着医疗干员的嘴唇），笑了笑；然后在拍子上背过身（官方小人的背面站姿，手里拿着法杖），望着尽头的光
       adele(q, { x: 1180, y: 1010, h: 540, pose: 'stand', view: t < turn ? undefined : 'back', t, flip: t < turn, expr: 'smile', look: t < turn ? [-1, -0.05] : [0, 0], rim: t < turn ? undefined : '255,252,240', rimGlow: 0.12 * walk });
     });
-    // 前景：越过医疗干员的肩膀看她（背对镜头、离镜头很近，逆着走廊尽头的光是一道带轮廓光的剪影；没有五官）。
+    // 前景：越过医疗干员的肩膀看她（背对镜头、离镜头很近：只看得见后脑勺和白大褂的肩膀，逆着走廊尽头的光有一道轮廓光）。
     // 说话时轻轻点头，声波从她头边荡向阿黛尔、半路变灰断掉；镜头推进时这一层滑出画面
     s.layer(g, cam, 1.3, (q) => {
-      const no = { x: 430, y: 1330, h: 860, pose: 'hold', view: 'back3', t, seed: 4, sil: '#56617a', rim: '255,255,250', rimGlow: 0.18, headPose: t < turn ? 'nod' : undefined, alpha: 1 - sstep(0.3, 0.7, walk) };
+      const no = { x: 330, y: 1520, h: 940, pose: 'hold', view: 'back3', t, seed: 4, color: '#e9eff7', rim: '255,255,250', rimGlow: 0.12, headPose: t < turn ? 'nod' : undefined, alpha: 1 - sstep(0.3, 0.7, walk) };
       if (no.alpha > 0.01) cast(q, 'crowd', no);
-      if (t < turn) soundRings(q, 560, 640, t, { n: 4, per: BEAT * 2, r: 460, dir: 0, spread: 0.5, rgb: '255,255,255', a: 0.5, muffle: 1 });
+      if (t < turn) soundRings(q, 520, 700, t, { n: 4, per: BEAT * 2, r: 460, dir: 0, spread: 0.5, rgb: '255,255,255', a: 0.5, muffle: 1 });
     });
     // 尽头的光一点点漫过来，最后整个画面是白的（接乌纳的白色转场）
     E.glow(g, ...scr(cam, 1, 980, 520), 500 + 1400 * push, '255,255,250', 0.25 + 0.6 * push, 'screen', false);
@@ -2494,6 +2494,8 @@
       expr: o.smile ? (hug ? 'smile' : 'laugh') : hug ? 'sad' : 'neutral',
     };
     if (hug) co.headPose = o.look ? 'up' : 'down';
+    if (o.headPose) co.headPose = o.headPose;
+    if (o.view) co.view = o.view;
     if (o.alpha != null) co.alpha = o.alpha;
     cast(g, 'crowd', co);
   }
@@ -2624,59 +2626,89 @@
     vigS(g, s, 0.25);
   });
 
-  // 18 · 小女孩 —— 台阶上抱着膝盖的孩子。她走过去蹲下，小黑羊蹭了蹭孩子的手；两个人一起看向那座山
-  def('una-house', 2112, 1188, (q) => {
+  // 18 · 小女孩 —— 反打：从孩子家门口的台阶往外看。台阶上抱着膝盖的孩子只看得见背影（越过她的肩膀看出去）；
+  // 她从坡下的小路走上来，朝孩子挥挥手；小黑羊跑上台阶去蹭孩子的胳膊；最后她也转过身去，两个人一起看向那座山
+  // （看得清脸的手绘路人站在官方小人旁边会显得粗糙：村里的孩子只给背影）
+  const PORCH_VOLC = { cx: 1180, baseY: 640, peakY: 236, halfW: 780, craterW: 140, shoulder: [1, 0.5, 40], seed: 5 };
+  const PORCH_PROF = volcanoProfile(PORCH_VOLC);
+  /** 门口往外看：远处的矮山 + 大火山（天空透明，天和极光另画） */
+  def('porch-far', 2112, 1188, (q) => {
     q.translate(96, 54);
-    q.fillStyle = lin(q, 0, -54, 0, 700, [[0, '#5d9be0'], [1, '#d8ebfa']]); q.fillRect(-96, -54, 2112, 800);
-    paintVolcano(q, { cx: 1560, baseY: 700, peakY: 300, halfW: 700, craterW: 120, top: '#a3aec5', base: '#909bb4', shade: 'rgba(70,80,116,.35)', gully: 'rgba(90,100,134,.5)', snow: 'rgba(245,248,252,.9)', haze: 'rgba(214,228,242,.9)', shoulder: [1, 0.5, 40], seed: 5, x0: 800, x1: 2100, bottom: 800 });
-    q.fillStyle = '#a9bd98'; q.fillRect(-96, 690, 2112, 460);
-    q.fillStyle = lin(q, 0, 880, 0, 1134, [[0, '#a3b893'], [1, '#98a888']]); q.fillRect(-96, 880, 2112, 260);
-    // 房子（白墙木骨架）
-    q.fillStyle = '#f4efe6'; q.fillRect(-96, 120, 1100, 900);
-    q.strokeStyle = '#8a6a50'; q.lineWidth = 16; q.beginPath(); q.moveTo(-96, 130); q.lineTo(1004, 130); q.moveTo(-96, 560); q.lineTo(1004, 560); q.moveTo(996, 130); q.lineTo(996, 1030); q.moveTo(400, 130); q.lineTo(400, 560); q.moveTo(400, 130); q.lineTo(700, 560); q.stroke();
-    q.fillStyle = '#b5553f'; poly(q, [[-96, 140], [-96, -54], [1080, -54], [1080, 60], [1030, 140]]); q.fill();
-    q.strokeStyle = 'rgba(80,40,30,.35)'; q.lineWidth = 3; for (let x = -96; x < 1080; x += 40) { q.beginPath(); q.moveTo(x, -54); q.lineTo(x + 10, 140); q.stroke(); }
-    // 窗 + 花箱
-    q.fillStyle = '#fbf8f2'; q.fillRect(110, 240, 200, 220); q.fillStyle = lin(q, 0, 250, 0, 450, [[0, '#b9d8f4'], [1, '#6f8fbf']]); q.fillRect(124, 254, 172, 192);
-    q.strokeStyle = '#fbf8f2'; q.lineWidth = 8; q.beginPath(); q.moveTo(210, 254); q.lineTo(210, 446); q.moveTo(124, 350); q.lineTo(296, 350); q.stroke();
-    q.fillStyle = '#6a8a5a'; q.fillRect(100, 460, 220, 26); const R = rng(4); for (let i = 0; i < 14; i++) { q.fillStyle = ['#d2334f', '#ffffff', '#f49ab0'][i % 3]; q.beginPath(); q.arc(110 + i * 15, 456 - R() * 10, 8, 0, TAU); q.fill(); }
-    // 门 + 台阶
-    q.fillStyle = '#7a5a44'; rrect(q, 560, 620, 240, 360, 10); q.fill(); q.fillStyle = '#6a4a38'; q.fillRect(580, 650, 90, 140); q.fillRect(690, 650, 90, 140); q.fillStyle = '#e7c46a'; q.beginPath(); q.arc(770, 820, 7, 0, TAU); q.fill();
-    // 三级台阶：下面两级往右多伸出来一截（她坐在第二级上、孩子右边，小腿垂在台阶前面）
-    q.fillStyle = '#cfc8bb'; q.fillRect(520, 980, 330, 40); q.fillStyle = '#bdb5a8'; q.fillRect(490, 1020, 500, 40); q.fillStyle = '#aaa294'; q.fillRect(460, 1060, 580, 80);
-    q.fillStyle = 'rgba(255,255,255,.35)'; q.fillRect(520, 980, 330, 3); q.fillRect(490, 1020, 500, 3); q.fillRect(460, 1060, 580, 3);
-    // 地面
-    q.fillStyle = lin(q, 0, 1000, 0, 1134, [[0, '#b7c2a4'], [1, '#98a888']]); q.fillRect(900, 1000, 1200, 140); q.fillRect(-96, 1060, 560, 80);
-    q.fillStyle = 'rgba(240,242,246,.8)'; for (let i = 0; i < 30; i++) { q.beginPath(); q.ellipse(900 + R() * 1100, 1010 + R() * 120, 20 + R() * 60, 4 + R() * 6, 0, 0, TAU); q.fill(); }
-  }, 1.25);
-  const UNA_HOUSE_PROF = volcanoProfile({ cx: 1560, baseY: 700, peakY: 300, halfW: 700, craterW: 120, shoulder: [1, 0.5, 40], seed: 5 });
-  shot('un-girl', bar(41), { pre: ['una-house'] }, (g, s) => {
-    const t = s.t, lt = s.lt;
-    // 镜头放低、稍微拉开：台阶、孩子、她的脚和小黑羊都在 2.35:1 的黑边以内
-    const cam = { x: 900 + 40 * s.p, y: 800, z: 1.12 + 0.04 * s.p, ...s.handheld(131, t, 2.5) };
-    const arrive = bar(41) + BEAT * 3, kneel = bar(42);
+    q.fillStyle = '#b3c1d4'; poly(q, [...sample(-96, 900, 20, (x) => 600 - 50 * sin(x * 0.004 + 0.4) - 24 * sin(x * 0.013)), [900, 800], [-96, 800]]); q.fill();
+    paintVolcano(q, { ...PORCH_VOLC, top: '#a3aec5', base: '#909bb4', shade: 'rgba(70,80,116,.35)', gully: 'rgba(90,100,134,.5)', snow: 'rgba(245,248,252,.9)', haze: 'rgba(214,228,242,.9)', x0: 300, x1: 2016, bottom: 800 });
+  });
+  /** 门口往外看：田野、坡下村子的屋顶、院子、矮栅栏、从坡下上来的小路、三级台阶（最上面一级离镜头最近）、门廊的木柱 */
+  def('porch-near', 2112, 1188, (q) => {
+    q.translate(96, 54);
+    const R = rng(41);
+    q.fillStyle = lin(q, 0, 600, 0, 800, [[0, '#b5c6a4'], [1, '#a3b893']]); poly(q, [...sample(-96, 2016, 24, (x) => 628 + 8 * sin(x * 0.006) + 5 * sin(x * 0.017)), [2016, 1134], [-96, 1134]]); q.fill();
+    q.strokeStyle = 'rgba(120,140,100,.35)'; q.lineWidth = 2; for (let i = 0; i < 6; i++) { const y = 650 + i * 16; q.beginPath(); q.moveTo(-96, y); q.bezierCurveTo(500, y - 10, 1300, y + 14, 2016, y - 6); q.stroke(); }
+    // 坡下的村子：一排屋顶（远的小、近的大），有两栋冒着炊烟的烟囱在镜头里另画
+    const hs = [];
+    for (let i = 0; i < 11; i++) { const d = R(); hs.push({ x: -40 + i * 190 + R() * 60, y: 690 + d * 60, s: 0.7 + d * 0.45 }); }
+    hs.sort((a, b) => a.y - b.y);
+    for (const H of hs) {
+      const ww = 110 * H.s, hh = 60 * H.s, rh = 42 * H.s;
+      q.fillStyle = ['#f4efe6', '#efe6d8', '#e8e0d4'][floor(R() * 3)]; q.fillRect(H.x - ww / 2, H.y - hh, ww, hh);
+      q.fillStyle = ['#b5553f', '#5b6687', '#8a6a50', '#c96a5a'][floor(R() * 4)]; poly(q, [[H.x - ww / 2 - 8 * H.s, H.y - hh], [H.x, H.y - hh - rh], [H.x + ww / 2 + 8 * H.s, H.y - hh]]); q.fill();
+      q.fillStyle = '#6f86a8'; q.fillRect(H.x - ww * 0.28, H.y - hh * 0.62, 12 * H.s, 14 * H.s); q.fillRect(H.x + ww * 0.12, H.y - hh * 0.62, 12 * H.s, 14 * H.s);
+      q.strokeStyle = 'rgba(70,70,90,.3)'; q.lineWidth = 1.5; q.strokeRect(H.x - ww / 2, H.y - hh, ww, hh);
+    }
+    // 院子（草地，白灰还积在低处）
+    q.fillStyle = lin(q, 0, 770, 0, 1134, [[0, '#a9bd98'], [1, '#93a684']]); poly(q, [...sample(-96, 2016, 24, (x) => 772 + 6 * sin(x * 0.01)), [2016, 1134], [-96, 1134]]); q.fill();
+    // 院子的矮木栅栏（小路穿过的地方留着口）
+    q.strokeStyle = '#9a7a5c'; q.lineWidth = 6; q.lineCap = 'round';
+    for (const [a, b] of [[-96, 700], [1260, 2016]]) { q.beginPath(); q.moveTo(a, 800); q.lineTo(b, 800); q.moveTo(a, 818); q.lineTo(b, 818); q.stroke(); for (let x = a + 20; x < b; x += 64) { q.beginPath(); q.moveTo(x, 788); q.lineTo(x, 838); q.stroke(); } }
+    // 从坡下上来的小路（到台阶前变宽）
+    q.fillStyle = '#d9d2c4'; q.beginPath(); q.moveTo(1480, 772); q.bezierCurveTo(1300, 820, 1120, 860, 1000, 904); q.lineTo(560, 904); q.bezierCurveTo(820, 850, 1150, 800, 1400, 772); q.closePath(); q.fill();
+    q.fillStyle = 'rgba(240,242,246,.75)'; for (let i = 0; i < 26; i++) { q.beginPath(); q.ellipse(R() * 1920, 830 + R() * 70, 20 + R() * 60, 3 + R() * 5, 0, 0, TAU); q.fill(); }
+    for (let i = 0; i < 140; i++) { const x = R() * 1920, y = 780 + R() * 120; if (y > 880 && x > 460 && x < 1080) continue; q.strokeStyle = ['#7f9f6a', '#6a8a5a', '#98b884'][i % 3]; q.lineWidth = 2.5; q.beginPath(); q.moveTo(x, y); q.lineTo(x + (R() - 0.5) * 8, y - 8 - R() * 12); q.stroke(); }
+    // 台阶（从门口往下看：最上面一级离镜头最近，下面两级越来越远、越来越窄）
+    q.fillStyle = '#aaa294'; q.fillRect(470, 900, 600, 26);
+    q.fillStyle = '#bdb5a8'; q.fillRect(410, 926, 720, 34);
+    q.fillStyle = lin(q, 0, 960, 0, 1140, [[0, '#d3ccbf'], [1, '#bfb7a9']]); q.fillRect(310, 960, 920, 180);
+    q.strokeStyle = 'rgba(90,80,70,.22)'; q.lineWidth = 3; for (const x of [560, 800, 1010]) { q.beginPath(); q.moveTo(x, 962); q.lineTo(x + (x - 770) * 0.25, 1140); q.stroke(); } q.beginPath(); q.moveTo(310, 1050); q.lineTo(1230, 1050); q.stroke();
+    for (let i = 0; i < 40; i++) { q.fillStyle = 'rgba(120,110,95,.12)'; q.beginPath(); q.ellipse(330 + R() * 880, 970 + R() * 160, 6 + R() * 18, 2 + R() * 4, 0, 0, TAU); q.fill(); }
+    q.fillStyle = 'rgba(255,255,255,.35)'; q.fillRect(470, 900, 600, 3); q.fillRect(410, 926, 720, 3); q.fillRect(310, 960, 920, 4);
+    q.fillStyle = 'rgba(60,50,40,.18)'; q.fillRect(470, 923, 600, 3); q.fillRect(410, 957, 720, 3);
+    // 门廊的木柱（画面两边，最近、背光）
+    q.fillStyle = '#6e5442'; q.fillRect(-96, -54, 110, 1188); q.fillRect(1906, -54, 110, 1188);
+    q.fillStyle = 'rgba(255,236,210,.25)'; q.fillRect(10, -54, 4, 1188); q.fillRect(1906, -54, 4, 1188);
+  });
+  /** 两个小女孩镜头共用的背景：天 → 云 → [mid.sky：极光] → 远山与火山（视差 0.6；[mid.far：山坡变绿 / 白烟]） */
+  function porchBg(g, s, cam, mid) {
+    sky(g, s, 'sky-una');
+    s.layer(g, cam, 0.15, (q) => { q.drawImage(C(s, 'cl-b'), 150 - s.lt * 6, 60, 600, 300); q.drawImage(C(s, 'cl-c'), 1450 - s.lt * 5, 120, 460, 214); });
+    if (mid && mid.sky) s.layer(g, cam, 0.3, mid.sky);
+    s.layer(g, cam, 0.6, (q) => { q.drawImage(C(s, 'porch-far'), -96, -54, 2112, 1188); if (mid && mid.far) mid.far(q); });
+  }
+  shot('un-girl', bar(41), { pre: ['sky-una', 'porch-far', 'porch-near', 'plume', 'cl-b', 'cl-c'] }, (g, s) => {
+    const t = s.t, p = s.p;
+    const cam = { x: 950 + 30 * p, y: 585, z: 1.03 + 0.05 * ease.inOut(p), ...s.handheld(131, t, 2.5) };
+    const arrive = bar(41) + BEAT * 3, hi = bar(42), lookUp = t > bar(42) + BEAT * 2;
+    porchBg(g, s, cam, { far: (q) => { q.globalAlpha = 0.85; q.drawImage(C(s, 'plume'), PORCH_VOLC.cx - 560 - sin(t * 0.3) * 8, PORCH_VOLC.peakY - 660, 700, 700); q.globalAlpha = 1; } });
     s.layer(g, cam, 1, (q) => {
-      q.drawImage(C(s, 'una-house'), -96, -54, 2112, 1188);
-      q.fillStyle = '#98a888'; q.fillRect(-96, 1130, 2112, 160); // 镜头放低以后画布下沿再铺一截地面
-      const lookUp = t > bar(42) + BEAT * 2;
-      girl(q, 690, 985, 340, 'hug', t, { look: lookUp ? 1 : 0, smile: t > bar(42) + BEAT * 1 });
-      // 小黑羊从左边一路小跑过来（跑步的步频配合速度），跳上台阶，拿头去蹭孩子（先画：在她们身后一点）
-      const run0 = bar(41) + 0.3, hop0 = bar(41) + 2.0, hop1 = hop0 + 0.36;
-      const vS = gaitSpeed('sheep-black', { h: 90, pose: 'run', speed: 2.8 }, 180);
+      q.drawImage(C(s, 'porch-near'), -96, -54, 2112, 1188);
+      // 她沿着小路走上来（官方小人；越走越近、稍微变大；按步幅算速度，脚底不打滑），停在台阶下面，朝孩子挥手；
+      // 然后转过身去（官方小人的背面站姿），和孩子一起看那座山
+      const A0 = [1400, 800], A1 = [1010, 892], LA = hypot(A1[0] - A0[0], A1[1] - A0[1]);
+      const v = gaitSpeed('adele-alter', { h: 320, pose: 'walk', speed: STEP_SPD }, 110), u = 1 - max(0, arrive - t) * v / LA;
+      const ax = lerp(A0[0], A1[0], u), ay = lerp(A0[1], A1[1], u), ah = lerp(290, 330, clamp(u));
+      const pose = t < arrive ? 'walk' : t < hi || lookUp ? 'stand' : 'wave';
+      adele(q, { x: ax, y: ay, h: ah, pose, view: lookUp ? 'back' : undefined, t: t < arrive ? s.beat * BEAT : t, speed: STEP_SPD, flip: !lookUp, expr: 'smile', look: [-1, 0.1], wind: 0.25, shadow: 0.18 });
+      // 小黑羊跑在她前面，跳上第二级台阶，拿头去蹭孩子的胳膊
+      const run0 = bar(41) + 0.2, hop0 = bar(41) + 1.9, hop1 = hop0 + 0.36;
+      const B0 = [1330, 822], B1 = [900, 910], LB = hypot(B1[0] - B0[0], B1[1] - B0[1]);
+      const vS = gaitSpeed('sheep-black', { h: 84, pose: 'run', speed: 2.8 }, 180);
       if (t < hop0) {
-        const sx = 470 - max(0, hop0 - max(t, run0)) * vS;
-        cast(q, 'sheep-black', { shadow: 0.2, x: sx, y: 1066, h: 90, pose: t < run0 ? 'stand' : 'run', t, speed: 2.8 });
+        const w = 1 - max(0, hop0 - max(t, run0)) * vS / LB;
+        cast(q, 'sheep-black', { shadow: 0.2, x: lerp(B0[0], B1[0], w), y: lerp(B0[1], B1[1], w), h: lerp(76, 84, clamp(w)), pose: t < run0 ? 'stand' : 'run', t, speed: 2.8, flip: true });
       } else if (t < hop1) {
-        const k = (t - hop0) / (hop1 - hop0), sy = lerp(1066, 983, k) - sin(PI * k) * 60;
-        cast(q, 'sheep-black', { shadow: 0.2, shadowY: lerp(1066, 983, k), x: lerp(470, 585, k), y: sy, h: 90, pose: 'jump', air: 0, t });
-      } else cast(q, 'sheep-black', { shadow: 0.2, x: 585, y: 983, h: 90, pose: t < hop1 + BEAT * 2 ? 'push' : 'stand', t });
-      // 她走过来（官方小人；按角色库的步幅算速度，脚底不打滑），在第二级台阶上站定，
-      // 然后坐下来、坐得比孩子低一级 —— 两个人差不多一样高；最后一起看向那座山
-      const v = gaitSpeed('adele-alter', { h: 430, pose: 'walk', speed: STEP_SPD }, 125);
-      const SX = 905, ax = SX + max(0, arrive - t) * v, pose = t < arrive ? 'walk' : t < kneel ? 'stand' : 'sit';
-      // 坐姿：座面 = 第二级台阶的上沿（y 1022），小腿垂在台阶前面、脚落在最下面一级上（官方小人的 Sit：脚比座面低约 0.26 个身高）
-      const sitY = 1022 + 0.263 * 430;
-      adele(q, { x: ax, y: pose === 'sit' ? sitY : 1030, seat: pose === 'sit' ? sitY - 1022 : undefined, h: 430, pose, t: t < arrive ? s.beat * BEAT : t, speed: STEP_SPD, flip: !lookUp, expr: lookUp ? 'content' : 'smile', look: lookUp ? [1, -0.3] : [-1, 0.2], wind: 0.25 });
+        const k = (t - hop0) / (hop1 - hop0), sy = lerp(910, 944, k) - sin(PI * k) * 46;
+        cast(q, 'sheep-black', { shadow: 0.2, shadowY: lerp(910, 944, k), x: lerp(900, 856, k), y: sy, h: 86, pose: 'jump', air: 0, t, flip: true });
+      } else cast(q, 'sheep-black', { shadow: 0.2, x: 856, y: 944, h: 86, pose: t < hop1 + BEAT * 2 ? 'push' : 'stand', t, flip: true });
+      // 孩子：坐在最上面一级台阶上抱着膝盖（背影，离镜头最近），低着头 → 抬头看山
+      girl(q, 690, 1012, 450, 'hug', t, { view: 'back', headPose: lookUp ? 'up' : 'down' });
     });
     ashfall(g, t, { n: 40, seed: 131, vy: 36, vx: 10, s0: 1.5, s1: 5, a: 0.7 });
     vigS(g, s, 0.3);
@@ -4115,32 +4147,35 @@
     vigS(g, s, 0.3);
   });
 
-  // 46 · 小女孩 —— 村子里：孩子站起来，看着天上的光和山坡上开出的花，用力朝山上挥手
-  shot('fx-girl', bar(112), { pre: ['una-house'] }, (g, s) => {
-    const t = s.t, lt = s.lt, p = s.p;
-    // 近一点：孩子在画面左边，右边是那座开满花的山、山上那一点预警花的光
-    const cam = { x: 1040 + 30 * p, y: 760 - 30 * p, z: 1.45 + 0.05 * p, ...s.handheld(491, t, 3) };
+  // 46 · 小女孩 —— 同一个门口（反打）：孩子站起来，背对着我们朝山上用力挥手；天上是极光的余韵，山坡从上往下变绿，院子里开出花
+  shot('fx-girl', bar(112), { pre: ['sky-una', 'porch-far', 'porch-near', 'cl-b', 'cl-c'] }, (g, s) => {
+    const t = s.t, p = s.p;
+    const cam = { x: 960 + 20 * p, y: 570 - 20 * p, z: 1.04 + 0.05 * ease.inOut(p), ...s.handheld(491, t, 3) };
+    const front = 230 + 420 * ease.out(p);
+    porchBg(g, s, cam, {
+      sky: (q) => aurora(q, t, 0.55, { dy: -170 }),
+      far: (q) => {
+        // 山坡从上往下变绿（贴着火山的轮廓）；山腰上那一点预警花的光
+        q.save(); q.beginPath(); q.moveTo(300, 800); for (let x = 300; x <= 2016; x += 20) q.lineTo(x, PORCH_PROF(x)); q.lineTo(2016, 800); q.closePath(); q.clip();
+        q.fillStyle = 'rgba(130,180,110,.45)'; q.fillRect(300, 180, 1716, front - 180);
+        q.restore();
+        E.glow(q, 1400, PORCH_PROF(1400) + 70, 26 + 10 * s.pulse(3), '255,150,190', 0.95);
+      },
+    });
     s.layer(g, cam, 1, (q) => {
-      q.drawImage(C(s, 'una-house'), -96, -54, 2112, 1188);
-      q.fillStyle = '#98a888'; q.fillRect(-96, 1130, 2112, 160); // 画布下沿再铺一截地面（开场镜头最低时手持漂移也不露底）
-      // 天上的极光余韵 + 山坡变绿 + 山上的一点光（预警花）
-      q.save(); q.beginPath(); q.rect(1004, -54, 1200, 760); q.clip();
-      aurora(q, t, 0.55, { x0: 1000, x1: 2100, n: 30, dy: -140 });
-      q.restore();
-      // 山坡从上往下变绿（贴着火山的轮廓）
-      const gk = ease.out(p), front = 300 + 420 * gk;
-      q.save(); q.beginPath(); q.moveTo(1004, 700);
-      for (let x = 1004; x <= 2100; x += 20) q.lineTo(x, max(UNA_HOUSE_PROF(x), 0));
-      q.lineTo(2100, 700); q.closePath(); q.clip();
-      q.fillStyle = 'rgba(130,180,110,.42)'; q.fillRect(1004, 280, 1100, front - 280);
-      q.restore();
-      E.glow(q, 1480, 520, 30 + 12 * s.pulse(3), '255,150,190', 0.95);
-      // 院子里开出的花（踩着拍子一簇簇冒出来）
-      for (let i = 0; i < 40; i++) { const tb = bar(112) + floor(hash(492, i, 1) * 8) * BEAT * 0.5, k = ease.back(clamp((t - tb) / 0.5)); if (k <= 0) continue; const x = 560 + hash(492, i, 2) * 1300, y = 1010 + hash(492, i, 3) * 110, sz = 46 * k * (0.7 + (y - 1000) / 300); const [pc, mc] = BLOOM_COLS[i % BLOOM_COLS.length]; q.drawImage(flowerSpr(pc, mc), x - sz / 2, y - sz, sz, sz); }
+      q.drawImage(C(s, 'porch-near'), -96, -54, 2112, 1188);
+      // 院子里开出的花（踩着拍子一簇簇冒出来；远的小、近的大；台阶上不长）
+      for (let i = 0; i < 48; i++) {
+        const tb = bar(112) + floor(hash(492, i, 1) * 8) * BEAT * 0.5, k = ease.back(clamp((t - tb) / 0.5)); if (k <= 0) continue;
+        const x = 40 + hash(492, i, 2) * 1840, y = 792 + hash(492, i, 3) * 120; if (y > 880 && x > 380 && x < 1160) continue;
+        const sz = 42 * k * (0.55 + (y - 780) / 220), [pc, mc] = BLOOM_COLS[i % BLOOM_COLS.length]; q.drawImage(flowerSpr(pc, mc), x - sz / 2, y - sz, sz, sz);
+      }
+      // 小黑羊在第二级台阶上蹦
+      const hop = abs(sin(s.beat * PI)) * 30;
+      cast(q, 'sheep-black', { shadow: 0.2, shadowY: 944, x: 880, y: 944 - hop, h: 84, pose: 'jump', t: t * 1.2, flip: true });
+      // 孩子（背影）：先抱着膝盖坐着望向山，在拍子上站起来，举起两只手朝山上挥
       const st = t > bar(112) + BEAT * 2;
-      girl(q, 800, 1010, 330, st ? 'wave' : 'hug', t, { look: 1, smile: true });
-      const hop = abs(sin((s.beat) * PI)) * 36;
-      cast(q, 'sheep-black', { shadow: 0.2, shadowY: 1016, x: 1010, y: 1016 - hop, h: 84, pose: 'jump', t: t * 1.2, flip: true });
+      girl(q, 700, st ? 1044 : 1012, st ? 470 : 450, st ? 'wave' : 'hug', t, { view: 'back', headPose: 'up' });
     });
     petals(g, t, { n: 20, seed: 493, vy: 60, vx: 40, s0: 14, s1: 26 });
     vigS(g, s, 0.3);

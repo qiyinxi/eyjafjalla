@@ -79,11 +79,10 @@ window.MVP = (() => {
       ],
       cast: [
         { who: 'adele-child', o: { outfit: 'school', prop: 'satchel' }, role: '主角 · 十来岁的小学者' },
-        { who: 'katia', o: { outfit: 'suit' }, role: '父亲' },
-        { who: 'magna', o: { outfit: 'home' }, role: '母亲' },
-        { who: 'fontaine', role: '同学' },
-        { who: 'liese', o: { prop: 'cello' }, role: '同学（本页原创）' },
-        { who: 'sheep-black', role: '一高兴就发烫' },
+        { who: 'katia', o: { outfit: 'suit', view: 'back', sil: '#2a1c28', rim: '255,206,160', rimW: 1.1 }, role: '父亲' },
+        { who: 'magna', o: { outfit: 'home', view: 'back', sil: '#2a1c28', rim: '255,206,160', rimW: 1.1 }, role: '母亲' },
+        { who: 'fontaine', role: '同一位教授课上的同学' },
+        { who: 'sheep-black', o: { heat: 0.6 }, role: '叼走录音机的小黑羊' },
       ],
     },
     {
@@ -121,8 +120,8 @@ window.MVP = (() => {
         { who: 'keller', role: '收信的凯勒老师' },
         { who: 'doctor', role: '她口中的“前辈”' },
         { who: 'sheep-pink', o: { glow: 0.8 }, role: '夜里为她引路' },
-        { who: 'magna', o: { outfit: 'field' }, role: '母亲（回忆）' },
-        { who: 'katia', o: { outfit: 'field' }, role: '父亲（回忆）' },
+        { who: 'magna', o: { outfit: 'field', sil: '#6a5a6e', rim: '255,236,214', rimGlow: 0.25 }, role: '母亲（回忆）' },
+        { who: 'katia', o: { outfit: 'field', sil: '#5a5064', rim: '255,236,214', rimGlow: 0.25 }, role: '父亲（回忆）' },
       ],
     },
     {
@@ -153,10 +152,10 @@ window.MVP = (() => {
         '天黑了。它们顶着装满剩下汽水的 7 号货箱穿过灯笼街，敲响火山博物馆的门，一溜烟钻进箱子。门开了，她只看见一只嗡嗡冒泡的货箱——那天深夜，它在博物馆里翻倒了。',
       ],
       cast: [
-        { who: 'sheep-pink', o: { bow: '#ff4f8f' }, role: '带头的小羊（系蝴蝶结）' },
-        { who: 'sheep-pink', o: { bell: true }, role: '一走就响的铃铛' },
-        { who: 'sheep-pink', o: { glasses: true }, role: '会看压力表的“工程师”' },
-        { who: 'eff-vendor', role: '汽水摊老板（本片原创）' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1350_mgcshp' }, role: '带头的小羊（巫师帽的“星术师”）' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1347_fyshp' }, role: '会看压力表的“工程师”（竹蜻蜓 + 护目镜）' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1344_ddlamb' }, role: '顶着交通锥的小羊们' },
+        { who: 'snowsant', role: '汽水摊的店主（雪雉）' },
         { who: 'adele-alter', o: { outfit: 'coat' }, role: '收到一箱会冒泡的货' },
       ],
     },
@@ -170,7 +169,7 @@ window.MVP = (() => {
   // 编号顺序：连播、上一部 / 下一部、“从第一部连播”都按它走（I → II → III → 番外 IV → V）
   const CHRONO = FILMS.map((f) => f.id);
   const LAST_MAIN = FILMS.filter((f) => !f.extra).pop().id;
-  const NAMES = { 'adele-child': '阿黛尔（童年）', 'adele-caster': '艾雅法拉', 'adele-alter': '纯烬艾雅法拉', magna: '玛格娜', katia: '卡提亚', fontaine: '芳汀', liese: '莉瑟', keller: '阿黛尔·凯勒', dolly: '多利', 'sheep-black': '小黑羊', 'sheep-pink': '粉色小羊', doctor: '博士', crowd: '路人', 'eff-vendor': '老板' };
+  const NAMES = { 'adele-child': '阿黛尔（童年）', 'adele-caster': '艾雅法拉', 'adele-alter': '纯烬艾雅法拉', magna: '玛格娜', katia: '卡提亚', fontaine: '芳汀', liese: '莉瑟', keller: '阿黛尔·凯勒', dolly: '多利', 'sheep-black': '小黑羊', 'sheep-pink': '粉色小羊', doctor: '博士', crowd: '路人', 'eff-vendor': '老板', snowsant: '雪雉' };
   const COPY = {
     head: {
       base: '为五首歌创作的五支原创 MV，同一个世界、同一个主题：三部曲「她的三个夏天」，外加两支发生在汐斯塔的番外。术师篇先放映第一部「夏天之前」。可以拖动、跳章节、全屏观看，也能导出成视频。',
@@ -1368,6 +1367,10 @@ window.MVP = (() => {
         const po = Object.assign({ x: PW / 2, y: PH + 2, h: PH * 0.74, t: 1.3, pose: 'stand', expr: 'smile', look: [0.3, -0.05] }, c.o || {}, { crop: 'bust' });
         try { E.cast.draw(pg, c.who, po); } catch (e) { return null; }
         return toUrl(pc, 'image/png');
+      }
+      // 用官方模型的小羊 / 多利（o.sd）：先把模型载好，不然这一次会画成手绘版
+      if (E.sd && E.sd.decide && c.o && c.o.sd) {
+        try { const dd = E.sd.decide(c.who, Object.assign({ pose: 'stand' }, c.o)); if (dd && dd.key) { await E.sd.load(dd.key, 12000); if (E.sd.frame) E.sd.frame('figure:' + key); } } catch (e) { /* 退回手绘 */ }
       }
       const W = 420, H = 520, cv = E.mk(W, H), g = cv.getContext('2d', { willReadFrequently: true });
       const o = Object.assign({ x: W / 2, y: H - 24, h: c.who === 'dolly' ? 150 : sheep ? 150 : 420, t: 1.3, pose: 'stand', expr: 'smile', look: [0.3, 0] }, c.o || {});

@@ -4209,11 +4209,11 @@
       roofScene(g, s, cam, { gold: 0.5, far: (q) => roofJets(q, s, t, 0.5), near: (q) => roofJets(q, s, t, 0.85), mid: (q) => roofJets(q, s, t, 1) });
       g.fillStyle = 'rgba(255,236,220,0.12)'; g.fillRect(0, 0, VW, VH);
       const dr = sin(t * 0.8) * 6, bump = ck > 0 && ck < 0.25 ? sin(PI * ck / 0.25) * 14 : 0;
-      const cx = 1065 + dr, cy = 429;   // 瓶口相碰的点：她的瓶子下半截正好握在立绘抬起的那只手里
-      // 她的瓶子（画在立绘后面：她举起的手正好握着瓶身）
-      const r = 0.45, bh = 400, bx = cx - sin(r) * bh * 0.92, by = cy + cos(r) * bh * 0.92;
-      bottle(g, s, bx, by, bh, r, { fl: 'pink', cap: false, fill: 0.7 });
+      const cx = 1000 + dr, cy = 420;   // 瓶口相碰的点
       snowCard(g, s, { x: 640 + dr, y: 1150, h: 1150, crop: 'bust', expr: [[s.shot.t0 - 1, 10], [s.shot.t0 + 0.06, 11]], xfade: 0.12 });
+      // 她的瓶子：画在立绘前面，瓶身下半截正好压在她抬起的那只手上（像握着）
+      const r = 0.6, bh = 400, bx = cx - sin(r) * bh * 0.92, by = cy + cos(r) * bh * 0.92;
+      bottle(g, s, bx, by, bh, r, { fl: 'pink', cap: false, fill: 0.7 });
       // 小羊和它的瓶子
       const lr = -0.62, lh = 330, lbx = cx - sin(lr) * lh * 0.92 + bump, lby = cy + cos(lr) * lh * 0.92;
       bottle(g, s, lbx, lby, lh, lr, { fl: 'mint', cap: false, fill: 0.7 });
@@ -5052,9 +5052,9 @@
   const captions = [
     [7.3, 10.7, '下午两点。汐斯塔热得冒泡。'],
     [18.3, 21.5, '谁也看不见它们——除了你。'],
-    [51.9, 55.5, '老板只看见：汽水自己飘走了。'],
+    [51.9, 55.5, '雪雉只看见：汽水自己飘走了。'],
     [106.9, 110.7, '从天上看，汐斯塔像一瓶刚摇过的汽水。'],
-    [143.3, 147.1, '那天下午，老板对着空气干了一杯。'],
+    [143.3, 147.1, '那天下午，雪雉对着空气干了一杯。'],
     [160.3, 163.9, '剩下的汽水，要送给一个人。'],
   ];
 
@@ -5069,16 +5069,16 @@
       form: 'alter', era: '番外 · 汐斯塔的下午',
       logline: '汐斯塔最热的那个下午，一群谁也看不见的粉色小羊，盯上了海边的汽水摊。',
       synopsis: [
-        '汐斯塔最热的那个下午。海边汽水摊的老板在遮阳篷下打盹，冰柜里的汽水瓶在太阳下冒汗——热浪里，浮出一个粉色的小鼻子。',
-        '一群谁也看不见的粉色小羊踮着脚溜过老板，叠成一座“羊塔”打开工坊的门，拉下了灌装机的拉杆。流水线一拍一个瓶盖，小羊们偷喝、打嗝、把瓶子排成队运走；老板只看见汽水自己飘走。',
+        '汐斯塔最热的那个下午。在海边看汽水摊的雪雉在遮阳篷下的长凳上午睡，冰柜里的汽水瓶在太阳下冒汗——热浪里，浮出一个粉色的小鼻子。',
+        '一群谁也看不见的粉色小羊踮着脚溜过睡着的店主，叠成一座“羊塔”打开工坊的门，拉下了灌装机的拉杆。流水线一拍一个瓶盖，小羊们偷喝、打嗝、把瓶子排成队运走；雪雉只看见汽水自己飘走。',
         '压力表爬进红区，“砰”——粉色的汽水喷泉冲破屋顶。它们踩着泡沫冲浪，骑着摇过的汽水瓶飞上天，掠过港口和集市，在白色的屋顶上开了一场汽水派对。',
         '天黑了。它们顶着装满剩下汽水的 7 号货箱穿过灯笼街，敲响火山博物馆的门，一溜烟钻进箱子。门开了，她只看见一只嗡嗡冒泡的货箱——那天深夜，它在博物馆里翻倒了。',
       ],
       cast: [
-        { who: 'sheep-pink', o: { bow: '#ff4f8f' }, role: '带头的小羊（系蝴蝶结）' },
-        { who: 'sheep-pink', o: { bell: true }, role: '一走就响的铃铛' },
-        { who: 'sheep-pink', o: { glasses: true }, role: '会看压力表的“工程师”' },
-        { who: 'eff-vendor', role: '汽水摊老板（本片原创）' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1350_mgcshp', bow: '#ff4f8f' }, role: '带头的小羊（巫师帽的“星术师”）' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1347_fyshp', glasses: true }, role: '会看压力表的“工程师”（竹蜻蜓 + 护目镜）' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1344_ddlamb' }, role: '顶着交通锥的小羊们' },
+        { who: 'snowsant', role: '汽水摊的店主（雪雉）' },
         { who: 'adele-alter', o: { outfit: 'coat' }, role: '收到一箱会冒泡的货' },
       ],
       poster: 128.9, thumbs: [37.5, 88.4, 140.2, 171.8], accent: '#ff7fb6',

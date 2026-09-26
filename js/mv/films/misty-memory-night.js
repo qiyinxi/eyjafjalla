@@ -4405,15 +4405,14 @@
     const k = ease.inOut(clamp(lt / 4.2));
     const cam = { x: lerp(1060, 1120, k), y: 590, z: lerp(1.3, 1.36, k), ...hand(s, 105, 2, 0.2) };
     const fall = ease.inOut(clamp((lt - 1.3) / 1.3));
-    // 她还坐在书桌前睡着（官方小人的坐姿：闭着眼），梦里那件外套披在肩上；凯勒把一条小毯子盖到她肩上
+    // 她还坐在书桌前睡着（官方小人的坐姿：闭着眼）；凯勒把一条小毯子盖到她肩上
     const ao = { x: RM.adele[0], y: RM.adele[1], h: 560, pose: 'sit', outfit: 'home', expr: 'closed', desk: RM.adele[1] - RM.desk[2] + 6, seat: RM.seat, t };
     const back = anchor('adele-alter', ao, 'chest', [RM.adele[0] - 30, 700]);
     room(g, s, cam, {
       morning: true, key: 'm', base: { x: 1090, y: 590, z: 1.33 }, res: 1.05, noCrate: false, coatGone: true,
       crate: { tip: 1, lidAt: 'rest' },
       adele: ao,
-      // 披在肩上的外套（在她身后：领口在肩颈处，两边露出肩和袖子）
-      behind: (q) => coatHang(q, t, { C: [back[0], back[1] - 70], L: 330, face: -1, flap: 0.05, seed: 21, cuffs: [[back[0] - 190, back[1] + 150], [back[0] + 190, back[1] + 150]] }),
+      // （梦里那件外套在毯子下面：下一个镜头她坐起来、毯子滑下去，才看到她穿着它）
       onAdele: (q) => { if (fall > 0) blanket(q, back[0], back[1] - 20, t, fall, 300); },
       onDesk: (q) => {
         bottle(q, s, 1440, RM.desk[2] - 4, 120, 0); fizz(q, t, { t0: s.shot.t0 - 2, x: 1440, y: RM.desk[2] - 118, n: 16, dur: 12, speed: 30, r: 3.5, rise: 40, life: 2.4, spread: 0.3, seed: 401 }); labelCard(q, 1238, RM.desk[2] - 8, 0.9, s, 1, { hoof: true });

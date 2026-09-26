@@ -987,6 +987,7 @@ void main(){
   const CAST = {
     'adele-alter': { models: { coat: 'char_1016_agoat2', picnic: 'char_1016_agoat2_epoque_34', home: 'char_1016_agoat2_epoque_57' }, outfit: 'coat', back: true },
     'adele-caster': { models: { default: 'char_180_amgoat' }, outfit: 'default', back: true },
+    snowsant: { models: { default: 'char_383_snsant' }, outfit: 'default', any: true }, // 雪雉（第五部的汽水摊店主；播放器的人物小像也用它）
     'adele-child': { models: { default: 'char_180_amgoat' }, outfit: 'default', any: true }, // 童年：用官方艾雅法拉小人（用户的决定），不管 school / summer / pajama
     fontaine: { models: { default: 'char_271_spikes' }, outfit: 'default', any: true }, // 芳汀 = 干员 char_271_spikes
     dolly: { kind: 'dolly', enemies: ['enemy_1545_shpkg'], optIn: true },
@@ -1015,7 +1016,7 @@ void main(){
   const INTERACT_NOT_WAVE = { char_180_amgoat: 1 };
   const RUNK = 1.75; // 跑 = 加快的 Move（角色库不可用时）
   /** 角色库不可用时的步速（身高 / 秒） */
-  const CANON = { 'adele-alter': 0.5, 'adele-caster': 0.5, 'adele-child': 0.5, fontaine: 0.5, dolly: 0.35, 'sheep-pink': 1.2 };
+  const CANON = { snowsant: 0.5, 'adele-alter': 0.5, 'adele-caster': 0.5, 'adele-child': 0.5, fontaine: 0.5, dolly: 0.35, 'sheep-pink': 1.2 };
   const castOn = { dolly: false, 'sheep-pink': false };
   const log = [];
   let lastW = null, lastO = null, lastD = null, quiet = 0, lastLog = null;
@@ -1071,6 +1072,8 @@ void main(){
     const anim = spec && spec.anim ? spec.anim : POSE_E[C.kind][pose];
     if (!anim) return { why: 'pose:' + pose };
     let i = 0;
+    // 直接点名一只不在默认列表里的官方敌人模型（如 'enemy_1347_fyshp' 竹蜻蜓小羊）：不改动按 seed 挑选的分布
+    if (typeof o.variant === 'string' && /^enemy_\w+$/.test(o.variant) && C.enemies.indexOf(o.variant) < 0) return { key: o.variant, anim, kind: C.kind, air: pose === 'jump' || pose === 'bounce', spec, rate: spec && spec.speed, run: pose === 'run' };
     if (o.variant != null) { const v = C.enemies.indexOf(o.variant); i = v >= 0 ? v : Math.abs(o.variant | 0) % C.enemies.length; }
     else if (o.seed != null) i = Math.floor(E.hash(o.seed | 0, 77) * C.enemies.length);
     return { key: C.enemies[i], anim, kind: C.kind, air: pose === 'jump' || pose === 'bounce', spec, rate: spec && spec.speed, run: pose === 'run' };
@@ -1183,7 +1186,8 @@ void main(){
       quiet++;
       try {
         const g0 = C.gait(who, Object.assign({}, o, { sd: false }));
-        if (g0 && g0.speed > 1) return g0.speed;
+        // 影片按距离锁定步相时 speed 可以很小（例如 dist / (g1 · 绝对 t)）：只要给了正数就照用，不退回 CANON
+        if (g0 && g0.speed > 1e-6) return g0.speed;
       } catch (e) { /* 用估计值 */ } finally { quiet--; }
     }
     const h = o.h > 0 ? o.h : 300, k = o.speed > 0 ? o.speed : 1;
