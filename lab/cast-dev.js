@@ -562,7 +562,7 @@
           jacket: { c: '#1e2029', sh: '#14161c', open: 0.12, len: 0.2, pockets: true, lining: '#14161c', teal: '#3ac8c8', badge: '#e88a3a' },
           pants: { c: '#23242e', w: [6.4, 5.4] },
           shoes: { c: '#1a1a20', sole: '#0c0c10', type: 'boot' },
-          hood: { c: '#1e2029', sh: '#101218', face: '#0b0c12', visor: 1 },
+          hood: { c: '#1e2029', sh: '#101218', face: '#0b0c12', visor: 1, k: 0.86 },
         },
       },
     },
@@ -1621,7 +1621,7 @@
       let c1, c2;
       if (pn.high) { hproj(H, 0, pn.y - 0.2, -1.25, T3b); hproj(H, 0, pn.len * 0.6, -1.25, T3c); }
       else if (pn.low) { hproj(H, 0, pn.y + 0.35, -1.1, T3b); hproj(H, 0, pn.len, -0.95, T3c); }
-      else { const sd = pn.psi >= 0 ? 1 : -1; hproj(H, sd * 1.62, pn.y + 0.1, 0.05, T3b); hproj(H, sd * 1.4, pn.len, -0.35, T3c); }
+      else { const sd = pn.psi >= 0 ? 1 : -1; hproj(H, sd * 1.46, pn.y + 0.15, -0.15, T3b); hproj(H, sd * 1.22, pn.len, -0.55, T3c); }
       c1 = [T3b[0], T3b[1]]; c2 = [T3c[0], T3c[1]];
       const n = 3;
       for (let k = 0; k < n; k++) {
@@ -2382,6 +2382,11 @@
   }
   /** 兜帽（戴上时）：尖顶、向下垂的帽身；博士的兜帽有一道面罩 */
   function drawHoodUp(D, H, hc, inner) {
+    const k = hc.k || 1;
+    if (k === 1) return drawHoodUp0(D, H, hc, inner);
+    D.g.save(); D.g.translate(0, (1 - k) * 0.5); D.g.scale(k, k); drawHoodUp0(D, H, hc, inner); D.g.restore();
+  }
+  function drawHoodUp0(D, H, hc, inner) {
     const g = D.g, sy = H.sy;
     const bx = -0.1 * sy, pk = -0.28 * sy;
     const fx = 0.42 * sy, rx = 0.8 - 0.3 * abs(sy);
@@ -3312,7 +3317,7 @@
       for (let i = 0; i < N; i++) {
         const u = i / (N - 1);
         xs[i] = Q2[0] + D.clothX * 1.1 * u * u + 0.7 * sin(P.t * 2.1 + sg + u * 3) * u + (P.mv ? 0.6 * sin(2 * P.ph - u * 2 + sg) * u : 0);
-        ys[i] = Q2[1] + len * u * (1 - abs(D.clothX) * 0.01 * u);
+        ys[i] = min(P.lie ? 1e9 : -0.5, Q2[1] + len * u * (1 - abs(D.clothX) * 0.01 * u));
       }
       g.lineCap = 'round';
       g.beginPath(); smooth(g, xs, ys, N, false);
@@ -3497,7 +3502,7 @@
     for (let i = 0; i < N; i++) {
       const u = i / (N - 1);
       xs[i] = x0 + D.clothX * 0.9 * u * u * 1.4 + 0.8 * sin(D.P.t * 2.2 + k + u * 3) * u + (D.P.mv ? 0.6 * sin(2 * D.P.ph - u * 2 + k) * u : 0);
-      ys[i] = y0 + len * u * (1 - abs(D.clothX) * 0.01 * u);
+      ys[i] = min(D.P.lie ? 1e9 : -0.5, y0 + len * u * (1 - abs(D.clothX) * 0.01 * u));
     }
     g.beginPath(); smooth(g, xs, ys, N, false);
     g.lineCap = 'round';

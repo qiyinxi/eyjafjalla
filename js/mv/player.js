@@ -144,16 +144,20 @@ window.MVP = (() => {
     },
     {
       id: 'effervescence', n: 5, extra: true, cn: '汽水', en: 'Effervescence', artists: '塞壬唱片-MSR / Kirara Magic',
-      form: 'alter', era: '番外 · 汐斯塔的下午', dur: 179.7, accent: '#ff9ad5', poster: 0.6,
-      logline: '汐斯塔最热的一个下午。一群谁也看不见的粉色小羊，盯上了海边的汽水铺。',
+      form: 'alter', era: '番外 · 汐斯塔的下午', dur: 179.7, accent: '#ff7fb6', poster: 128.9,
+      logline: '汐斯塔最热的那个下午，一群谁也看不见的粉色小羊，盯上了海边的汽水摊。',
       synopsis: [
-        '海边汽水铺的老板只看见瓶子自己飘了起来，瓶盖一个接一个地弹开。',
-        '小羊们叠成一座塔去够机器的拉杆，灌装线失了控，泡沫从铺子里一路涌上了街：冲浪、骑着汽水瓶飞过港口、屋顶上的气泡烟花。',
-        '闹够了，它们挤进一只写着 SIESTA 的木箱睡着了。夜里，博物馆的门被轻轻敲响——那天夜里的梦，就从这只箱子开始。',
+        '汐斯塔最热的那个下午。海边汽水摊的老板在遮阳篷下打盹，冰柜里的汽水瓶在太阳下冒汗——热浪里，浮出一个粉色的小鼻子。',
+        '一群谁也看不见的粉色小羊踮着脚溜过老板，叠成一座“羊塔”打开工坊的门，拉下了灌装机的拉杆。流水线一拍一个瓶盖，小羊们偷喝、打嗝、把瓶子排成队运走；老板只看见汽水自己飘走。',
+        '压力表爬进红区，“砰”——粉色的汽水喷泉冲破屋顶。它们踩着泡沫冲浪，骑着摇过的汽水瓶飞上天，掠过港口和集市，在白色的屋顶上开了一场汽水派对。',
+        '天黑了。它们顶着装满剩下汽水的 7 号货箱穿过灯笼街，敲响火山博物馆的门，一溜烟钻进箱子。门开了，她只看见一只嗡嗡冒泡的货箱——那天深夜，它在博物馆里翻倒了。',
       ],
       cast: [
-        { who: 'sheep-pink', o: { glow: 0.8 }, role: '主角们 · 谁也看不见' },
-        { who: 'adele-alter', o: { outfit: 'coat' }, role: '开门的人' },
+        { who: 'sheep-pink', o: { bow: '#ff4f8f' }, role: '带头的小羊（系蝴蝶结）' },
+        { who: 'sheep-pink', o: { bell: true }, role: '一走就响的铃铛' },
+        { who: 'sheep-pink', o: { glasses: true }, role: '会看压力表的“工程师”' },
+        { who: 'eff-vendor', role: '汽水摊老板（本片原创）' },
+        { who: 'adele-alter', o: { outfit: 'coat' }, role: '收到一箱会冒泡的货' },
       ],
     },
   ];
@@ -166,7 +170,7 @@ window.MVP = (() => {
   // 编号顺序：连播、上一部 / 下一部、“从第一部连播”都按它走（I → II → III → 番外 IV → V）
   const CHRONO = FILMS.map((f) => f.id);
   const LAST_MAIN = FILMS.filter((f) => !f.extra).pop().id;
-  const NAMES = { 'adele-child': '阿黛尔（童年）', 'adele-caster': '艾雅法拉', 'adele-alter': '纯烬艾雅法拉', magna: '玛格娜', katia: '卡提亚', fontaine: '芳汀', liese: '莉瑟', keller: '阿黛尔·凯勒', dolly: '多利', 'sheep-black': '小黑羊', 'sheep-pink': '粉色小羊', doctor: '博士', crowd: '路人' };
+  const NAMES = { 'adele-child': '阿黛尔（童年）', 'adele-caster': '艾雅法拉', 'adele-alter': '纯烬艾雅法拉', magna: '玛格娜', katia: '卡提亚', fontaine: '芳汀', liese: '莉瑟', keller: '阿黛尔·凯勒', dolly: '多利', 'sheep-black': '小黑羊', 'sheep-pink': '粉色小羊', doctor: '博士', crowd: '路人', 'eff-vendor': '老板' };
   const COPY = {
     head: {
       base: '为五首歌创作的五支原创 MV，同一个世界、同一个主题：三部曲「她的三个夏天」，外加两支发生在汐斯塔的番外。术师篇先放映第一部「夏天之前」。可以拖动、跳章节、全屏观看，也能导出成视频。',

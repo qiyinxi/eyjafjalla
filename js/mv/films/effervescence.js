@@ -88,14 +88,7 @@
   }
   function warmStep(ms, sk) {
     const t0 = performance.now();
-    while (warmQ.length && performance.now() - t0 < ms) {
-      const it = warmQ.shift();
-      if (it.sk === sk && !LRU.has(it.ck)) {
-        const c = lcBuild(it.ck, it.w, it.h, it.fn, it.k, it.sk);
-        // 大图层：读一个像素，逼浏览器现在就把它光栅化（否则这笔账会记在切镜头后的第一帧上）
-        if (c.width * c.height > 250000) { try { c.getContext('2d').getImageData(0, 0, 1, 1); } catch (e) { /* 读不了就算了 */ } }
-      }
-    }
+    while (warmQ.length && performance.now() - t0 < ms) { const it = warmQ.shift(); if (it.sk === sk && !LRU.has(it.ck)) lcBuild(it.ck, it.w, it.h, it.fn, it.k, it.sk); }
   }
   const warmedAt = new Map(), dummyCtx = E.mk(2, 2).getContext('2d');
   function fakeState(s, shot, t) {
