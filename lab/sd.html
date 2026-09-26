@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>sd lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 "JetBrains Mono", monospace; }
+  #wrap { padding: 12px; }
+  canvas { display: block; }
+  table { border-collapse: collapse; margin-top: 10px; }
+  td, th { border: 1px solid #333; padding: 2px 8px; text-align: right; vertical-align: top; }
+  td:first-child, th:first-child, td.l { text-align: left; }
+  .hot { color: #ff7a7a; } .ok { color: #8fdc8f; } .dim { color: #888; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<!--
+  官方 Q 版小人（Spine）实验页（开发用）—— js/mv/sd.js
+    ?sheet=models                 （默认）所有模型 × 全部动画，每格一帧（&t=0.8 动画内时间；&keys=alter,alter-home 只看这些）
+    ?sheet=anim&key=alter&anim=Move&n=8     一个动画的连续帧（&dur= 覆盖时长）
+    ?sheet=sizes&key=alter        同一模型在不同屏幕高度（70…900 设计像素）下，旁边是手绘版（MVE.cast）对照；&bg=%23…
+    ?sheet=fx&key=alter           剪影 / 逆光 / 调色 / 透明 / 阴影 / 镜像 / 旋转 / 交叉淡化 / 锚点
+    ?sheet=cast                   角色库钩子：MVE.cast.draw 各姿势（上：官方小人，下：sd:false 的手绘版）
+    ?sheet=walk&key=alter         走路配速：脚底是否打滑（画出脚的轨迹）
+    ?perf=1&keys=alter,alter-home 性能：1280×720 画布，每个 rAF 画一帧，统计 draw() 的 CPU（含 drawImage）与帧间隔（&n=300 &count=1 同屏几个）
+    ?film=misty-memory-night&audit=1   逐镜头审计：每 &step=0.25 秒渲染一帧，记下每次 cast.draw(adele-…) 是官方小人还是手绘（原因）
+  通用：&w=1600（画布宽）&sd=off（当作不支持）
+  结束后 document.title = DONE（或 ERR ...），结果在 window.__out
+-->
+<div id="wrap"></div>
+<script src="../js/mv/engine.js"></script>
+<script src="../js/mv/cast.js"></script>
+<script src="../js/mv/sd.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const wrap = document.getElementById('wrap');
+  const out = (window.__out = {});
+  const S = MVE.sd;
+  S.opts.debug = true;
+  const num = (k, d) => (q.has(k) ? +q.get(k) : d);
+  const W = num('w', 1600);
+  const ALL = ['alter', 'alter-front', 'alter-back', 'alter-picnic', 'alter-picnic-front', 'alter-picnic-back', 'alter-home', 'alter-home-front', 'alter-home-back', 'caster', 'caster-front', 'caster-back', 'dolly', 'lamb'];
+  const keys = q.has('keys') ? q.get('keys').split(',') : q.has('key') ? [q.get('key')] : ALL;
+  const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; wrap.appendChild(c); return c; };
+  function bg(g, w, h, y0 = 0, hh = h, dark = false) {
+    const gr = g.createLinearGradient(0, y0, 0, y0 + hh);
+    gr.addColorStop(0, dark ? '#1c2033' : '#cfe3f4'); gr.addColorStop(0.72, dark ? '#2a2f48' : '#eef3f7'); gr.addColorStop(0.72, dark ? '#3a3350' : '#c9d4b4'); gr.addColorStop(1, dark ? '#282238' : '#aebc98');
+    g.fillStyle = gr; g.fillRect(0, y0, w, hh);
+  }
+  const label = (g, s, x, y, c = '#223') => { g.font = '12px "JetBrains Mono"'; g.fillStyle = c; g.textAlign = 'left'; g.fillText(s, x, y); };
+  async function ready(list) {
+    const t0 = performance.now();
+    const ok = await S.load(list, 60000);
+    out.loadMs = Math.round(performance.now() - t0);
+    out.loaded = list.map((k) => [k, S.ready(k)]);
+    return ok;
+  }
+  try {
+    const sheet = q.get('sheet') || (q.has('perf') ? 'perf' : q.has('film') ? 'audit' : 'models');
+    if (sheet === 'models') {
+      await ready(keys);
+      const infos = keys.map((k) => S.info(k));
+      out.info = infos;
+      const cellW = 220, rowH = 300, cols = Math.max(...infos.map((i) => (i.anims ? i.anims.length : 1)));
+      const cw = Math.max(W, cellW * cols + 20);
+      const c = mkCanvas(cw, rowH * keys.length), g = c.getContext('2d');
+      const tt = num('t', 0.8);
+      keys.forEach((k, r) => {
+        const I = infos[r], y0 = r * rowH;
+        bg(g, cw, rowH, y0, rowH, r % 2 === 1);
+        label(g, k + '  ' + (I.id || '') + (I.ready ? '' : '  (not ready)'), 8, y0 + 16, r % 2 ? '#dde' : '#223');
+        if (!I.anims) return;
+        I.anims.forEach(([name, dur], i) => {
+          const x = 20 + cellW * i + cellW / 2, y = y0 + rowH - 40;
+          S.draw(g, k, { x, y, h: 200, anim: name, t: Math.min(tt, dur * 0.5), shadow: true });
+          label(g, name + ' ' + dur + 's', 20 + cellW * i + 6, y0 + rowH - 12, r % 2 ? '#dde' : '#223');
+          g.strokeStyle = 'rgba(255,0,0,.35)'; g.beginPath(); g.moveTo(x - 60, y + 0.5); g.lineTo(x + 60, y + 0.5); g.moveTo(x - 60, y - 200 + 0.5); g.lineTo(x + 60, y - 200 + 0.5); g.stroke();
+        });
+      });
+    } else if (sheet === 'anim') {
+      const k = keys[0];
+      await ready([k]);
+      const I = S.info(k); out.info = I;
+      const anim = q.get('anim') || 'Move', n = num('n', 8), row = num('cols', 8);
+      const A = I.anims.find((a) => a[0] === anim) || I.anims[0], dur = num('dur', A[1]);
+      const cellW = num('cw', 200), h = num('h', 240), rows = Math.ceil(n / row);
+      const c = mkCanvas(cellW * row + 20, rows * (h + 90)), g = c.getContext('2d');
+      bg(g, c.width, c.height);
+      for (let i = 0; i < n; i++) {
+        const x = 10 + cellW * (i % row) + cellW / 2, y = Math.floor(i / row) * (h + 90) + h + 60;
+        const t = (dur * i) / n;
+        S.draw(g, k, { x, y, h, anim, t, shadow: true });
+        const a = S.anchors(k, { x, y, h, anim, t });
+        if (a) for (const [nm, col] of [['top', '#f00'], ['head', '#f80'], ['face', '#fc0'], ['chest', '#0a0'], ['hip', '#08f'], ['handN', '#f0f'], ['handF', '#a0a'], ['footL', '#0ff'], ['footR', '#088']]) if (a[nm]) { g.fillStyle = col; g.fillRect(a[nm][0] - 2, a[nm][1] - 2, 5, 5); }
+        label(g, anim + ' ' + t.toFixed(2), x - cellW / 2 + 6, y + 24);
+        g.strokeStyle = 'rgba(255,0,0,.4)'; g.beginPath(); g.moveTo(x - 80, y + 0.5); g.lineTo(x + 80, y + 0.5); g.moveTo(x - 80, y - h + 0.5); g.lineTo(x + 80, y - h + 0.5); g.stroke();
+      }
+    } else if (sheet === 'sizes') {
+      const k = keys[0];
+      await ready([k]);
+      out.info = S.info(k);
+      const sizes = q.has('sizes') ? q.get('sizes').split(',').map(Number) : [70, 140, 220, 330, 560, 900];
+      const who = q.get('who') || 'adele-alter', outfit = q.get('outfit') || undefined;
+      const cw = W, ch = Math.round((W * 9) / 16) * 2;
+      const c = mkCanvas(cw, ch), g = c.getContext('2d');
+      g.save(); g.scale(cw / 1920, cw / 1920);
+      bg(g, 1920, 2160, 0, 2160, q.get('dark') === '1');
+      let x = 60;
+      for (const h of sizes) {
+        const y = 2160 - 120;
+        const w = h * 0.55;
+        S.draw(g, k, { x: x + w * 0.5, y, h, anim: q.get('anim') || undefined, t: num('t', 0.8), shadow: true });
+        if (MVE.cast) MVE.cast.draw(g, who, { x: x + w * 1.6, y, h, pose: 'stand', outfit, t: 0.8, sd: false, shadow: true });
+        g.strokeStyle = 'rgba(255,0,0,.5)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y - h); g.lineTo(x + w * 2.2, y - h); g.moveTo(x, y); g.lineTo(x + w * 2.2, y); g.stroke();
+        label(g, 'h=' + h, x, y + 30);
+        x += w * 2.4 + 30;
+      }
+      g.restore();
+    } else if (sheet === 'fx') {
+      const k = keys[0];
+      await ready([k]);
+      out.info = S.info(k);
+      const c = mkCanvas(W, Math.round((W * 9) / 16)), g = c.getContext('2d');
+      g.save(); g.scale(W / 1920, W / 1920);
+      const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, '#ff9a6a'); gr.addColorStop(0.6, '#5a3a6a'); gr.addColorStop(1, '#221830');
+      g.fillStyle = gr; g.fillRect(0, 0, 1920, 1080);
+      const base = { h: 300, t: 0.8 }, y1 = 480, y2 = 1000;
+      const cells = [
+        ['normal', {}], ['sil', { sil: '#1a0e1c' }], ['sil+rim', { sil: '#1a0e1c', rim: '255,200,160' }], ['sil+rim dir↖', { sil: '#1a0e1c', rim: { color: '255,220,190', dir: -2.3 } }],
+        ['rim only', { rim: { color: '255,210,170', dir: -0.6 } }], ['tint', { tint: ['#ff9a8a', 0.5] }], ['alpha .5', { alpha: 0.5 }],
+        ['flip', { flip: true, shadow: true }], ['rot .3', { rot: 0.3 }], ['xfade .5', { from: 'Relax', to: 'Interact', k: 0.5 }], ['Move', { anim: 'Move' }], ['anchors', { anchors: true }],
+      ];
+      cells.forEach(([name, o], i) => {
+        const x = 110 + (i % 6) * 300, y = i < 6 ? y1 : y2;
+        const p = Object.assign({ x, y }, base, o);
+        S.draw(g, k, p);
+        if (o.anchors) { const a = S.anchors(k, p); out.anchors = a; if (a) { for (const nm of ['top', 'head', 'face', 'chest', 'hip', 'handN', 'handF', 'footL', 'footR']) if (a[nm]) { g.fillStyle = '#0f0'; g.fillRect(a[nm][0] - 4, a[nm][1] - 4, 8, 8); label(g, nm, a[nm][0] + 6, a[nm][1] + 4, '#fff'); } g.strokeStyle = '#0f0'; g.strokeRect(a.bounds[0], a.bounds[1], a.bounds[2] - a.bounds[0], a.bounds[3] - a.bounds[1]); } }
+        g.save(); g.font = '22px "JetBrains Mono"'; g.fillStyle = '#fff'; g.fillText(name, x - 100, y + 40); g.restore();
+      });
+      g.restore();
+    } else if (sheet === 'cast') {
+      const who = q.get('who') || 'adele-alter', outfit = q.get('outfit') || 'coat';
+      const poses = q.has('poses') ? q.get('poses').split(',') : ['stand', 'walk', 'run', 'sit', 'sleep', 'wave', 'cheer', 'look-up', 'hug', 'point'];
+      const o0 = { outfit, t: num('t', 0.8), h: 300 };
+      poses.forEach((p) => MVE.cast.draw(document.createElement('canvas').getContext('2d'), who, Object.assign({ pose: p, x: 0, y: 0 }, o0)));
+      await ready([...new Set(poses.map((p) => S.decide(who, Object.assign({ pose: p }, o0)).key).filter(Boolean))]);
+      const c = mkCanvas(W, Math.round((W * 9) / 16)), g = c.getContext('2d');
+      g.save(); g.scale(W / 1920, W / 1920);
+      bg(g, 1920, 1080);
+      const res = [];
+      poses.forEach((p, i) => {
+        const x = 100 + i * (1760 / Math.max(1, poses.length - 1)), o = Object.assign({ pose: p, x, y: 480 }, o0);
+        const d = S.decide(who, o);
+        MVE.cast.draw(g, who, o);
+        MVE.cast.draw(g, who, Object.assign({}, o, { y: 1000, sd: false }));
+        res.push([p, d.key ? d.key + ' ' + d.anim : d.why]);
+        g.save(); g.font = '18px "JetBrains Mono"'; g.fillStyle = '#123'; g.textAlign = 'center'; g.fillText(p, x, 520); g.fillText(d.key ? d.anim : '✗ ' + d.why, x, 545); g.restore();
+        g.strokeStyle = 'rgba(255,0,0,.5)'; g.beginPath(); g.moveTo(x - 70, 480); g.lineTo(x + 70, 480); g.moveTo(x - 70, 180); g.lineTo(x + 70, 180); g.stroke();
+      });
+      out.cast = res;
+      g.restore();
+    } else if (sheet === 'walk') {
+      const k = keys[0];
+      await ready([k]);
+      out.info = S.info(k);
+      const G = S.gait(k, { h: 300 });
+      out.gait = G;
+      const c = mkCanvas(W, 700), g = c.getContext('2d');
+      g.save(); g.scale(W / 1920, W / 1920);
+      bg(g, 1920, 1400);
+      const n = num('n', 24), dur = G.period * 2;
+      for (let i = 0; i < n; i++) {
+        const t = (dur * i) / n, x = 120 + G.speed * t;
+        g.globalAlpha = i === n - 1 ? 1 : 0.18;
+        S.draw(g, k, { x, y: 600, h: 300, anim: 'Move', t });
+        g.globalAlpha = 1;
+        const a = S.anchors(k, { x, y: 600, h: 300, anim: 'Move', t });
+        if (a) { g.fillStyle = '#e00'; g.fillRect(a.footL[0] - 3, a.footL[1] - 3, 6, 6); g.fillStyle = '#00e'; g.fillRect(a.footR[0] - 3, a.footR[1] - 3, 6, 6); }
+      }
+      // 同样步速的静止参照：x 不动时脚在原地前后摆
+      g.restore();
+    } else if (sheet === 'perf') {
+      await ready(keys);
+      const cw = num('w', 1280), chh = Math.round((cw * 9) / 16);
+      const c = mkCanvas(cw, chh), g = c.getContext('2d', { alpha: false });
+      c.style.width = '640px';
+      const n = num('n', 300), count = num('count', 1), anims = (q.get('anims') || 'Relax,Move,Sit').split(',');
+      const res = [];
+      for (const k of keys) {
+        const I = S.info(k);
+        for (const anim of anims) {
+          if (!I.anims || !I.anims.some((a) => a[0] === anim) && !(I.view !== 'build' && anim === 'Relax')) continue;
+          const an = I.anims.some((a) => a[0] === anim) ? anim : 'Idle';
+          const cpu = [], gaps = [];
+          await new Promise((done) => {
+            let i = 0, last = 0;
+            const tick = (tm) => {
+              if (last) gaps.push(tm - last);
+              last = tm;
+              if (i >= n) { done(); return; }
+              g.setTransform(cw / 1920, 0, 0, cw / 1920, 0, 0);
+              g.fillStyle = '#2a3040'; g.fillRect(0, 0, 1920, 1080);
+              const t = i / 60;
+              const c0 = performance.now();
+              for (let j = 0; j < count; j++) S.draw(g, k, { x: 400 + j * 280 + Math.sin(t) * 40, y: 900, h: 420 - j * 30, anim: an, t: t + j * 0.37, flip: j % 2 === 1 });
+              cpu.push((performance.now() - c0) / count);
+              i++;
+              requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          });
+          const st = (a) => { const s = a.slice(5).sort((x, y) => x - y); return { avg: +(s.reduce((x, y) => x + y, 0) / s.length).toFixed(3), p95: +s[Math.floor(s.length * 0.95)].toFixed(3), max: +s[s.length - 1].toFixed(3) }; };
+          res.push({ key: k, anim: an, cpu: st(cpu), frame: st(gaps) });
+        }
+      }
+      out.perf = res;
+      out.stats = { canvas: S.stats.canvas, gpuMB: S.stats.gpuMB, loads: S.stats.loads };
+      let html = `<table><tr><th>key</th><th>anim</th><th>cpu avg</th><th>p95</th><th>max</th><th>frame avg</th><th>p95</th></tr>`;
+      for (const r of res) html += `<tr><td>${r.key}</td><td class="l">${r.anim}</td><td class="${r.cpu.avg > 0.5 ? 'hot' : 'ok'}">${r.cpu.avg}</td><td>${r.cpu.p95}</td><td>${r.cpu.max}</td><td>${r.frame.avg}</td><td>${r.frame.p95}</td></tr>`;
+      wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    } else if (sheet === 'audit') {
+      const id = q.get('film');
+      const film = await MVE.load(id, '../js/mv/films/');
+      const an = await MVE.analysis(`../assets/music/${film.analysisId || id}.json`);
+      const cw = num('w', 640), c = document.createElement('canvas'); c.width = cw; c.height = Math.round((cw * 9) / 16);
+      const R = MVE.renderer(c, film, an, {});
+      await R.prepare();
+      out.preloaded = S.stats.models;
+      const step = num('step', 0.25), dur = an.duration;
+      S.audit = true;
+      const per = new Map();
+      const cpu = [];
+      for (let t = num('from', 0); t < num('to', dur); t += step) {
+        S.log.length = 0;
+        const c0 = performance.now();
+        R.render(t);
+        cpu.push(performance.now() - c0);
+        const sh = R.shotAt(t);
+        for (const e of S.log) {
+          if (!/^adele/.test(e.who)) continue;
+          const key = sh.id;
+          if (!per.has(key)) per.set(key, { shot: key, t0: sh.t0, t1: sh.t1, sd: 0, hand: 0, reasons: {}, poses: {}, times: [] });
+          const r = per.get(key);
+          if (e.drawn) r.sd++;
+          else { r.hand++; const why = e.key ? 'not-drawn(' + e.key + ')' : e.why; r.reasons[why] = (r.reasons[why] || 0) + 1; if (r.times.length < 6) r.times.push(+t.toFixed(2)); }
+          const pk = e.pose + (e.outfit ? '/' + e.outfit : '') + (e.sil ? '/sil' : '');
+          r.poses[pk] = (r.poses[pk] || 0) + 1;
+        }
+      }
+      S.audit = false;
+      const rows = [...per.values()].sort((a, b) => a.t0 - b.t0);
+      out.audit = rows;
+      out.models = S.stats.models;
+      let html = `<p>${id} · ${rows.length} shots with Adele · models ${S.stats.models.join(', ')}</p><table><tr><th>shot</th><th>t0</th><th>sd</th><th>hand</th><th>reasons</th><th>poses</th><th>times</th></tr>`;
+      for (const r of rows) html += `<tr><td>${r.shot}</td><td>${r.t0.toFixed(1)}</td><td class="ok">${r.sd}</td><td class="${r.hand ? 'hot' : ''}">${r.hand}</td><td class="l">${Object.entries(r.reasons).map(([k, v]) => k + '×' + v).join(' ')}</td><td class="l dim">${Object.entries(r.poses).map(([k, v]) => k + '×' + v).join(' ')}</td><td class="l">${r.times.join(' ')}</td></tr>`;
+      wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    }
+    document.title = 'DONE';
+  } catch (e) {
+    wrap.insertAdjacentText('beforeend', 'ERR ' + (e.stack || e));
+    document.title = 'ERR ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

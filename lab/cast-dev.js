@@ -89,7 +89,7 @@
  *     glasses     羊专用：true 戴一副小眼镜（配 tie 时是方框，否则圆框）
  *     bow / bell  羊专用：头顶蝴蝶结（true 或颜色）/ 脖子上的铃铛
  *     heat        羊专用 0..1：高兴时身体发烫冒热气
- *                 羊的 pose：'stand' | 'walk' | 'run' | 'sit' | 'sleep' | 'jump' | 'bounce' | 'push'（低头顶东西）
+ *                 羊的 pose：'stand' | 'walk' | 'run' | 'bound'（= 'gallop'，前后腿各一起蹦着跑）| 'sit' | 'sleep' | 'jump' | 'bounce' | 'push'（低头顶东西）
  *                 | 'look-up' | 'eat'（低头吃草）| 'float'（梦里漂着）；expr：'open' | 'happy' | 'closed' | 'surprise' | 'sad'
  *     form        多利：'sheep'（默认）| 'cloud'（更松散的羊形烟云）；fade 0..1：散成雾；pose 'stand' | 'walk' 时露出小腿
  *   }
@@ -98,6 +98,7 @@
  * MVE.cast.anchors(who, o) → { head, face, eyeN, eyeF, mouth, top, chest, hip, handN, handF, prop, feet, bounds,
  *                               chin, neck, shoulderN, shoulderF, elbowN, elbowF, kneeN, kneeF, footN, footF, headR }
  *     同一坐标系（和 o.x / o.y 一样）里的关键点，方便贴光效（灯笼的光、石头的光、法杖尖）；headR = 颅骨半径（像素）
+ *     羊：{ head, face, mouth, eye, back（毛团顶上，驮东西的地方）, top, chest, hip, feet, bounds }，跟着羊的起伏走
  * MVE.cast.gait(who, o) → { speed, period, stride }：走 / 跑时脚底不打滑的横向速度（像素 / 秒）
  * MVE.cast.poses / exprs / props / outfits / views：可用值列表
  * MVE.cast.lastMs：最近一次 draw 的 CPU 毫秒数（调试用）
@@ -339,7 +340,7 @@
   const CH = {
     'adele-child': {
       body: 'child', face: FACE.child, skin: SKIN, eye: EYES.child, ear: 'sheep', ears: EARS.child, sheepEar: 1.05,
-      horn: { style: 'spiral', pal: HORNS.adele, r: 0.38, turn: 1.3, out: 0.3, w: 0.25, psi: 1.08, y: -0.58 },
+      horn: { style: 'spiral', pal: HORNS.adele, r: 0.3, turn: 1.3, out: 0.22, w: 0.22, psi: 1.05, y: -0.6 },
       hair: HAIR_ADELE(HAIR.child, { cap: 1.16, back: { n: 7, top: -0.28, len: 2.0, w: 0.2, spread: 1.16, wave: 0.09, curl: 1.0, var: 0.2 }, sides: [{ psi: 1.38, y0: 0.2, len: 1.4, w: 0.14, wave: 0.07, curl: 0.95, out: 0.12 }], ahoge: { psi: 0.16, len: 0.62, curl: 1.3 } }),
       def: 'school',
       outfits: {
@@ -1375,12 +1376,14 @@
       }
       strands.moveTo(wx + 0.1, wy); strands.arc(wx, wy, 0.1, 0, PI * 1.5);
       addSheen(H, sheen, rc, true);
-      return { dome, bangs: null, strands, sheen, bandSh: null };
+      const lockDark = new Path2D(), lockLight = new Path2D();
+      capStripes(H, rc, lockDark, lockLight, true, 0, null);
+      return { dome, bangs: null, strands, sheen, bandSh: null, lockDark, lockLight, ringSoft: ringBand(H, rc, true) };
     }
     // 正面 / 3/4 / 侧面：头发 = 发顶的圆，挖掉脸露出来的那一块（发际线以下、两鬓之间、朝镜头的部分）
     // 做成一个简单多边形：+ψ 鬓边的下端 → 沿圆走远的那一圈 → -ψ 鬓边 → 发际线 → +ψ 鬓边
     // 转到侧面时脸的前面不会被“头盔”盖住
-    const N = 36;
+    const N = 72;
     const hl = hr.hl != null ? hr.hl : -0.38;
     const hlY = (psi) => hl + (0.12 - hl) * pow(min(1, abs(psi) / 1.16), 2);
     const edgeX = (y, sgn) => sgn * sqrt(max(0, rc * rc - (y - cy0) * (y - cy0)));
@@ -1410,6 +1413,7 @@
     const bl = hr.bangs || [];
     const bx = LXs, by = LYs, bw = LWs;
     const M = 7;
+    const bangList = [], bangHi = new Path2D(), bangLines = new Path2D();
     const addBang = (psiT, yT, wHalf, curl, rootPsi, rootY, kind) => {
       let vis = 0;
       for (let i = 0; i < M; i++) {
@@ -1425,8 +1429,16 @@
       }
       if (vis < 2) return false;
       ribbon(bangs, bx, by, bw, M);
+      const one = new Path2D(); ribbon(one, bx, by, bw, M);
+      bangList.push({ p: one, x0: bx[0], y0: by[0], x1: bx[M - 1], y1: by[M - 1] });
       ribbonShade(bandSh, bx, by, bw, M, lx, ly, 0.34, 0.1, 0.95);
-      ribbonStrand(strands, bx, by, bw, M, 0.25 * (curl >= 0 ? 1 : -1), 0.12, 0.72);
+      ribbonStrand(bangLines, bx, by, bw, M, 0.25 * (curl >= 0 ? 1 : -1), 0.12, 0.72);
+      // 每绺刘海中段一道细长的高光
+      const s = curl >= 0 ? -1 : 1, a = 1, b = M - 3;
+      bangHi.moveTo(bx[a] + NXs[a] * bw[a] * 0.35 * s, by[a] + NYs[a] * bw[a] * 0.35 * s);
+      for (let i = a + 1; i <= b; i++) bangHi.lineTo(bx[i] + NXs[i] * bw[i] * 0.5 * s, by[i] + NYs[i] * bw[i] * 0.5 * s);
+      for (let i = b; i >= a; i--) bangHi.lineTo(bx[i] + NXs[i] * bw[i] * 0.2 * s, by[i] + NYs[i] * bw[i] * 0.2 * s);
+      bangHi.closePath();
       return true;
     };
     for (const [psiT, yT, wHalf, curl] of bl) {
@@ -1460,23 +1472,66 @@
       if (T3[2] > 0 && T3c[2] > 0) { strands.moveTo(T3[0], T3[1]); strands.quadraticCurveTo((T3[0] + T3c[0]) / 2 + 0.04 * (psiT - part), (T3[1] + T3c[1]) / 2 - 0.05, T3c[0], T3c[1]); }
     }
     addSheen(H, sheen, rc, false);
-    return { dome, ink, bangs, strands, sheen, bandSh };
+    const lockDark = new Path2D(), lockLight = new Path2D();
+    capStripes(H, rc, lockDark, lockLight, false, part, hlY);
+    return { dome, ink, bangs, strands, sheen, bandSh, bangList, bangHi, bangLines, lockDark, lockLight, ringSoft: ringBand(H, rc, false) };
   }
-  /** 头顶的高光：沿纬线的一圈短笔触（跟着头的弧度走） */
+  /** 发顶上一绺一绺的明暗条：沿经线从分线 / 发旋流向发际线和两侧 */
+  function capStripes(H, rc, pD, pL, back, part, hlY) {
+    const xs = LXs, ys = LYs, ws = LWs, n = 6;
+    const K = back ? 12 : 17;
+    for (let k = 0; k < K; k++) {
+      const q = -1 + (2 * (k + 0.5)) / K;
+      let vis = 0;
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1);
+        let psi, y;
+        if (back) { psi = PI + q * 1.5 * u; y = lerp(-0.72, 0.55, u); }
+        else { const pe = q * 1.75; psi = lerp(part + (pe - part) * 0.12, pe, u); y = lerp(-0.92, abs(pe) > 1.12 ? 0.98 : hlY(pe) + 0.02, pow(u, 0.9)); }
+        hsph(H, psi, y, rc * 0.995, T3);
+        xs[i] = T3[0]; ys[i] = T3[1];
+        if (T3[2] > 0.05) vis++;
+        ws[i] = (0.02 + 0.075 * sin(PI * min(1, u * 1.15))) * (0.4 + 0.6 * clamp(T3[2] * 1.5, 0, 1));
+      }
+      if (vis < 3) continue;
+      ribbon(k % 2 ? pD : pL, xs, ys, ws, n);
+    }
+  }
+  /** 天使环下面那一圈柔和的亮带（顺着头的弧度） */
+  function ringBand(H, rc, back) {
+    const p = new Path2D(), up = [], lo = [];
+    for (let k = 0; k <= 16; k++) {
+      const psi = (back ? PI : 0) - 1.5 + (k / 16) * 3.0;
+      hsph(H, psi, -0.7, rc * 0.99, T3); const z = T3[2]; if (z < 0.05) continue;
+      up.push(T3[0], T3[1]);
+      hsph(H, psi, -0.47, rc * 0.99, T3); lo.push(T3[0], T3[1]);
+    }
+    if (up.length < 4) return null;
+    p.moveTo(up[0], up[1]);
+    for (let i = 2; i < up.length; i += 2) p.lineTo(up[i], up[i + 1]);
+    for (let i = lo.length - 2; i >= 0; i -= 2) p.lineTo(lo[i], lo[i + 1]);
+    p.closePath();
+    return p;
+  }
+  /** 天使环：沿纬线一圈长短、粗细不一的菱形高光（顺着头的弧度，边缘是锯齿状的） */
   function addSheen(H, p, rc, back) {
-    const n = 15;
+    const n = 19;
     for (let k = 0; k < n; k++) {
-      const psi = (back ? PI : 0) + (-1.25 + (k / (n - 1)) * 2.5);
-      hsph(H, psi, -0.58, rc * 0.99, T3);
+      const j = hash(k, 13), psi = (back ? PI : 0) + (-1.3 + (k / (n - 1)) * 2.6) + (j - 0.5) * 0.06;
+      hsph(H, psi, -0.58, rc * 0.995, T3);
       if (T3[2] < 0.12) continue;
-      hsph(H, psi + 0.035, -0.7, rc * 0.99, T3b);
-      hsph(H, psi - 0.03, -0.43 - (k % 2) * 0.05, rc * 0.99, T3c);
-      const w = 0.035 + 0.02 * (k % 3 === 0 ? 1 : 0);
-      p.moveTo(T3b[0] - w, T3b[1]); p.lineTo(T3b[0] + w, T3b[1]); p.lineTo(T3c[0] + w * 0.4, T3c[1]); p.lineTo(T3c[0] - w * 0.4, T3c[1]); p.closePath();
+      const mx = T3[0], my = T3[1];
+      hsph(H, psi + 0.02, -0.7 - 0.05 * hash(k, 3), rc * 0.995, T3b);
+      hsph(H, psi - 0.02, -0.44 - 0.1 * hash(k, 5) - (k % 3 === 1 ? 0.06 : 0), rc * 0.995, T3c);
+      const w = (0.022 + 0.03 * hash(k, 7)) * (0.5 + 0.5 * clamp(T3[2] * 1.4, 0, 1));
+      const dx = T3c[0] - T3b[0], dy = T3c[1] - T3b[1], l = hypot(dx, dy) || 1, nx = -dy / l * w, ny = dx / l * w;
+      const cx = lerp(T3b[0], T3c[0], 0.42), cy = lerp(T3b[1], T3c[1], 0.42);
+      p.moveTo(T3b[0], T3b[1]); p.lineTo(cx + nx, cy + ny); p.lineTo(T3c[0], T3c[1]); p.lineTo(cx - nx, cy - ny); p.closePath();
+      void mx; void my;
     }
   }
   function hairGrad(pal) {
-    return linG('hcap2:' + pal.c, 0, -1.2, 0, 0.95, [0, lt(pal.c, 0.16), 0.42, pal.c, 1, pal.sh]);
+    return linG('hcap2:' + pal.c, 0, -1.2, 0, 1.0, [0, lt(pal.c, 0.16), 0.5, pal.c, 1, mix(pal.c, pal.sh, 0.55)]);
   }
   function sideGrad(pal, len) {
     return linG('side2:' + pal.c + ':' + pal.tip, 0, -0.4, 0, len, [0, mix(pal.c, pal.lt, 0.12), 0.55, pal.c, 0.82, mix(pal.c, pal.tip, 0.6), 1, pal.tip]);
@@ -1502,7 +1557,7 @@
     if (sheet) { g.fillStyle = D.sil || hairGrad(pal); g.fill(sheet); }
     g.fillStyle = D.sil || grad; g.fill(HG.p);
     if (D.sil) return;
-    if (D.shade > 0 && D.lod >= 1) { g.globalAlpha = D.ga * (light ? 0.35 : 0.55) * D.shade; g.fillStyle = light ? pal.sh : pal.dk || pal.sh; g.fill(HG.sh); g.globalAlpha = D.ga; }
+    if (D.shade > 0 && D.lod >= 1) { g.globalAlpha = D.ga * (light ? 0.3 : 0.36) * D.shade; g.fillStyle = light ? pal.sh : pal.dk || pal.sh; g.fill(HG.sh); g.globalAlpha = D.ga; }
     if (D.lod >= 1) { g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, light ? 0.35 : 0.5); g.stroke(HG.st); }
     if (D.lod >= 2 || (light && D.lod >= 1)) { g.globalAlpha = D.ga * 0.5; g.fillStyle = pal.lt; g.fill(HG.hi); g.globalAlpha = D.ga; }
   }
@@ -1523,7 +1578,7 @@
     for (let i = 0; i < n; i++) { const u = i / (n - 1); ws[i] = wMax * lockWidth(u, o.curl ? 2 : 0) * (o.thinRoot ? 0.4 + 0.6 * sstep(0, 0.22, u) : 1); }
     ribbon(HG.p, xs, ys, ws, n);
     if (D.lod >= 1) {
-      ribbonShade(HG.sh, xs, ys, ws, n, D.LcH[0], D.LcH[1], 0.3, 0.08, 0.92);
+      ribbonShade(HG.sh, xs, ys, ws, n, D.LcH[0], D.LcH[1], 0.24, 0.12, 0.9);
       ribbonStrand(HG.st, xs, ys, ws, n, (k % 2 ? 0.3 : -0.3), 0.14, 0.8);
       if (D.lod >= 2 || o.hl) { const a = 1, b2 = min(n - 2, o.hl ? 6 : 4); HG.hi.moveTo(xs[a] + NXs[a] * ws[a] * 0.1, ys[a]); for (let i = a + 1; i <= b2; i++) HG.hi.lineTo(xs[i] + NXs[i] * ws[i] * 0.5, ys[i]); for (let i = b2; i >= a; i--) HG.hi.lineTo(xs[i] + NXs[i] * ws[i] * 0.15, ys[i]); HG.hi.closePath(); }
     }
@@ -1549,7 +1604,7 @@
   function drawBackHair(D, H) {
     const hr = D.hair, bk = hr && hr.back;
     if (!bk) return;
-    const n = D.lod === 0 ? max(3, bk.n - 3) : bk.n;
+    const n = D.lod === 0 ? max(3, bk.n - 3) : bk.n + (D.lod >= 2 ? 2 : 1);
     const HG = hairGroupBegin(D);
     const cyb = D.P.cy, syb = D.P.sy;
     const SH = BSH;
@@ -1565,7 +1620,7 @@
       const mx = -sm * cyb + fm * syb, my = min(1.1, 0.46 * lenK);
       const st = -q * bk.spread, ft = -0.52 - 0.2 * (1 - q * q);
       const tx = -st * cyb + ft * syb, ty = lenK;
-      const w = bk.w * 1.22 * (0.9 + 0.2 * hash(k, 5));
+      const w = bk.w * 1.25 * (0.9 + 0.2 * hash(k, 5));
       const dir = (tx - rx) >= 0 ? 1 : -1;
       const xs = hairLock(D, HG, rx, ry, mx, my, tx, ty, lenK, w, k, { wave: bk.wave, ph: k * 1.7, curl: bk.curl ? bk.curl * (0.75 + 0.5 * hash(k, 9)) : 0, curlDir: bk.curl < 0 ? -dir : dir, curlFrom: 0.62, thinRoot: 1 });
       // 记下根部与 60% 处，拼成后面那一整片头发（发束之间不会露出空隙）
@@ -2475,22 +2530,48 @@
     }
   }
 
-  /** 整个头：远侧的角 / 耳 → 脸 → 五官 → 眼镜 → 头发（发顶 + 刘海）→ 眉 → 近侧的耳 / 角 / 饰品 */
+  /* ================================================================
+   * 整个头
+   *   会动的放在外面每帧画：远侧 / 近侧的羊耳（会甩）、马尾、耳羽、呆毛、小揪揪、碎发、光环
+   *   不动的（脸、眼、眉、鼻、嘴、发顶、刘海、角、眼镜、头饰）按 朝向 / 表情 / 眨眼 / 视线 / 大小 缓存成一张图
+   *   （纯函数：缓存的内容只取决于这组量化后的参数）
+   * ================================================================ */
   function drawHead(D) {
     const g = D.g, C = D.C, H = D.H, P = D.P, hr = D.hair;
     setT(g, D.mH);
     g.lineJoin = 'round'; g.lineCap = 'round';
     const ex = EXPR[P.expr] || EXPR.neutral;
-    const hornsBehind = [], hornsFront = [];
-    if (C.horn) for (let sd = -1; sd <= 1; sd += 2) { const hp = hornPaths(D, H, C.horn, sd); (hp.z > 0.1 ? hornsFront : hp.z < -0.1 ? hornsBehind : hp.zm < 0 ? hornsBehind : hornsFront).push(sd); }
     const earSides = [];
     for (let sd = -1; sd <= 1; sd += 2) { hsph(H, sd * (HP + 0.14), 0.1, 0.97, T3); earSides.push([sd, T3[2]]); }
-    for (const sd of hornsBehind) drawHorn(D, H, sd);
+    // ---- 后面（会动）
     if (C.ear === 'sheep') for (const [sd, z] of earSides) if (z < 0) drawEar(D, H, sd);
     const pn = hr && hr.pony;
     let ponyFront = false;
     if (pn && !pn.low) { hsph(H, pn.psi, pn.y, 1.05, T3); if (T3[2] < 0) drawPony(D, H, pn, 'body'); else ponyFront = true; }
     if (C.plume) { hsph(H, -1.05, -0.5, 1.0, T3); if (T3[2] < 0) drawPlume(D, H); }
+    if (hr && hr.curly && D.lod >= 1 && !C.hooded) drawFlyaways(D, H, 4, 7);
+    // ---- 不动的部分（缓存成图）
+    if (!headSprite(D, H, ex)) drawHeadStatic(D, H, ex);
+    setT(g, D.mH);
+    if (C.hooded) return;
+    // ---- 前面（会动）
+    if (C.ear === 'sheep') for (const [sd, z] of earSides) if (z >= 0) drawEar(D, H, sd);
+    if (C.plume) { hsph(H, -1.05, -0.5, 1.0, T3); if (T3[2] >= 0) drawPlume(D, H); }
+    if (ponyFront) drawPony(D, H, pn, 'body');
+    if (pn && !pn.low && !pn.high && pn.orn) { hsph(H, pn.psi, pn.y, 1.05, T3); if (T3[2] > -0.25) drawLeafOrnament(D, T3[0], T3[1], pn.psi >= 0 ? 1 : -1); }
+    if (C.ear === 'rabbit' || C.ear === 'animal') for (let sd = -1; sd <= 1; sd += 2) drawEar(D, H, sd);
+    if (hr && hr.tuft) drawTuft(D, H, hr.tuft);
+    if (hr && hr.ahoge && !D.O.hat) drawAhoge(D, H, hr.ahoge);
+    if (C.halo) drawHalo(D, H, C.halo);
+  }
+  /** 头上不动的部分（也是缓存图的内容） */
+  function drawHeadStatic(D, H, ex) {
+    const g = D.g, C = D.C, hr = D.hair;
+    setT(g, D.mH);
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    const hornsBehind = [], hornsFront = [];
+    if (C.horn) for (let sd = -1; sd <= 1; sd += 2) { const hp = hornPaths(D, H, C.horn, sd); (hp.z > 0.1 ? hornsFront : hp.z < -0.1 ? hornsBehind : hp.zm < 0 ? hornsBehind : hornsFront).push(sd); }
+    for (const sd of hornsBehind) drawHorn(D, H, sd);
     if (C.hooded) {
       drawHoodUp(D, H, D.O.hood, D.O.hood.face);
       if (!D.sil && H.front && D.lod >= 1 && !D.O.hood.visor) {
@@ -2510,18 +2591,24 @@
       if (!D.sil && D.lod >= 1 && hr) {
         const cp = capParts(D, H);
         g.save(); g.clip(fp.hull);
-        // 刘海在额头上投下的影子
-        if (cp.bangs) { g.globalAlpha = D.ga * 0.5; g.fillStyle = C.skin.sh; g.translate(0.03, 0.1); g.fill(cp.bangs); g.fill(cp.dome, 'evenodd'); g.translate(-0.03, -0.1); }
+        // 头发在脸上投下的柔和阴影（两层错开，边缘是软的）
+        g.fillStyle = C.skin.sh;
+        for (const [dx, dy, a] of [[0.02, 0.07, 0.3], [0.04, 0.15, 0.22]]) {
+          g.globalAlpha = D.ga * a; g.translate(dx, dy);
+          if (cp.bangs) g.fill(cp.bangs);
+          g.fill(cp.dome, 'evenodd');
+          g.translate(-dx, -dy);
+        }
         if (D.lod >= 2 && D.shade > 0) {
-          // 背光一侧的脸颊（很淡的一层）
-          g.globalAlpha = D.ga * 0.22 * D.shade; g.fillStyle = C.skin.sh;
+          // 背光一侧的脸颊（很淡的一层）+ 近侧脸颊的高光
+          g.globalAlpha = D.ga * 0.2 * D.shade; g.fillStyle = C.skin.sh;
           g.beginPath(); g.rect(-2, -2, 4, 4); g.ellipse(D.LcH[0] * 0.2, D.LcH[1] * 0.2 + 0.1, 1.02, 1.08, 0, 0, TAU); g.fill('evenodd');
           hsph(H, 0.55, 0.5, 1.0, T3);
           if (T3[2] > 0.3) { g.globalAlpha = D.ga * 0.45; g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(T3[0] + 0.02, T3[1] - 0.06, 0.09 * clamp(T3[2], 0.4, 1), 0.05, -0.3, 0, TAU); g.fill(); }
         }
         g.globalAlpha = D.ga; g.restore();
       }
-      if (C.ear === 'human') for (const [sd, z] of earSides) if (z > -0.3) drawEar(D, H, sd);
+      if (C.ear === 'human') for (let sd = -1; sd <= 1; sd += 2) { hsph(H, sd * (HP + 0.14), 0.1, 0.97, T3); if (T3[2] > -0.3) drawEar(D, H, sd); }
       if (!D.sil) {
         drawBlush(D, H, ex);
         drawNose(D, H);
@@ -2531,51 +2618,145 @@
         setT(g, D.mH);
       }
     }
-    if (hr && hr.curly && D.lod >= 1) drawFlyaways(D, H, 4, 7);
     if (hr) {
-      const cp = capParts(D, H), pal = hr.pal;
-      g.lineWidth = D.inkO * 2; g.strokeStyle = D.sil || pal.ink;
-      g.stroke(cp.ink || cp.dome); if (cp.bangs) g.stroke(cp.bangs);
-      const hg = D.sil ? null : hairGrad(pal);
-      g.fillStyle = D.sil || hg; g.fill(cp.dome, 'evenodd');
-      if (!D.sil && D.lod >= 1 && D.shade > 0) {
-        g.save(); g.clip(cp.dome, 'evenodd');
-        g.globalAlpha = D.ga * 0.5 * D.shade; g.fillStyle = pal.dk || pal.sh;
-        g.beginPath(); g.rect(-3, -3, 6, 6);
-        g.ellipse(D.LcH[0] * 0.26, -0.04 + D.LcH[1] * 0.26, hr.cap * 1.02, hr.cap * 1.02, 0, 0, TAU);
-        g.fill('evenodd');
-        g.restore(); g.globalAlpha = D.ga;
-      }
-      if (cp.bangs) {
-        g.fillStyle = D.sil || bangGrad(pal); g.fill(cp.bangs);
-        if (!D.sil && D.lod >= 1 && D.shade > 0) { g.globalAlpha = D.ga * 0.32 * D.shade; g.fillStyle = pal.sh; g.fill(cp.bandSh); g.globalAlpha = D.ga; }
-      }
-      if (!D.sil && D.lod >= 1) {
-        g.globalAlpha = D.ga * 0.55; g.fillStyle = pal.lt; g.fill(cp.sheen); g.globalAlpha = D.ga;
-        g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, 0.32); g.stroke(cp.strands);
-      }
+      drawCap(D, H, hr);
       if (hr.messy && D.lod >= 1) drawTufts(D, H, 4, 11);
       if (D.O.bedhair && D.lod >= 1) drawTufts(D, H, 4, 23);
-      // 背影：后面的头发从发旋往下盖住后脑勺（不再是一个“球”）
-      if (!H.front && D.bhLate) { drawBackHair(D, H); if (hr.pony && hr.pony.low) drawPony(D, H, hr.pony); setT(g, D.mH); }
+      // 背影：后面的头发从发旋往下盖住后脑勺
+      if (!H.front && D.bhLate) { drawBackHair(D, H); if (hr.pony && hr.pony.low) drawPony(D, H, hr.pony); setT(g, D.mH); drawCrownOverlay(D, H, hr); }
     }
     if (H.front && !D.sil && D.lod >= 1) for (let sd = -1; sd <= 1; sd += 2) drawBrow(D, H, sd, ex);
     if (H.front && C.glasses) drawGlasses(D, H);
-    if (C.ear === 'sheep') for (const [sd, z] of earSides) if (z >= 0) drawEar(D, H, sd);
     if (D.O.hearing) drawHearingAid(D, H);
-    if (C.plume) { hsph(H, -1.05, -0.5, 1.0, T3); if (T3[2] >= 0) drawPlume(D, H); }
-    if (ponyFront) drawPony(D, H, pn, 'body');
-    if (pn && !pn.low && !pn.high && pn.orn) { hsph(H, pn.psi, pn.y, 1.05, T3); if (T3[2] > -0.25) drawLeafOrnament(D, T3[0], T3[1], pn.psi >= 0 ? 1 : -1); }
     if (D.O.bows) for (const sd of [1, -1]) { hsph(H, sd * 0.95, -0.66, D.hair.cap, T3); if (T3[2] > -0.35) drawBow(D, T3[0], T3[1] - 0.05, 0.4, D.O.bows, D.O.bows, sd * 0.35); }
     for (const sd of hornsFront) drawHorn(D, H, sd);
     if (D.O.hat) drawStrawHat(D, H, D.O.hat);
-    if (C.ear === 'rabbit' || C.ear === 'animal') for (let sd = -1; sd <= 1; sd += 2) drawEar(D, H, sd);
-    if (hr && hr.tuft) drawTuft(D, H, hr.tuft);
-    if (hr && hr.ahoge && !D.O.hat) drawAhoge(D, H, hr.ahoge);
     if (D.O.headband) drawHeadband(D, H, D.O.headband, D.O.headbandFrill, D.O.headbandNotch);
     if (D.O.headdress) drawHeadband(D, H, D.O.headdress, true);
     if (D.O.hoodUp) drawHoodUp(D, H, D.O.hoodUp, null);
-    if (C.halo) drawHalo(D, H, C.halo);
+  }
+  /**
+   * 发顶 + 刘海（动画头发的画法）：
+   *   外轮廓粗、里面的发束分界细；底色上深下浅 → 一绺一绺的明暗条 → 背光一侧的阴影
+   *   → 一圈顺着头的弧度的“天使环”高光 → 每一绺刘海自己的渐变（发根深、发梢浅）+ 细细的发丝线
+   */
+  function drawCap(D, H, hr) {
+    const g = D.g, cp = capParts(D, H), pal = hr.pal, sil = D.sil;
+    g.lineWidth = D.inkO * 2; g.strokeStyle = sil || pal.ink;
+    g.stroke(cp.ink || cp.dome);
+    if (cp.bangs) { g.lineWidth = D.inkH * 1.7; g.stroke(cp.bangs); }
+    g.fillStyle = sil || hairGrad(pal); g.fill(cp.dome, 'evenodd');
+    if (sil) { if (cp.bangs) g.fill(cp.bangs); return; }
+    if (D.lod >= 1) {
+      g.save(); g.clip(cp.dome, 'evenodd');
+      if (cp.lockDark) { g.globalAlpha = D.ga * 0.3; g.fillStyle = pal.dk || pal.sh; g.fill(cp.lockDark); g.globalAlpha = D.ga * 0.22; g.fillStyle = pal.lt; g.fill(cp.lockLight); }
+      if (D.shade > 0) {
+        g.globalAlpha = D.ga * 0.3 * D.shade; g.fillStyle = pal.dk || pal.sh;
+        g.beginPath(); g.rect(-3, -3, 6, 6);
+        g.ellipse(D.LcH[0] * 0.24, 0.2 + D.LcH[1] * 0.2, hr.cap * 1.03, hr.cap * 1.3, 0, 0, TAU);
+        g.fill('evenodd');
+      }
+      if (cp.ringSoft) { g.globalAlpha = D.ga * 0.3; g.fillStyle = pal.lt; g.fill(cp.ringSoft); }
+      g.globalAlpha = D.ga * 0.85; g.fillStyle = mix(pal.lt, '#ffffff', 0.3); g.fill(cp.sheen);
+      g.globalAlpha = D.ga; g.restore();
+      g.lineWidth = D.inkI * 0.9; g.strokeStyle = rgba(pal.ink, 0.3); g.stroke(cp.strands);
+    }
+    if (!cp.bangs) return;
+    if (cp.bangList && D.lod >= 1) {
+      // 每一绺刘海：发根深、发梢浅
+      const cRoot = mix(pal.c, pal.sh, 0.38), cTip = mix(pal.c, pal.lt, 0.22);
+      for (const b of cp.bangList) {
+        const gr = g.createLinearGradient(b.x0, b.y0, b.x1, b.y1);
+        gr.addColorStop(0, cRoot); gr.addColorStop(0.45, pal.c); gr.addColorStop(1, cTip);
+        g.fillStyle = gr; g.fill(b.p);
+      }
+    } else { g.fillStyle = bangGrad(pal); g.fill(cp.bangs); }
+    if (D.lod >= 1) {
+      if (D.shade > 0) { g.globalAlpha = D.ga * 0.3 * D.shade; g.fillStyle = pal.sh; g.fill(cp.bandSh); }
+      if (cp.bangHi) { g.globalAlpha = D.ga * 0.55; g.fillStyle = mix(pal.lt, '#ffffff', 0.2); g.fill(cp.bangHi); }
+      g.globalAlpha = D.ga;
+      if (cp.bangLines) { g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, 0.45); g.stroke(cp.bangLines); }
+    }
+  }
+
+  /**
+   * 背影：后发画完以后，把头顶（发旋、天使环）再盖一层上去，下沿是一绺一绺垂下的发梢
+   * —— 后发的根部藏在下面，看不到一排锯齿
+   */
+  function drawCrownOverlay(D, H, hr) {
+    const g = D.g, pal = hr.pal, sil = D.sil;
+    const cp = capParts(D, H);
+    const ov = pathCache('crown2:' + D.hkey + ':' + H.qk, () => {
+      const rc = hr.cap, cy0 = -0.04, lobes = hr.lobes || 0, la = hr.lobeAmp || 0;
+      const Rr = (a) => rc * (1 + (lobes ? la * (0.55 + 0.45 * cos(a * lobes + 0.9)) : 0)) - 0.015;
+      const yb = -0.12, aR = Math.asin(clamp((yb - cy0) / rc, -1, 1));
+      const p = new Path2D(), N = 40;
+      for (let i = 0; i <= N; i++) { const a = lerp(aR, -PI - aR, i / N), r = Rr(a); if (i) p.lineTo(cos(a) * r, cy0 + sin(a) * r); else p.moveTo(cos(a) * r, cy0 + sin(a) * r); }
+      const xL = cos(-PI - aR) * Rr(-PI - aR), xR = cos(aR) * Rr(aR), M = 8;
+      let px = xL, py = yb;
+      for (let j = 1; j <= M; j++) {
+        // 圆头的发梢，长短不一（中间长、两边短）
+        const x = lerp(xL, xR, j / M) + (j < M ? (hash(j, 24) - 0.5) * 0.08 : 0), d = x - px;
+        const tipY = yb + 0.08 + 0.16 * hash(j, 22) + 0.12 * (1 - abs(j / M - 0.5) * 2), ey = yb + 0.03 * hash(j, 23);
+        p.bezierCurveTo(px + d * 0.08, tipY, px + d * 0.62, tipY + 0.05, x, ey);
+        px = x; py = ey;
+      }
+      p.closePath();
+      void py;
+      return p;
+    });
+    g.fillStyle = sil || hairGrad(pal); g.fill(ov);
+    if (sil || D.lod < 1) return;
+    g.save(); g.clip(ov);
+    if (cp.lockDark) { g.globalAlpha = D.ga * 0.3; g.fillStyle = pal.dk || pal.sh; g.fill(cp.lockDark); g.globalAlpha = D.ga * 0.22; g.fillStyle = pal.lt; g.fill(cp.lockLight); }
+    if (cp.ringSoft) { g.globalAlpha = D.ga * 0.3; g.fillStyle = pal.lt; g.fill(cp.ringSoft); }
+    g.globalAlpha = D.ga * 0.85; g.fillStyle = mix(pal.lt, '#ffffff', 0.3); g.fill(cp.sheen);
+    g.globalAlpha = D.ga; g.lineWidth = D.inkI * 0.9; g.strokeStyle = rgba(pal.ink, 0.3); g.stroke(cp.strands);
+    g.restore();
+    g.lineWidth = D.inkI * 1.2; g.strokeStyle = rgba(pal.ink, 0.55); g.stroke(ov);
+  }
+
+  /* ---- 头的缓存图（LRU） ---- */
+  const HSPR = new Map();
+  const HSPR_MAX = 48;
+  let HSPR_OFF = false;
+  function headSprite(D, H, ex) {
+    if (HSPR_OFF || !H.front || D.sil || D.rimPass || D.lod < 1 || D.o.talk || ex.mouth === 'talk' || ex.tears || D.o.noSprite) return false;
+    const g = D.g, m = D.mH;
+    if (!g.canvas) return false;
+    const Rpx = sqrt(abs(m[0] * m[3] - m[1] * m[2]));
+    if (Rpx < 5 || Rpx > 140) return false;
+    const bkt = Math.round(Math.log(Rpx) / Math.log(1.1)), Rb = pow(1.1, bkt);
+    const yq = Math.round(H.yaw / 0.035), pq = Math.round(H.pitch / 0.035);
+    const bq = D.blink < 0.35 ? 0 : D.blink < 0.85 ? 1 : 2;
+    const P = D.P, lx = Math.round(P.lookX * 6), ly = Math.round(P.lookY * 6);
+    const key = D.who + '|' + D.hkey + '|' + P.expr + '|' + yq + ',' + pq + '|' + bq + '|' + lx + ',' + ly + '|' + (D.LcH[0] > 0 ? 'R' : 'L') + (D.shade > 0 ? 's' : '') + D.lod + '|' + bkt + '|' + (D.o.inkW || 1);
+    let spr = HSPR.get(key);
+    if (spr) { HSPR.delete(key); HSPR.set(key, spr); }
+    else {
+      spr = renderHeadSprite(D, ex, Rb, yq * 0.035, pq * 0.035, [0, 0.6, 1][bq], lx / 6, ly / 6);
+      while (HSPR.size >= HSPR_MAX) { const [k0, s0] = HSPR.entries().next().value; s0.c.width = s0.c.height = 1; HSPR.delete(k0); }
+      HSPR.set(key, spr);
+    }
+    setT(g, m);
+    const ga = g.globalAlpha;
+    g.globalAlpha = D.ga;
+    g.drawImage(spr.c, spr.x0, spr.y0, spr.c.width / Rb, spr.c.height / Rb);
+    g.globalAlpha = ga;
+    return true;
+  }
+  const HX0 = -2.5, HY0 = -2.7, HW = 5.0, HH = 4.9;
+  function renderHeadSprite(D, ex, Rb, yaw, pitch, blink, lookX, lookY) {
+    const W = Math.ceil(HW * Rb) + 2, Hh = Math.ceil(HH * Rb) + 2;
+    const c = E.mk(W, Hh), q = c.getContext('2d');
+    const P = D.P;
+    const save = { g: D.g, mH: D.mH, ga: D.ga, blink: D.blink, lx: P.lookX, ly: P.lookY, H: D.H };
+    const H2 = { yaw, pitch, cy: cos(yaw), sy: sin(yaw), cp: cos(pitch), sp: sin(pitch), qk: yaw.toFixed(4) + ',' + pitch.toFixed(4), front: abs(yaw) < 1.62 };
+    D.g = q; D.ga = 1; D.blink = blink; P.lookX = lookX; P.lookY = lookY; D.H = H2;
+    D.mH = [Rb, 0, 0, Rb, -HX0 * Rb + 1, -HY0 * Rb + 1];
+    try { drawHeadStatic(D, H2, ex); }
+    finally { D.g = save.g; D.mH = save.mH; D.ga = save.ga; D.blink = save.blink; P.lookX = save.lx; P.lookY = save.ly; D.H = save.H; }
+    return { c, x0: HX0 - 1 / Rb, y0: HY0 - 1 / Rb };
   }
   /* ================================================================
    * 身体 v2（角色空间：单位 = 身高 1/100，脚底原点，y 向下）
@@ -2702,6 +2883,7 @@
   }
   /** 一段肢体（a → b，半宽 r）上的阴影带 */
   function celSeg(D, ax, ay, bx, by, r, c, k) {
+    if (D.lod < 2) return;
     let dx = bx - ax, dy = by - ay;
     const l = hypot(dx, dy) || 1; dx /= l; dy /= l;
     celBand(D, (ax + bx) * 0.5, (ay + by) * 0.5, -dy, dx, r, c, k);
@@ -3250,8 +3432,8 @@
         coatPt(D, H, phF, kk, Q3);
         const fx = Q3[0], fy = Q3[1], fz = Q3[2];
         let ex = fx, ey = fy, ephi = phF;
-        for (let q = 1; q <= 8; q++) {
-          const ph = sg * (op + (PI * 0.98 - op) * q / 8);
+        for (let q = 1; q <= 5; q++) {
+          const ph = sg * (op + (PI * 0.98 - op) * q / 5);
           coatPt(D, H, ph, kk, Q2);
           if (Q2[0] * dirX > ex * dirX) { ex = Q2[0]; ey = Q2[1]; ephi = ph; }
         }
@@ -4699,6 +4881,15 @@
     return c;
   }
 
+  const RIMLAYERS = new Map();
+  function rimLayerCanvas(w, h) {
+    const bw = Math.ceil(w / 128) * 128, bh = Math.ceil(h / 128) * 128, k = bw + 'x' + bh;
+    let c = RIMLAYERS.get(k);
+    if (c) { RIMLAYERS.delete(k); RIMLAYERS.set(k, c); return c; }
+    while (RIMLAYERS.size >= 4) { const [k0, c0] = RIMLAYERS.entries().next().value; c0.width = c0.height = 1; RIMLAYERS.delete(k0); }
+    c = E.mk(bw, bh); RIMLAYERS.set(k, c);
+    return c;
+  }
   function drawHuman(g, who, o) {
     const bm = g.getTransform();
     const base = [bm.a, bm.b, bm.c, bm.d, bm.e, bm.f];
@@ -4739,11 +4930,25 @@
       const dirs = o.rimDir != null ? [[cos(o.rimDir), sin(o.rimDir)]] : [[-0.75, -0.66], [0.75, -0.66]];
       const rc = 'rgb(' + o.rim + ')';
       const save = D.base || base;
-      for (const [dx, dy] of dirs) {
-        const b2 = [save[0], save[1], save[2], save[3], save[4] + dx * rimPx, save[5] + dy * rimPx];
-        buildMatrices(D, b2);
-        D.sil = rc; D.rimPass = true;
+      // 轮廓光：把剪影只画一次到离屏层，再按光的方向错开贴几次（不用每个方向把整个角色重画一遍）
+      const S = (o.h || 300) / 100 * (o.crop === 'bust' ? 2 : o.crop === 'face' ? 4 : 1);
+      const x0 = (o.x || 0) - 80 * S, x1 = (o.x || 0) + 80 * S, y0 = (o.y || 0) - 140 * S, y1 = (o.y || 0) + 25 * S;
+      const cs = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => [bm.a * x + bm.c * y + bm.e, bm.b * x + bm.d * y + bm.f]);
+      const pad = Math.ceil(rimPx) + 2;
+      let bx0 = Math.floor(min(...cs.map((c) => c[0]))) - pad, by0 = Math.floor(min(...cs.map((c) => c[1]))) - pad;
+      let bx1 = Math.ceil(max(...cs.map((c) => c[0]))) + pad, by1 = Math.ceil(max(...cs.map((c) => c[1]))) + pad;
+      const cw = g.canvas ? g.canvas.width : 4096, ch = g.canvas ? g.canvas.height : 4096;
+      bx0 = max(-pad, bx0); by0 = max(-pad, by0); bx1 = min(cw + pad, bx1); by1 = min(ch + pad, by1);
+      if (bx1 > bx0 && by1 > by0 && (bx1 - bx0) * (by1 - by0) < 4e6) {
+        const L = rimLayerCanvas(bx1 - bx0, by1 - by0), q = L.getContext('2d');
+        q.setTransform(1, 0, 0, 1, 0, 0); q.clearRect(0, 0, bx1 - bx0, by1 - by0);
+        D.g = q; D.ga = 1; D.sil = rc; D.rimPass = true;
+        buildMatrices(D, [save[0], save[1], save[2], save[3], save[4] - bx0, save[5] - by0]);
         paintHuman(D);
+        D.g = g; D.ga = g.globalAlpha;
+        g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+        for (const [dx, dy] of dirs) g.drawImage(L, 0, 0, bx1 - bx0, by1 - by0, bx0 + dx * rimPx, by0 + dy * rimPx, bx1 - bx0, by1 - by0);
+        g.restore();
       }
       buildMatrices(D, save);
       D.rimPass = false;
@@ -4893,23 +5098,19 @@
     sheepPass(g, who, o, o.sil || null);
     g.setTransform(bm);
   }
-  function sheepPass(g, who, o, sil) {
+  /** 羊的动作（纯函数）：画和 anchors 共用同一套公式 */
+  function sheepMotion(who, o) {
     const pink = who === 'sheep-pink';
-    const C = SHEEP_PAL[pink ? 'pink' : 'black'];
-    const bm = g.getTransform();
     const t = (o.t || 0) + (o.phase || 0), sp = o.speed > 0 ? o.speed : 1;
-    const S = (o.h || 90) / 54;
-    const bs = sqrt(abs(bm.a * bm.d - bm.b * bm.c));
-    const pxU = S * bs;
-    const lod = o.lod != null ? o.lod : pxU * 54 < 40 ? 0 : pxU * 54 < 160 ? 1 : 2;
-    const inkK = clamp(0.5 + pxU * 54 * 0.006, 0.7, 4) / pxU / 1.4;   // 线宽倍数（相对 scenes.js 的线宽）
     const pose = o.pose || 'stand';
     const seed = o.seed != null ? o.seed : pink ? 17 : 5;
-    let sit = pose === 'sit' || pose === 'sleep' || pose === 'lie';
+    const sit = pose === 'sit' || pose === 'sleep' || pose === 'lie';
     const walk = pose === 'walk', run = pose === 'run' || pose === 'run-away', hop = pose === 'jump' || pose === 'bounce';
-    let bob = 0, rot = 0, headDy = 0, headRot = 0, legPh = 0, legA = 0, lift = 0, air = 0;
+    const bound = pose === 'bound' || pose === 'gallop';
+    let bob = 0, rot = 0, headDy = 0, headRot = 0, legPh = 0, legA = 0, air = 0;
     if (walk) { legPh = TAU * 1.6 * sp * t; legA = 2.6; bob = abs(sin(legPh)) * 1.2; headDy = sin(legPh * 2 - 0.6) * 0.5; }
     else if (run) { legPh = TAU * 2.4 * sp * t; legA = 4.2; bob = abs(sin(legPh)) * 3.2; rot = 0.08 * sin(legPh * 2); headDy = sin(legPh * 2 - 0.8) * 0.9; }
+    else if (bound) { legPh = TAU * 2.0 * sp * t; legA = 4.8; bob = max(0, sin(legPh)) * 4.8; rot = 0.13 * cos(legPh); headDy = sin(legPh - 0.6) * 0.8; air = max(0, sin(legPh)) * 0.4; }
     else if (hop) { const q = fract(t * 1.3 * sp); air = o.air != null ? o.air : sin(PI * q); bob = air * 14; rot = -0.12 * cos(PI * q) * air; }
     else if (pose === 'float') { bob = 6 + 2 * sin(t * 1.4); rot = 0.05 * sin(t * 0.9); air = 0.6; }
     else if (pose === 'push') { rot = -0.18; headDy = 2.5; headRot = -0.15; legPh = TAU * 1.2 * t; legA = 1.8; }
@@ -4918,6 +5119,45 @@
     else if (!sit) { bob = 0.35 * sin(t * 2.2 + seed); }
     if (pose === 'sleep') { headDy = 2.5 + 0.4 * sin(t * 1.5); headRot = -0.18; }
     const breath = sit ? 0.5 * sin(t * (pose === 'sleep' ? 1.5 : 2.2)) : 0;
+    return { pink, t, sp, pose, seed, sit, walk, run, hop, bound, bob, rot, headDy, headRot, legPh, legA, air, breath };
+  }
+  /** 羊的三个矩阵：身体 Mb、毛团 Mw、头 Mh（局部坐标 = scenes.js 的羊） */
+  function sheepMats(o, Mo, m0, Mb, Mw, Mh) {
+    const S = (o.h || 90) / 54, fx = o.flip ? 1 : -1;
+    tm(Mb, m0, o.x || 0, o.y || 0, (o.rot || 0), S * fx, S);
+    tm(Mb, Mb, 0, -Mo.bob, Mo.rot, 1, 1);
+    tm(Mw, Mb, 0, (Mo.sit ? 5 : 0) - Mo.breath * 0.5, 0, 1, 1 + Mo.breath * 0.012);
+    const hx = -17, hy = -23 + (Mo.sit ? 3 : 0);
+    tm(Mh, Mw, hx, hy + Mo.headDy, Mo.headRot + 0.04 * sin(Mo.t * 1.3 + Mo.seed), 1, 1);
+    tm(Mh, Mh, -hx, -hy, 0, 1, 1);
+    return [hx, hy];
+  }
+  /** 羊的关键点：嘴、背（毛团顶上，驮东西的地方）、头、脸…… */
+  function sheepAnchors(who, o) {
+    const Mo = sheepMotion(who, o), Mb = [0, 0, 0, 0, 0, 0], Mw = [0, 0, 0, 0, 0, 0], Mh = [0, 0, 0, 0, 0, 0];
+    const [hx, hy] = sheepMats(o, Mo, [1, 0, 0, 1, 0, 0], Mb, Mw, Mh);
+    const P = (m, x, y) => [mapX(m, x, y), mapY(m, x, y)];
+    const x = o.x || 0, y = o.y || 0, S = (o.h || 90) / 54;
+    return {
+      head: P(Mh, hx, hy), face: P(Mh, hx - 1, hy + 1), mouth: P(Mh, hx - 1.6, hy + 5.8), eye: P(Mh, hx - 4.3, hy + 0.4),
+      back: P(Mw, SH.bx + 1, SH.by - 20.5), top: P(Mh, hx, hy - 12), chest: P(Mw, SH.bx - 12, SH.by + 6),
+      hip: P(Mw, SH.bx + 14, SH.by), feet: [x, y], prop: null,
+      bounds: [x - 32 * S, y - 45 * S - Mo.bob * S, x + 32 * S, y],
+    };
+  }
+  function sheepPass(g, who, o, sil) {
+    const Mo = sheepMotion(who, o);
+    const pink = Mo.pink;
+    const C = SHEEP_PAL[pink ? 'pink' : 'black'];
+    const bm = g.getTransform();
+    const t = Mo.t;
+    const S = (o.h || 90) / 54;
+    const bs = sqrt(abs(bm.a * bm.d - bm.b * bm.c));
+    const pxU = S * bs;
+    const lod = o.lod != null ? o.lod : pxU * 54 < 40 ? 0 : pxU * 54 < 160 ? 1 : 2;
+    const inkK = clamp(0.5 + pxU * 54 * 0.006, 0.7, 4) / pxU / 1.4;   // 线宽倍数（相对 scenes.js 的线宽）
+    const pose = Mo.pose, seed = Mo.seed, sit = Mo.sit, walk = Mo.walk, run = Mo.run;
+    const bob = Mo.bob, rot = Mo.rot, headDy = Mo.headDy, headRot = Mo.headRot, legPh = Mo.legPh, legA = Mo.legA, air = Mo.air, breath = Mo.breath;
     // 矩阵：镜像（默认面朝右），脚底原点
     const fx = o.flip ? 1 : -1;
     const x0 = o.x || 0, y0 = (o.y || 0);
@@ -4950,10 +5190,18 @@
       // 对角步：近前腿 + 远后腿同相
       const sw = (p) => legA * sin(legPh + p), lf = (p) => (legA ? max(0, sin(legPh + p + HP)) * legA * 0.35 : 0);
       const tuck = air > 0.2 ? air * 3 : 0;
-      L(-3, sw(PI) - tuck, lf(PI) + tuck * 0.6, C.legFar, 3.4);
-      L(15, sw(0) + tuck, lf(0) + tuck * 0.6, C.legFar, 3.4);
-      L(-8, sw(0) - tuck, lf(0) + tuck * 0.6, C.leg, 3.7);
-      L(10, sw(PI) + tuck, lf(PI) + tuck * 0.6, C.leg, 3.7);
+      if (Mo.bound) {
+        // 蹦着跑：两条前腿一起、两条后腿一起
+        L(-3, sw(0) - tuck, lf(0) + tuck * 0.6, C.legFar, 3.4);
+        L(15, sw(PI) + tuck, lf(PI) + tuck * 0.6, C.legFar, 3.4);
+        L(-8, sw(0.25) - tuck, lf(0.25) + tuck * 0.6, C.leg, 3.7);
+        L(10, sw(PI + 0.25) + tuck, lf(PI + 0.25) + tuck * 0.6, C.leg, 3.7);
+      } else {
+        L(-3, sw(PI) - tuck, lf(PI) + tuck * 0.6, C.legFar, 3.4);
+        L(15, sw(0) + tuck, lf(0) + tuck * 0.6, C.legFar, 3.4);
+        L(-8, sw(0) - tuck, lf(0) + tuck * 0.6, C.leg, 3.7);
+        L(10, sw(PI) + tuck, lf(PI) + tuck * 0.6, C.leg, 3.7);
+      }
     }
     // 毛团
     const dyS = sit ? 5 : 0;
@@ -5309,6 +5557,8 @@
   const api = { meta: META, placeholder: false, version: 2, lastMs: 0 };
   function draw(g, who, o) {
     o = o || {};
+    // 官方 Spine 小人（js/mv/sd.js）接管得了的，交给它；接不了（姿势 / 加载失败）时用这里的手绘版本
+    const S = window.MVE && MVE.sd; if (S && S.wants && S.wants(who, o) && S.drawCast(g, who, o)) return;
     const t0 = performance.now();
     g.save();
     try {
@@ -5324,8 +5574,11 @@
   }
   function anchors(who, o) {
     o = o || {};
+    const SD = window.MVE && MVE.sd;
+    if (SD && SD.wants && SD.wants(who, o)) { const a = SD.anchors && SD.anchors(who, o); if (a) return a; }
     try {
       if (CH[who]) return anchorsHuman(who, o);
+      if (who === 'sheep-black' || who === 'sheep-pink') return sheepAnchors(who, o);
     } catch (e) { if (warned < 8) { warned++; console.warn('[MV cast] anchors', who, e); } }
     // 羊 / 多利 / 路人：粗略的关键点
     const h = o.h || (who === 'dolly' ? 200 : who === 'crowd' ? 280 : 90), x = o.x || 0, y = o.y || 0, f = o.flip ? -1 : 1;
@@ -5338,7 +5591,8 @@
     o = o || {};
     const run = o.pose === 'run' || o.pose === 'run-away', sp = o.speed > 0 ? o.speed : 1;
     if (who === 'sheep-black' || who === 'sheep-pink') {
-      const S = (o.h || 90) / 54, cyc = (run ? 2.4 : 1.6) * sp, stride = (run ? 4.2 : 2.6) * 4;
+      const bound = o.pose === 'bound' || o.pose === 'gallop';
+      const S = (o.h || 90) / 54, cyc = (run ? 2.4 : bound ? 2.0 : 1.6) * sp, stride = (run ? 4.2 : bound ? 4.8 : 2.6) * 4;
       return { speed: stride * cyc * S, period: 1 / cyc, stride: stride * S };
     }
     if (who === 'crowd') { const S = (o.h || 280) / 100, cyc = (run ? 1.4 : 0.92) * sp; const stride = 4 * 37 * sin(run ? 0.7 : 0.38); return { speed: stride * cyc * S, period: 1 / cyc, stride: stride * S }; }
