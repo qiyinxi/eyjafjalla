@@ -540,6 +540,60 @@
   /** 可见高度 V 对应的角色库 h 参数 */
   function sheepH(kind, pose, V) { const L = LAMB[kind] || LAMB.pink; const b = castBox(L[0], Object.assign({ pose }, L[1])); return (100 * V) / max(10, b.y1 - b.y0); }
   const EXPR_OK = { neutral: 'open', open: 'open', happy: 'happy', laugh: 'happy', smile: 'happy', closed: 'closed', sleepy: 'closed', surprise: 'surprise', sad: 'sad' };
+
+  /* =========================================================
+   * 官方 Q 版小人（MVE.sd，游戏里的 Spine 模型）：
+   *   粉色小羊 = 「火山旅梦」的敌人：带头的 = 巫师帽的“星术师”（1350），工程师 = 竹蜻蜓 + 护目镜的“飞空员”（1347，飘在半空），
+   *   其余 = 头顶交通锥的“淘气包”（1344）；汽水摊的店主 = 雪雉（char_383_snsant）；门口的她 = 纯烬艾雅法拉（基建小人）。
+   *   一共 5 个模型。模型没加载好 / 设备不支持时，退回手绘版。
+   * ========================================================= */
+  const SDK = () => { const S = window.MVE && window.MVE.sd; return S && S.draw && S.enabled !== false ? S : null; };
+  const SD_LAMB = { boss: 'enemy_1350_mgcshp', geek: 'enemy_1347_fyshp', bell: 'enemy_1344_ddlamb', pink: 'enemy_1344_ddlamb' };
+  // 客串的路人（「火山旅梦」里汐斯塔的活动干员）：琳琅诗怀雅、苍苔、锡兰（夏装）——一共 8 个模型
+  const CAMEO = ['swire2', 'bryota', 'char_348_ceylon_summer_13/build'];
+  const SD_KEYS = ['enemy_1344_ddlamb', 'enemy_1347_fyshp', 'enemy_1350_mgcshp', 'snowsant', 'alter'].concat(CAMEO);
+  /** 一个客串路人（官方小人）；模型不可用时画成柔和的剪影（o.fb 为角色库 crowd 的参数） */
+  function extra(q, s, key, o) {
+    if (sdReady(key)) { if (warmMode) return; const ok = SDK().draw(q, key, Object.assign({ t: s.t }, o)); if (ok) return; }
+    if (o.fb) cast(q, 'crowd', Object.assign({ t: s.t }, o.fb));
+  }
+  // 每个模型那一团“毛”的高度（骨骼单位）：按它缩放，三种小羊的身子一样大（头饰另算）
+  const SD_FLUFF = { enemy_1344_ddlamb: 262, enemy_1350_mgcshp: 290, enemy_1347_fyshp: 170 };
+  // 背上的位置（放汽水瓶）、身子中心（骨骼单位，脚底为原点，y 向下，面朝右）
+  const SD_BACK = { enemy_1344_ddlamb: [-24, -250], enemy_1350_mgcshp: [-40, -262], enemy_1347_fyshp: [-14, -290] };
+  const LAMB_ANIM = { walk: 'Move', run: 'Move', gallop: 'Move', bound: 'Move', push: 'Attack', eat: 'Attack' };
+  function sdReady(key) { const S = SDK(); try { return !!(S && S.ready(key)); } catch (e) { return false; } }
+  function sdOK(key) { return !warmMode && sdReady(key); }
+  /** 小羊的动画帧缓存：画面上小于 SPR_MAX（设计像素）的小羊用预渲染帧，每个动作 SPR_NF 帧 */
+  const SPR_MAX = 120, SPR_NF = 10;
+  // 各模型的绘制框（骨骼单位，脚底为原点，y 向下）：留足 Attack / Move 的动作幅度
+  const SD_BOX = { enemy_1344_ddlamb: [-230, -380, 330, 40], enemy_1350_mgcshp: [-260, -440, 270, 40], enemy_1347_fyshp: [-200, -440, 190, 40] };
+  const SDDUR = new Map();
+  function sdDur(key, anim) {
+    const k = key + ':' + anim; let d = SDDUR.get(k);
+    if (d == null) { d = 1; try { const I = SDK().info(key); const a = I && I.anims && I.anims.find((x) => x[0] === anim); if (a) d = a[1]; } catch (e) { /* 默认 1 秒 */ } SDDUR.set(k, d); }
+    return d;
+  }
+  /** 一帧（fr）小羊精灵：按屏幕尺寸分三档分辨率；返回 { c, box（design 坐标）, sc（绘制时的骨骼缩放） } */
+  function sdLambFrame(s, key, anim, fr, px) {
+    const tier = px < 45 ? 45 : px < 80 ? 80 : SPR_MAX, V = tier, sc = sdScale(key, V), B = SD_BOX[key] || [-260, -440, 330, 40];
+    const box = [B[0] * sc, B[1] * sc, B[2] * sc, B[3] * sc], w = box[2] - box[0], h = box[3] - box[1];
+    const dur = sdDur(key, anim), tt = ((fr + 0.5) / SPR_NF) * dur;
+    const c = LC(s, `sdl:${key}:${anim}:${fr}:${tier}`, w, h, (q) => { try { SDK().draw(q, key, { x: -box[0], y: -box[1], scale: sc, anim, t: tt, speed: 1 }); } catch (e) { /* 空帧 */ } }, 1.25);
+    return c === DUMMY ? null : { c, box, sc };
+  }
+  const sdScale = (key, V) => (V * 1.18) / (SD_FLUFF[key] || 262);
+  const sdPhase = (V, o) => fract((o.seed ?? 0) * 0.37 + V * 0.113 + (o.flip ? 0.5 : 0) + (o.phaseK || 0));
+  const SDGEO = new Map();
+  /** 官方小羊静止姿势下脸 / 头顶的位置（骨骼单位；只量一次） */
+  function sdGeo(key) {
+    let v = SDGEO.get(key);
+    if (v !== undefined) return v;
+    v = null;
+    try { const A = SDK().anchors(key, { x: 0, y: 0, scale: 1, anim: 'Idle', t: 0 }); if (A && A.face && A.top) v = { face: A.face, top: A.top, head: A.head || A.face }; } catch (e) { v = null; }
+    if (v) SDGEO.set(key, v);
+    return v;
+  }
   /**
    * 画一只小羊：(x, y) 脚底，V 可见高度
    * o: { kind, pose, expr, flip, sq(挤压 -1..1), spin(绕身体中心转), rot(绕脚底转), alpha, glow, t(矢量模式的动作时间), fx:[眼睛特效] }
@@ -555,6 +609,37 @@
     if (o.spin) { g.translate(0, -V * 0.45); g.rotate(o.spin); g.translate(0, V * 0.45); }
     if (o.alpha != null && o.alpha < 1) g.globalAlpha *= clamp(o.alpha);
     const tt = (o.t ?? s.t) * (o.wspd || 1);
+    const sk = SD_LAMB[kind] || SD_LAMB.pink;
+    const sdR = o.sd !== false && sdReady(sk);
+    if (sdR && warmMode) {
+      // 预热：只把要用到的小精灵帧排进队列
+      if (V * zs < SPR_MAX && !o.tint && !o.rim) sdLambFrame(s, sk, LAMB_ANIM[pose] || 'Idle', 0, V * zs);
+      g.restore(); return;
+    }
+    if (sdR) {
+      // 官方小羊：Idle / Move / Attack；走跑时按实际前进速度反推 Move 的播放速度（脚不打滑）
+      const S = SDK(), sc = sdScale(sk, V), anim = LAMB_ANIM[pose] || 'Idle';
+      let speed = pose === 'sleep' || pose === 'sit' ? 0.35 : 1;
+      if (anim === 'Move') { const G = S.gait(sk, { scale: sc }); if (G && G.speed > 1) speed = clamp(((o.wspd || 1) * gaitV(pose === 'run' ? 'run' : 'walk', V)) / G.speed, 0.3, 3.5); }
+      g.scale(1 + sq * 0.2, 1 - sq * 0.2);
+      if (V * zs < SPR_MAX && !o.tint && !o.rim) {
+        // 画面上不大的小羊：用预先渲染好的动画帧（每个动作 10 帧），一帧一次 drawImage
+        const dur = sdDur(sk, anim), at = ((o.t ?? s.t) + sdPhase(V, o) * 1.3) * speed, fr = dur > 0 ? floor(fract(at / dur) * SPR_NF) : 0;
+        const F = sdLambFrame(s, sk, anim, fr, V * zs);
+        if (F) {
+          const k = sc / F.sc;
+          g.scale((o.flip ? -1 : 1) * k, k);
+          g.drawImage(F.c, F.box[0], F.box[1], F.box[2] - F.box[0], F.box[3] - F.box[1]);
+          g.restore();
+          if (o.fx) lambFx(g, s, x, y, V, o);
+          return;
+        }
+      }
+      const ok = S.draw(g, sk, { x: 0, y: 0, scale: sc, anim, t: o.t ?? s.t, speed, phase: sdPhase(V, o) * 1.3, flip: !!o.flip, tint: o.tint, rim: o.rim });
+      g.restore();
+      if (ok) { if (o.fx) lambFx(g, s, x, y, V, o); return; }
+      g.save(); g.translate(x, y); if (o.rot) g.rotate(o.rot); if (o.spin) { g.translate(0, -V * 0.45); g.rotate(o.spin); g.translate(0, V * 0.45); } if (o.alpha != null && o.alpha < 1) g.globalAlpha *= clamp(o.alpha);
+    }
     if (V * zs > 150 && !warmMode) {
       // 特写：矢量（清晰，还会眨眼、呼吸）
       g.scale(1 + sq * 0.2, 1 - sq * 0.2);
@@ -571,6 +656,14 @@
   }
   /** 小羊脸上的关键点（世界坐标）：u = 每个“羊局部单位”的长度 */
   function lambGeo(kind, pose, V, x, y, flip, sq = 0) {
+    const sk = SD_LAMB[kind] || SD_LAMB.pink, Gs = sdOK(sk) ? sdGeo(sk) : null;
+    if (Gs) {
+      // 官方小羊：脸、头顶来自骨骼锚点；背（放瓶子）按模型量好的位置
+      const sc = sdScale(sk, V), f = flip ? -1 : 1, sx = 1 + sq * 0.2, sy = 1 - sq * 0.2, u = V / 32;
+      const P = (lx, ly) => [x + f * sx * sc * lx, y + sy * sc * ly];
+      const fc = Gs.face, tp = Gs.top, bk = SD_BACK[sk] || [-20, -250];
+      return { u, f, sd: true, face: P(fc[0], fc[1]), eyeA: P(fc[0] + 14, fc[1] - 8), eyeB: P(fc[0] - 10, fc[1] - 8), mouth: P(fc[0] + 12, fc[1] + 26), top: P(tp[0], tp[1]), back: P(bk[0], bk[1]), body: P(bk[0] + 8, bk[1] * 0.5), cheek: P(fc[0] + 4, fc[1] + 14) };
+    }
     const L = LAMB[kind] || LAMB.pink, b = castBox(L[0], Object.assign({ pose }, L[1]));
     const u = (V / (b.y1 - b.y0)) * (100 / 54), f = flip ? -1 : 1, sx = 1 + sq * 0.2, sy = 1 - sq * 0.2;
     const dy = pose === 'sit' ? 3 : pose === 'sleep' ? 5.5 : 0;
@@ -685,6 +778,41 @@
       g.fillStyle = 'rgba(255,220,190,0.35)'; for (const sd of [-1, 1]) { g.beginPath(); g.ellipse(sd * w * 0.45, -w * 0.09, w * 0.18, w * 0.04, sd * 0.25, 0, TAU); g.fill(); }
       g.restore();
     } catch (e) { /* 没有关键点就不画 */ }
+  }
+
+  /* ---------- 汽水摊的店主：雪雉（官方基建小人 Relax / Move / Sit / Sleep / Interact；特写用她的夏装剧情立绘） ---------- */
+  const SNOW = 'snowsant';
+  /** 画雪雉：o 直接交给 MVE.sd.draw（x, y 脚底；h 身高；anim；flip = 面朝左；rot；from / to / k 交叉淡化）；o.fb = 模型不可用时手绘老板的参数 */
+  function snow(q, s, o) {
+    if (sdReady(SNOW)) { if (warmMode) return true; const ok = SDK().draw(q, SNOW, Object.assign({ t: s.t }, o)); if (ok) return true; }
+    if (o.fb) vendor(q, Object.assign({ t: s.t }, o.fb));
+    return false;
+  }
+  /** 雪雉的锚点（head / face / top / chest / handN / handF / bounds …）；不可用时 null */
+  function snowA(s, o) { try { return sdOK(SNOW) ? SDK().anchors(SNOW, Object.assign({ t: s.t }, o)) : null; } catch (e) { return null; } }
+  /** 在长凳上午睡：Sleep（侧躺，头朝左，枕着小枕头）；o.stir 0..1 被吵醒时一抖；返回头的位置（放 zzz / 泡泡） */
+  function snowDoze(q, s, o = {}) {
+    const t = s.t, h = o.h || 370, stir = o.stir || 0;
+    const x = BENCH.x + 4, y = BENCH.top - 4 - stir * 10;
+    snow(q, s, { x, y, h, anim: 'Sleep', t: t * (o.speed || 1), rot: stir * 0.04 * sin(t * 38), tint: o.tint, fb: { x: BENCH.x - 60, y: SG, h: 400, pose: 'sit', seat: 64, arms: 'cross', expr: 'closed', headPose: 'sleep', look: [0.4, 0.3] } });
+    const head = [x - h * 0.3, y - h * 0.3];
+    if (!o.noZ && stir < 0.2) for (let i = 0; i < 3; i++) { const ph = fract(t * 0.55 + i / 3); withAlpha(q, sin(PI * ph) * 0.9, (qq) => E.text(qq, 'z', head[0] - 20 - ph * 50 - i * 8, head[1] - 40 - ph * 70, { font: 'hand', size: 18 + ph * 22, color: '#ffffff', stroke: 'rgba(60,40,90,0.55)', strokeW: 5 })); }
+    return head;
+  }
+  /** 雪雉头上 / 身上的泡沫（屋顶那几场）：按锚点摆；没有锚点时按身高估 */
+  function snowFoam(q, s, o) {
+    const A = snowA(s, o), x = o.x, y = o.y, h = o.h || 400, fl = o.flip ? -1 : 1;
+    const top = A && A.top ? A.top : [x - fl * h * 0.05, y - h];
+    const ch = A && A.chest ? A.chest : [x, y - h * 0.5];
+    for (let i = 0; i < 5; i++) foam(q, top[0] - 46 + i * 23, top[1] + 16 + sin(i * 2) * 8, 20 + (i % 2) * 7, 0.95, i, true, i);
+    for (let i = 0; i < 3; i++) foam(q, ch[0] - 40 + i * 40, ch[1] - 10 + (i % 2) * 18, 17, 0.9, i + 3, true, i);
+  }
+  /** 特写：雪雉的夏装剧情立绘（crop 'face' | 'bust' | 'upper'；expr 表情编号或关键帧）；立绘没加载好时返回 false */
+  function snowCard(q, s, o) {
+    const S = SDK();
+    if (!S || !S.card) return false;
+    // 预热时也“画”一次（画到 2×2 的假画布上）：按真实的屏幕尺寸，提前开始下载该用的那一档清晰度
+    try { const ok = !!S.card(q, 'snowsant', Object.assign({ t: s.t }, o)); return warmMode ? false : ok; } catch (e) { return false; }
   }
 
   /* =========================================================
@@ -924,13 +1052,14 @@
   function creditsCard(g, a) {
     if (a <= 0.01) return;
     g.save(); g.globalAlpha = a;
-    g.fillStyle = 'rgba(28,20,52,0.66)'; rrect(g, 430, 650, 1060, 296, 26); g.fill();
-    g.strokeStyle = 'rgba(255,214,236,0.4)'; g.lineWidth = 2; rrect(g, 442, 662, 1036, 272, 20); g.stroke();
+    g.fillStyle = 'rgba(28,20,52,0.66)'; rrect(g, 430, 650, 1060, 318, 26); g.fill();
+    g.strokeStyle = 'rgba(255,214,236,0.4)'; g.lineWidth = 2; rrect(g, 442, 662, 1036, 294, 20); g.stroke();
     E.text(g, '歌曲　Effervescence', 960, 716, { size: 34, weight: 700, color: '#fff6f0', spacing: 2 });
     E.text(g, '塞壬唱片-MSR / Kirara Magic（《火山旅梦》OST）', 960, 766, { font: 'sans', size: 24, weight: 500, color: '#ffe6ee', maxW: 980 });
     E.text(g, 'MV：本页原创同人影像，与官方无关', 960, 828, { font: 'sans', size: 25, weight: 700, color: '#fff0c8', spacing: 2 });
     E.text(g, '角色与世界观 © Hypergryph', 960, 874, { font: 'sans', size: 22, weight: 500, color: '#ffe6ee', spacing: 2 });
-    E.text(g, '角色立绘 © Hypergryph（官方原画，本页分层绑定）', 960, 912, { font: 'sans', size: 20, weight: 500, color: '#ffe6ee', spacing: 1 });
+    E.text(g, '角色立绘 © Hypergryph（官方原画，本页分层绑定）', 960, 908, { font: 'sans', size: 20, weight: 500, color: '#ffe6ee', spacing: 1 });
+    E.text(g, 'Q版小人 © Hypergryph（官方 Spine 模型）', 960, 938, { font: 'sans', size: 20, weight: 500, color: '#ffe6ee', spacing: 1 });
     g.restore();
   }
 
@@ -1423,14 +1552,24 @@
     q.strokeStyle = '#fff6e0'; q.lineWidth = 2; q.beginPath(); q.moveTo(bx - 8, SG - 60); q.lineTo(bx - 8, SG - 80); q.lineTo(bx - 4, SG - 88); q.lineTo(bx + 4, SG - 88); q.lineTo(bx + 8, SG - 80); q.lineTo(bx + 8, SG - 60); q.closePath(); q.stroke();
     q.fillStyle = '#ff8fbf'; q.beginPath(); q.arc(bx + 24, SG - 70, 5, 0, TAU); q.arc(bx - 26, SG - 76, 3, 0, TAU); q.fill();
   }
-  /** 老板的凳子 */
-  function stool(q, x) {
-    const ink = '#3a2a2a';
-    q.fillStyle = '#c8905a'; q.strokeStyle = ink; q.lineWidth = 2.5;
-    q.beginPath(); q.moveTo(x - 30, SG); q.lineTo(x - 22, SG - 96); q.lineTo(x - 14, SG - 96); q.lineTo(x - 20, SG); q.closePath(); q.fill(); q.stroke();
-    q.beginPath(); q.moveTo(x + 30, SG); q.lineTo(x + 22, SG - 96); q.lineTo(x + 14, SG - 96); q.lineTo(x + 20, SG); q.closePath(); q.fill(); q.stroke();
-    q.fillStyle = '#e0a868'; rrect(q, x - 36, SG - 106, 72, 14, 6); q.fill(); q.stroke();
-    q.strokeStyle = '#a0703a'; q.lineWidth = 4; q.beginPath(); q.moveTo(x - 25, SG - 44); q.lineTo(x + 25, SG - 44); q.stroke();
+  /** 遮阳篷下的长凳（店主在上面午睡）：木条凳面 + 粉白条纹的垫子 + 一只小枕头（左端） */
+  const BENCH = { x: 900, w: 440, top: SG - 62 };
+  function stool(q) {
+    const ink = '#3a2a2a', x0 = BENCH.x - BENCH.w / 2, x1 = BENCH.x + BENCH.w / 2, T = BENCH.top;
+    q.lineWidth = 2.5; q.strokeStyle = ink;
+    for (const lx of [x0 + 26, x1 - 26]) { q.fillStyle = '#b07a48'; q.beginPath(); q.moveTo(lx - 9, SG); q.lineTo(lx - 7, T + 14); q.lineTo(lx + 7, T + 14); q.lineTo(lx + 9, SG); q.closePath(); q.fill(); q.stroke(); }
+    q.fillStyle = 'rgba(40,20,20,0.18)'; q.beginPath(); q.ellipse(BENCH.x, SG + 2, BENCH.w * 0.5, 10, 0, 0, TAU); q.fill();
+    q.fillStyle = '#c8905a'; rrect(q, x0, T + 8, BENCH.w, 16, 5); q.fill(); q.stroke();
+    q.strokeStyle = 'rgba(90,50,24,0.45)'; q.lineWidth = 1.5; for (let x = x0 + 40; x < x1; x += 40) { q.beginPath(); q.moveTo(x, T + 10); q.lineTo(x, T + 22); q.stroke(); }
+    // 垫子（粉白条纹）
+    q.save(); rrect(q, x0 + 6, T - 6, BENCH.w - 12, 16, 7); q.clip();
+    for (let i = 0; i * 26 < BENCH.w; i++) { q.fillStyle = i % 2 ? '#fff4f8' : '#ff9cc4'; q.fillRect(x0 + 6 + i * 26, T - 6, 26, 16); }
+    q.fillStyle = 'rgba(160,60,100,0.18)'; q.fillRect(x0, T + 4, BENCH.w, 6);
+    q.restore();
+    q.strokeStyle = ink; q.lineWidth = 2; rrect(q, x0 + 6, T - 6, BENCH.w - 12, 16, 7); q.stroke();
+    // 小枕头
+    q.fillStyle = '#fff6e8'; q.beginPath(); q.ellipse(x0 + 84, T - 14, 50, 17, -0.06, 0, TAU); q.fill(); q.stroke();
+    q.strokeStyle = 'rgba(200,120,150,0.5)'; q.lineWidth = 2; q.beginPath(); q.moveTo(x0 + 50, T - 14); q.lineTo(x0 + 116, T - 17); q.stroke();
   }
   /** 海滨木栈道（木板横着铺，越近越宽；错开的接缝与钉子，阳光下的高光） */
   function promenade(q, x0 = -400, x1 = 2400, y0 = SG, y1 = VH + 60) {
@@ -1458,7 +1597,7 @@
     kiosk(q);
     awningShadow(q);
     awning(q);
-    if (!o.noStool) stool(q, ST.stool);
+    if (!o.noStool) stool(q);
     // 墙边叠着的三只 SIESTA 货箱（No.1–3）
     for (const [i, x, y] of [[1, 1430, SG], [2, 1500, SG], [3, 1466, SG - 104]]) { q.save(); q.translate(x, y); q.scale(0.46, 0.46); q.translate(-150, -230); crateArt(q, i, false); lidArt2(q); q.restore(); }
     palm(q, 2090, SG + 4, 520, 0, { seed: 33, lean: -0.12 });
@@ -1866,7 +2005,7 @@
     const popT = 11.68 - s.shot.t0, pk = clamp((lt - popT) / 0.35);
     standScene(g, s, cam, {
       key: 'peek', base: { x: 915, y: 690, z: 1.23 }, res: 1.03, gauge: 0.1,
-      mid: (q) => { vendorDoze(q, s, ST.stool); heatWisps(q, t, { x: 200, y: 900, w: 1300, h: 260, n: 9, rgb: '255,255,255', a: 0.1, seed: 5 }); },
+      mid: (q) => { snowDoze(q, s); heatWisps(q, t, { x: 200, y: 900, w: 1300, h: 260, n: 9, rgb: '255,255,255', a: 0.1, seed: 5 }); },
       near: (q) => {
         const x = 520;
         if (lt < popT + 0.1) heatWisps(q, t, { x: x - 130, y: WALL_Y + 10, w: 260, h: 240, n: 7, r: 95, rgb: '255,150,205', a: 0.45 * sst(0, popT, lt), seed: 9, speed: 0.7 });
@@ -1894,7 +2033,7 @@
     standScene(g, s, cam, {
       key: 'glint', base: { x: 1110, y: 695, z: 2.02 }, res: 1.08, gauge: 0.1,
       mid: (q) => {
-        vendorDoze(q, s, ST.stool);
+        snowDoze(q, s);
         // 冰柜里的瓶子：随重音一格格闪过去
         const [a, b, top] = ST.cooler;
         hits.forEach((ht, i) => {
@@ -1912,7 +2051,8 @@
     // 近处的墙沿（画面最底下，虚）+ 两只粉色的耳朵尖
     g.fillStyle = vg(g, 1010, VH, [[0, 'rgba(236,214,190,0.85)'], [1, 'rgba(220,196,170,0.95)']]); g.fillRect(0, 1010, VW, 80);
     g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(0, 1008, VW, 6);
-    g.drawImage(blurred(s, 'fg-lamb', 900, 560, (q) => cast(q, 'sheep-pink', { x: 470, y: 760, h: 700, pose: 'stand', t: 0, expr: 'surprise', flip: false, bow: '#ff4f8f' }), 0.07), -260, 700, 900, 560);
+    const fgk = sdOK('enemy_1350_mgcshp') ? 'fg-lamb-sd' : 'fg-lamb';
+    g.drawImage(blurred(s, fgk, 900, 560, (q) => { if (!(fgk === 'fg-lamb-sd' && SDK().draw(q, 'enemy_1350_mgcshp', { x: 430, y: 800, scale: 2.1, anim: 'Idle', t: 0 }))) cast(q, 'sheep-pink', { x: 470, y: 760, h: 700, pose: 'stand', t: 0, expr: 'surprise', flip: false, bow: '#ff4f8f' }); }, 0.07), -260, 700, 900, 560);
     s.post.vignette(g, 0.38);
   }
 
@@ -1925,7 +2065,7 @@
     const popAt = (j) => j * eighth + (j === 6 ? eighth * 0.8 : 0);
     standScene(g, s, cam, {
       key: 'row', base: { x: 960, y: 700, z: 1.08 }, res: 1, gauge: 0.1,
-      mid: (q) => { vendorDoze(q, s, ST.stool); heatWisps(q, t, { x: 200, y: 900, w: 1500, h: 260, n: 9, rgb: '255,255,255', a: 0.1, seed: 5 }); },
+      mid: (q) => { snowDoze(q, s); heatWisps(q, t, { x: 200, y: 900, w: 1500, h: 260, n: 9, rgb: '255,255,255', a: 0.1, seed: 5 }); },
       near: (q) => {
         for (let j = 0; j < 7; j++) {
           const i = order[j], L = GANG[i], a = lt - popAt(j);
@@ -1987,7 +2127,7 @@
     standScene(g, s, cam, {
       key: 'sneak', base: B, res: B.res,
       mid: (q) => {
-        vendorDoze(q, s, ST.stool);
+        snowDoze(q, s);
         // 黑板上的海鸥（第 4 拍滑翔进来，第 5 拍“嘎？”）
         gull(q, s, 598, SG - 172, 0.85, b - gullT + 0.2);
         for (let i = 6; i >= 0; i--) {
@@ -2031,14 +2171,13 @@
     standScene(g, s, cam, {
       key: 'doze', base: { x: 690, y: 720, z: 2.55 }, res: 1.02, noStool: false,
       mid: (q) => {
-        const nod = rk > 0 ? max(0, 1 - rk * 2.2) : 0;
-        vendor(q, { x: ST.stool, y: SG, h: 400, pose: 'sit', seat: 100, arms: 'lap', t, expr: rk > 0 && rk < 0.45 ? 'sleepy' : 'closed', headPose: rk > 0 && rk < 0.45 ? null : 'sleep', look: [0.5, 0.4] });
-        // 手里的蒲扇，一下一下慢慢扇（铃铛响的时候停住）
-        const hand0 = anchor(vendorKey() || 'crowd', { x: ST.stool, y: SG, h: 400, pose: 'sit', seat: 100, arms: 'lap', t }, 'handN', [ST.stool + 30, SG - 150]);
-        paperFan(q, hand0[0] + 4, hand0[1] - 4, -0.5 + (rk > 0 && rk < 0.6 ? 0 : sin(t * 2.6) * 0.35), 1.1);
-        // 呼噜泡泡
-        if (!(rk > 0 && rk < 0.6)) for (let i = 0; i < 3; i++) { const ph = fract(t * 0.55 + i / 3); withAlpha(q, sin(PI * ph) * 0.9, (qq) => E.text(qq, 'z', ST.stool + 60 + ph * 50 + i * 8, SG - 380 - ph * 70, { font: 'hand', size: 18 + ph * 22, color: '#ffffff', stroke: 'rgba(60,40,90,0.55)', strokeW: 5 })); }
-        // 小羊们从凳子前面踮脚溜过（铃铛响时全体定住）
+        // 店主在长凳上睡午觉（“叮铃”一声时身子一抖，呼噜停了）
+        const stir = rk > 0 && rk < 0.7 ? 1 - rk / 0.7 : 0;
+        snowDoze(q, s, { stir, noZ: rk > 0 && rk < 0.7 });
+        // 小羊们从长凳前面踮脚溜过；第二只的交通锥碰倒了脚边的空瓶——“叮铃”，全体定住
+        const P1 = sneakX(ring / BEAT + 0.02, 1, 64, 520, 52), bx0 = P1.x + 58, by0 = SG + 42 + 2;
+        const wob = rk > 0 ? sin(rk * 34) * 0.32 * exp(-rk * 3.5) : 0;
+        bottle(q, s, bx0, by0, 64, wob, { fl: 'mint', cap: false, fill: 0 });
         const freeze = rk > 0 && rk < 0.55;
         for (let i = 6; i >= 0; i--) {
           const L = GANG[i];
@@ -2048,9 +2187,9 @@
           const hy = P.moving ? sin(PI * P.u / 0.42) * 9 : 0;
           lamb(q, s, P.x, y - hy, V, { kind: L.k, pose: P.moving ? 'walk' : 'stand', sq: P.moving ? -0.22 : 0.04, rot: P.moving ? 0.08 : 0, expr: freeze ? 'surprise' : 'neutral', fx: freeze ? (i === 1 ? ['sweat'] : null) : null });
           shadow(q, P.x - 4, y + 2, V * 1.1, 0.5);
-          if (i === 1 && rk > 0 && rk < 0.7) { const G = lambGeo('bell', 'stand', V, P.x, y, false); sparkle(q, G.mouth[0] + 4, G.mouth[1] + 10, 20 * (1 - rk / 0.7) + 6, 1.2 * (1 - rk / 0.7), rk * 4, '255,236,160'); }
+          if (i === 1 && rk > 0 && rk < 0.7) sparkle(q, bx0, by0 - 40, 26 * (1 - rk / 0.7) + 6, 1.2 * (1 - rk / 0.7), rk * 4, '255,236,160');
         }
-        if (rk > 0) sfx(q, '叮铃', 700, SG - 70, 30, clamp(rk / 0.2), { color: '#fff27a', rot: -0.1, alpha: 1 - clamp((rk - 0.5) / 0.3) });
+        if (rk > 0) sfx(q, '叮铃', bx0 + 40, SG - 110, 30, clamp(rk / 0.2), { color: '#fff27a', rot: -0.1, alpha: 1 - clamp((rk - 0.5) / 0.3) });
       },
     });
     s.post.vignette(g, 0.34);
@@ -2072,7 +2211,10 @@
     const open = lt > 0.2, look = lt < 0.2 ? [0, 0.2] : lt < 0.62 ? [-0.9, 0.35] : [0.9, 0.35];
     const cam = { x: 960, y: 540, z: 1, ...shake(s, open ? 2 : 0, 17, 10) };
     inCam(g, cam, 1, (q) => {
-      vendor(q, { x: 960, y: 610, h: 700, crop: 'face', pose: 'stand', t, expr: open ? 'sleepy' : 'closed', look, blink: false });
+      // 店主的脸（官方剧情立绘）：闭着眼 → 睁开一只眼 → 眯着眼左看右看
+      const t0 = s.shot.t0, pan = lt < 0.2 ? 0 : lt < 0.62 ? -1 : 1;
+      const ok = snowCard(q, s, { x: 960 + pan * 26, y: 1240, h: 1320, crop: 'bust', expr: [[t0 - 1, 11], [t0 + 0.2, 2], [t0 + 0.62, 9]], xfade: 0.12, breath: 1.2 });
+      if (!ok) vendor(q, { x: 960, y: 610, h: 700, crop: 'face', pose: 'stand', t, expr: open ? 'sleepy' : 'closed', look, blink: false });
       if (open) sfx(q, '……？', 1480, 280, 70, clamp((lt - 0.2) / 0.2), { color: '#ffffff', rot: 0.08 });
     });
     s.post.vignette(g, 0.5);
@@ -2528,7 +2670,9 @@
             const wob = (1 - tip) * sin(t * 9) * 0.04 * (j / 6);
             const x = x0 + sin(th + wob) * h, y = FL - cos(th + wob) * h;
             const back = open > 0.2 && tip < 0.5;
-            if (back) cast(q, 'sheep-pink', Object.assign({ x, y, h: sheepH(L.k, 'stand', V), pose: 'stand', rot: th + wob, t, expr: 'surprise', sil: '#7a4a6a', rim: '255,244,220', rimW: 1.6 }, LAMB[L.k][1]));
+            const sk = SD_LAMB[L.k];
+            if (back && sdOK(sk)) SDK().draw(q, sk, { x, y, scale: sdScale(sk, V), anim: 'Idle', rot: th + wob, t, sil: '#7a4a6a', rim: { color: '255,244,220', amount: 1 } });
+            else if (back) cast(q, 'sheep-pink', Object.assign({ x, y, h: sheepH(L.k, 'stand', V), pose: 'stand', rot: th + wob, t, expr: 'surprise', sil: '#7a4a6a', rim: '255,244,220', rimW: 1.6 }, LAMB[L.k][1]));
             else lamb(q, s, x, y, V, { kind: L.k, pose: 'jump', rot: th + wob, expr: 'surprise' });
             continue;
           }
@@ -2703,7 +2847,7 @@
           const duck = Bt.capping ? 0.6 : 0;
           const V = 40 * L.sc, y = BOTTLE_TOP;
           lamb(q, s, Bt.x, y, V, { kind: L.k, pose: 'stand', sq: duck + (bb.mv > 0 && bb.mv < 1 ? -0.1 : 0), expr: Bt.station >= 0 ? 'closed' : duck ? 'surprise' : 'happy', rot: bb.mv > 0 && bb.mv < 1 ? -0.08 : 0 });
-          if (capped) capHat(q, s, lambGeo(L.k, 'stand', V, Bt.x, y, false, duck), V * 0.22, t);
+          if (capped) { const Gc = lambGeo(L.k, 'stand', V, Bt.x, y, false, duck); if (!Gc.sd) capHat(q, s, Gc, V * 0.22, t); }
         }
       },
     });
@@ -2797,12 +2941,21 @@
     standScene(g, s, cam, {
       key: 'hat', base: { x: 760, y: 640, z: 2.45 }, res: 1.03,
       mid: (q) => {
-        const hatUp = pk > 0 && pk < 1.0;
-        vendor(q, Object.assign({ nohat: hatUp }, vo));
-        const top = anchor(vendorKey() || 'crowd', vo, 'top', [ST.stool + 10, SG - 380]);
-        if (hatUp) { const u = pk / 1.0, hx = top[0] + sin(u * PI) * 70, hy = top[1] + 14 - sin(u * PI) * 110; strawHat(q, hx, hy, 210, u * TAU * 1.5, 0.3 + 0.2 * sin(u * 9)); }
+        // 店主在长凳上睡着；泡泡圈在她鼻尖上“啵”地破了——她一骨碌坐起来（Sleep → Relax 交叉淡化，站到长凳前）
+        let face;
+        if (sdOK(SNOW)) {
+          const k = pk > 0 ? ease.out(clamp(pk / 0.32)) : 0, h = 370;
+          const x0 = BENCH.x + 4, y0 = BENCH.top - 4, x1 = BENCH.x - 150, y1 = SG + 8;
+          const hop = pk > 0 && pk < 0.5 ? sin(PI * pk / 0.5) * 50 : 0;
+          const so = { x: lerp(x0, x1, k), y: lerp(y0, y1, k) - hop, h, from: 'Sleep', to: 'Relax', k, flip: false, t };
+          snow(q, s, so);
+          const A = snowA(s, so); face = A && A.face ? A.face : [x0 - h * 0.2, y0 - h * 0.12];
+          if (pk < 0) for (let i = 0; i < 3; i++) { const ph = fract(t * 0.55 + i / 3); withAlpha(q, sin(PI * ph) * 0.9, (qq) => E.text(qq, 'z', face[0] - 30 - ph * 50 - i * 8, face[1] - 60 - ph * 70, { font: 'hand', size: 18 + ph * 22, color: '#ffffff', stroke: 'rgba(60,40,90,0.55)', strokeW: 5 })); }
+        } else {
+          vendor(q, Object.assign({ nohat: pk > 0 && pk < 1.0 }, vo));
+          face = anchor(vendorKey() || 'crowd', vo, 'face', [ST.stool + 30, SG - 300]);
+        }
         // 从右边（工坊）飘过来的泡泡圈
-        const face = anchor(vendorKey() || 'crowd', vo, 'face', [ST.stool + 30, SG - 300]);
         for (let r = 0; r < 4; r++) {
           const a = lt + 0.9 - r * 0.28, u = clamp(a / 1.5);
           if (a < 0) continue;
@@ -2842,7 +2995,7 @@
         q.fillStyle = '#1a2a30'; q.fillRect(ST.door[0], ST.door[2], 26, SG - ST.door[2]);
         for (const P of carryLine(s, t, s.shot.t0 - 0.6)) {
           const G = lambGeo(P.L.k, 'run', P.V, P.x, P.y, true);
-          const bx = P.x + 6, by = G.top[1] + 6 - P.bob * 8;
+          const bk = G.back || G.top, bx = bk[0] + 6, by = bk[1] + 6 - P.bob * 8;
           // 看不见的小羊：一丝粉色热浪
           lamb(q, s, P.x, P.y - P.bob * 6, P.V, { kind: P.L.k, pose: 'run', flip: true, alpha: 0.1, wspd: P.wspd });
           bottle(q, s, bx, by, 72, sin(t * 4 + P.j) * 0.12, { fl: FLAVORS[P.j % 4] });
@@ -2864,13 +3017,14 @@
     standScene(g, s, cam, {
       key: 'carry', base: B, res: B.res, noStool: true,
       mid: (q) => {
-        stool(q, ST.stool);
-        vendor(q, vo);
+        stool(q);
+        // 店主（醒了）站在柜台边，揉着眼睛朝右边看——看见的只是一排自己往外飘的汽水
+        snow(q, s, { x: 1178, y: SG - 2, h: 390, anim: 'Relax', flip: false, fb: vo });
         for (const P of carryLine(s, t, t0)) {
           const y = P.y - P.bob * 6;
           lamb(q, s, P.x, y, P.V, { kind: P.L.k, pose: 'run', flip: true, wspd: P.wspd, expr: 'happy', sq: -P.bob * 0.08 });
           const G = lambGeo(P.L.k, 'run', P.V, P.x, y, true);
-          bottle(q, s, P.x + 6, G.top[1] + 8, 72, sin(t * 4 + P.j) * 0.12, { fl: FLAVORS[P.j % 4] });
+          const bk = G.back || G.top; bottle(q, s, bk[0] + 6, bk[1] + 8, 72, sin(t * 4 + P.j) * 0.12, { fl: FLAVORS[P.j % 4] });
           shadow(q, P.x, P.y + 2, P.V * 1.1, 0.45);
         }
       },
@@ -2898,8 +3052,14 @@
     standScene(g, s, cam, {
       key: 'keep', base: B, res: B.res,
       mid: (q) => {
-        vendor(q, { x: VX, y: SG + 20, h: 400, pose: vpose, t, expr: vexpr, look: vlook, flip: vflip, aim: 0.3 });
-        if (bi === 7) for (let i = 0; i < 4; i++) { const an = t * 4 + i * PI / 2; sparkle(q, VX + cos(an) * 60, SG - 330 + sin(an) * 18, 16, 0.9, an, '255,240,160'); }
+        // 店主：跟着瓶子转身（Relax）→ 原地转圈（Move，左右翻面）→ 伸手（Interact）→ 扑了个空，一下子躺平（Sleep）
+        const fbo = { x: VX, y: SG + 20, h: 400, pose: vpose, t, expr: vexpr, look: vlook, flip: vflip, aim: 0.3 };
+        const H = 390;
+        if (bi === 7) snow(q, s, { x: VX + 40, y: SG + 26, h: H, anim: 'Sleep', flip: true, fb: fbo });
+        else if (bi === 4 || bi === 5) snow(q, s, { x: VX, y: SG + 20, h: H, anim: 'Move', speed: 1.6, flip: floor(t * 9) % 2 === 0, fb: fbo });
+        else snow(q, s, { x: VX, y: SG + 20, h: H, anim: bi === 6 ? 'Interact' : 'Relax', flip: vflip, fb: fbo });
+        const hx = sdOK(SNOW) ? VX + 40 + H * 0.3 : VX, hy = sdOK(SNOW) ? SG - H * 0.28 : SG - 330;
+        if (bi === 7) for (let i = 0; i < 4; i++) { const an = t * 4 + i * PI / 2; sparkle(q, hx + cos(an) * 60, hy + sin(an) * 18, 16, 0.9, an, '255,240,160'); }
         // 两边的小羊（接住时挤一下）
         const catchL = bi % 2 === 1 && u > 0.85, catchR = bi % 2 === 0 && u > 0.85;
         const cheer = bi === 7;
@@ -3021,7 +3181,7 @@
         // 门口：老板探进半个身子（只在门洞里看得见）
         const [d0, d1, dt] = WS.door;
         q.save(); q.beginPath(); q.rect(d0, dt, d1 - d0, FL - dt); q.clip();
-        vendor(q, { x: lerp(20, 120, peek), y: FL + 6, h: 420, pose: 'stand', rot: 0.18 * peek, t, expr: 'sleepy', look: [side * 0.9, 0.2], blink: false });
+        snow(q, s, { x: lerp(20, 120, peek), y: FL + 6, h: 410, anim: 'Relax', rot: 0.18 * peek, flip: false, fb: { x: lerp(20, 120, peek), y: FL + 6, h: 420, pose: 'stand', rot: 0.18 * peek, expr: 'sleepy', look: [side * 0.9, 0.2], blink: false } });
         q.restore();
       },
       front: (q) => {
@@ -3059,8 +3219,10 @@
       q.globalAlpha = 0.5;
       q.save(); q.translate(30, 150); q.scale(1.45, 1.1); q.translate(-30, -150);
       const wob = sin(t * 1.3) * 1.5;
-      cast(q, 'sheep-pink', { x: 26 + wob, y: 158, h: 64, pose: 'stand', t, expr: pk > 0 && pk < 0.7 ? 'surprise' : 'closed', flip: false, bow: '#ff4f8f' });
-      if (!(pk > 0 && pk < 0.7)) { q.fillStyle = 'rgba(255,90,150,0.8)'; q.beginPath(); q.arc(44 + wob, 138, 3.2, 0, TAU); q.fill(); }
+      if (!(sdOK('enemy_1350_mgcshp') && SDK().draw(q, 'enemy_1350_mgcshp', { x: 22 + wob, y: 160, scale: 58 / 290, anim: pk > 0 && pk < 0.7 ? 'Attack' : 'Idle', t, speed: 0.5 }))) {
+        cast(q, 'sheep-pink', { x: 26 + wob, y: 158, h: 64, pose: 'stand', t, expr: pk > 0 && pk < 0.7 ? 'surprise' : 'closed', flip: false, bow: '#ff4f8f' });
+        if (!(pk > 0 && pk < 0.7)) { q.fillStyle = 'rgba(255,90,150,0.8)'; q.beginPath(); q.arc(44 + wob, 138, 3.2, 0, TAU); q.fill(); }
+      }
       q.restore();
       q.globalAlpha = 1;
       q.globalCompositeOperation = 'multiply'; q.fillStyle = 'rgba(255,150,200,0.5)'; q.fillRect(0, 90, 60, 60); q.globalCompositeOperation = 'source-over';
@@ -3097,7 +3259,7 @@
         steam(q, t, WS.tank[1] - 10, 560, beatTimes(s, s.shot.t0 - 1, t), { r: 18, rise: 60, life: 0.7, drift: 40 });
         steam(q, t, WS.tank[0] + 20, 780, beatTimes(s, s.shot.t0 - 0.5, t, 2), { r: 16, rise: 50, life: 0.6, drift: -40 });
         // 老板（站在罐子前面，背对我们一点）+ 身边一排小羊：一起慢慢转头看罐子
-        vendor(q, { x: 800, y: FL + 16, h: 430, pose: 'stand', t, expr: 'surprise', look: [lerp(0.8, -1, turn), -0.3], flip: turn > 0.5 });
+        snow(q, s, { x: 800, y: FL + 16, h: 420, anim: 'Relax', flip: turn > 0.5, fb: { x: 800, y: FL + 16, h: 430, pose: 'stand', expr: 'surprise', look: [lerp(0.8, -1, turn), -0.3], flip: turn > 0.5 } });
         for (let j = 0; j < 5; j++) { const L = GANG[j + 1], x = 900 + j * 64; lamb(q, s, x, FL + 18, 44 * L.sc, { kind: L.k, pose: turn > 0.5 ? 'look-up' : 'stand', flip: turn > 0.5 + j * 0.05, expr: turn > 0.5 ? 'surprise' : 'neutral', fx: turn > 0.8 ? ['sweat'] : null, t: 0 }); shadow(q, x, FL + 20, 50, 0.4); }
         if (b > 6.5) sfx(q, '咕噜噜……', 520, 300, 34, clamp((b - 6.5) / 0.4), { color: '#ffffff', rot: 0.08 });
       },
@@ -3114,8 +3276,10 @@
       // 老板的大脸：眼睛瞪圆，一滴汗
       g.drawImage(blurred(s, 'uh-bg', VW, VH, (q) => { shopBack(q); shopTank(q); }, 0.05), -60, -40, VW + 120, VH + 80);
       inCam(g, { x: 960, y: 540, z: 1 + lt * 0.2, ...shake(s, 3, 71, 20) }, 1, (q) => {
-        vendor(q, { x: 960, y: 640, h: 760, crop: 'face', pose: 'stand', t, expr: 'surprise', look: [0.2, -0.4], blink: false });
-        drop(q, 1260, 400 + lt * 200, 22, PI / 2, 0.9, 'cyan');
+        // 店主的大脸（剧情立绘，惊得张开嘴）+ 一滴冷汗
+        const ok = snowCard(q, s, { x: 960, y: 1280, h: 1380, crop: 'bust', expr: 3, breath: 0 });
+        if (!ok) vendor(q, { x: 960, y: 640, h: 760, crop: 'face', pose: 'stand', t, expr: 'surprise', look: [0.2, -0.4], blink: false });
+        drop(q, ok ? 1180 : 1260, 380 + lt * 200, 22, PI / 2, 0.9, 'cyan');
       });
       s.post.vignette(g, 0.5);
       return;
@@ -3224,7 +3388,13 @@
         // 被冲飞的汽水瓶
         for (let i = 0; i < 8; i++) { const b2 = a - i * 0.05; if (b2 < 0) continue; const bx = GEY.x + (hash(83, i) - 0.5) * 1200 * b2, by = GEY.y - 600 * b2 + 900 * b2 * b2; bottle(q, s, bx, by, 70, b2 * (6 + i), { fl: FLAVORS[i % 4] }); }
         // 老板从工坊门里被冲出来，一屁股坐在地上
-        const va = a - 0.3; if (va > 0) vendor(q, { x: lerp(ST.door[0] + 60, 1300, ease.out(clamp(va / 0.6))), y: SG + 30, h: 400, pose: va < 0.6 ? 'jump' : 'sit-ground', air: va < 0.6 ? sin(PI * va / 0.6) * 0.6 : 0, t, expr: 'surprise', look: [0.4, -1], flip: true });
+        const va = a - 0.3;
+        if (va > 0) {
+          // 店主被冲出工坊门：在空中翻了一圈（绕身子中心转），落地躺平
+          const vx = lerp(ST.door[0] + 60, 1300, ease.out(clamp(va / 0.6))), fbo = { x: vx, y: SG + 30, h: 400, pose: va < 0.6 ? 'jump' : 'sit-ground', air: va < 0.6 ? sin(PI * va / 0.6) * 0.6 : 0, expr: 'surprise', look: [0.4, -1], flip: true };
+          if (va < 0.6) { const cy = SG + 30 - 190 - sin(PI * va / 0.6) * 230; q.save(); q.translate(vx, cy); q.rotate(-(va / 0.6) * TAU); snow(q, s, { x: 0, y: 190, h: 390, anim: 'Relax', flip: true, fb: Object.assign({}, fbo, { x: 0, y: 190 }) }); q.restore(); }
+          else snow(q, s, { x: vx, y: SG + 32, h: 390, anim: 'Sleep', flip: true, fb: fbo });
+        }
         sfx(q, '砰——！', GEY.x - 420, GEY.y + 60, 110, clamp(a / 0.12), { color: '#ff8fbf', stroke: '#ffffff', rot: -0.1, alpha: 1 - clamp((a - 1.2) / 0.4) });
       },
     });
@@ -3260,7 +3430,7 @@
     inCam(g, cam, 0.7, (q) => {
       for (const [x, y, sc, c] of UMB) umbrella(q, x, y, sc, c, t);
       // 抬头看、指着天的游客
-      for (let i = 0; i < 7; i++) { const x = 300 + i * 220 + hash(88, i) * 60, y = 880 + hash(89, i) * 70; cast(q, 'crowd', { x, y, h: 120 + (y - 880) * 0.4, pose: i % 3 === 0 ? 'point' : 'look-up', aim: -1.1, t: t + i, seed: 80 + i, flip: x > 1300, expr: 'surprise', look: [0.5, -1] }); }
+      for (let i = 0; i < 7; i++) { const x = 300 + i * 220 + hash(88, i) * 60, y = 880 + hash(89, i) * 70; const hh = 120 + (y - 880) * 0.4; extra(q, s, CAMEO[i % 3], { x, y, h: hh, anim: i % 3 === 0 ? 'Interact' : 'Relax', phase: i * 0.53, flip: x > 1300, shadow: 0.5, fb: { x, y, h: hh, pose: i % 3 === 0 ? 'point' : 'look-up', aim: -1.1, t: t + i, seed: 80 + i, flip: x > 1300, simple: true, color: pick(['#ff6fa8', '#3fc0d8', '#ffc83a', '#7fd8a0', '#b48ae0', '#ff8a5a'], hash(90, i)) } }); }
     });
     baked(g, s, 'bw-fore', { x: 960, y: 540, z: 1 }, cam, 1.2, beachFore, 0.8, [-420, 900, 2340, 1200]);
     sparkles(g, t, 18, 87, '255,220,240', { x: 600, y: 0, w: 1300, h: 600, r: 16 });
@@ -3337,10 +3507,10 @@
           bottle(q, s, x + 20, y + 6, 70, -PI / 2 + 0.1 + sin(t * 3 + j) * 0.08, { fl: FLAVORS[j % 4] });
           lamb(q, s, x, y - hy * (trick ? 60 : 16), 46 * L.sc, { kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', flip: true, sq, spin: trick ? -fract(s.beat + j) * TAU : 0, expr: 'happy' });
         }
-        // 被卷在浪里的老板：仰面躺在泡沫上，草帽漂在旁边
-        const vx = xf + 780, vy = topY(vx) + 90;
-        vendor(q, { x: vx, y: vy, h: 400, pose: 'lie', t, expr: 'surprise', rot: -0.15 + sin(t * 3) * 0.08, look: [0, -1] });
-        strawHat(q, vx + 170, topY(vx + 170) + 20 + sin(t * 4) * 6, 170, sin(t * 2) * 0.3, 0.35);
+        // 被卷在浪里的店主：躺在泡沫上一起一伏地漂（Sleep，身子随浪倾斜）
+        const vx = xf + 780, vy = topY(vx) + 40;
+        snow(q, s, { x: vx, y: vy, h: 390, anim: 'Sleep', speed: 1.8, rot: -0.12 + sin(t * 3) * 0.08, flip: true, fb: { x: vx, y: vy + 50, h: 400, pose: 'lie', expr: 'surprise', rot: -0.15 + sin(t * 3) * 0.08, look: [0, -1] } });
+        for (let i = 0; i < 4; i++) foam(q, vx - 180 + i * 110, topY(vx - 180 + i * 110) + 70 + sin(t * 4 + i) * 6, 46, 0.95, i + 30, true, t + i);
         // 前景：浪花打在镜头前
         for (let i = 0; i < 5; i++) foam(q, xf - 60 + i * 130, BK.rail + 330 + sin(t * 5 + i) * 10, 90, 0.9, i + 20, true, t + i);
       },
@@ -3678,7 +3848,8 @@
       mid: (q) => {
         const bob = abs(sin(t * 12)) * 4, wheel = -t * 10;
         // 老板（上半身在货斗后面露出来，身子往前探，一边骑一边指着天）
-        vendor(q, { x: vx + 10, y: HB.quay + 36 - bob, h: 400, pose: 'sit', seat: 120, arms: 'point', aim: 0.9, t, expr: 'determined', look: [-0.5, -1], flip: true, wind: 0.8, windDir: 1 });
+        // 店主骑在送货三轮的车座上（Sit：坐在座面上，小腿垂向脚蹬），面朝左猛追
+        snow(q, s, { x: vx - 2, y: HB.quay + 60 - bob * 0.3 - 152, h: 380, anim: 'Sit', t: t * 3, flip: true, fb: { x: vx + 10, y: HB.quay + 36 - bob, h: 400, pose: 'sit', seat: 120, arms: 'point', aim: 0.9, expr: 'determined', look: [-0.5, -1], flip: true, wind: 0.8, windDir: 1 } });
         trikeBig(q, vx, HB.quay + 60 - bob * 0.3, 1.0, wheel);
         for (let i = 0; i < 3; i++) { q.strokeStyle = `rgba(255,255,255,${0.5 - i * 0.15})`; q.lineWidth = 4; q.beginPath(); q.moveTo(vx + 120 + i * 40, HB.quay - 60 - i * 30); q.lineTo(vx + 200 + i * 40, HB.quay - 60 - i * 30); q.stroke(); }
         sfx(q, '站住——！', vx - 300, HB.quay - 420, 44, clamp(lt / 0.2), { color: '#ffffff', rot: -0.08 });
@@ -3734,7 +3905,7 @@
     inCam(g, cam, 1, (q) => {
       q.drawImage(LC(s, 'mk-back', 4800, 1400, (qq) => { qq.translate(200, 200); mkBack(qq); }, 0.75), -200, -200, 4800, 1400);
       // 路人（抬头看）
-      for (let i = 0; i < 12; i++) { const x = 200 + i * 320 + hash(811, i) * 120; cast(q, 'crowd', { x, y: MK.street + 20 + (i % 3) * 10, h: 230, pose: i % 3 === 0 ? 'point' : 'look-up', aim: -1.0, t: t + i, seed: 200 + i, flip: hash(812, i) < 0.5, expr: 'surprise', look: [0.3, -1] }); }
+      for (let i = 0; i < 12; i++) { const x = 200 + i * 320 + hash(811, i) * 120; const y = MK.street + 20 + (i % 3) * 10, fl = hash(812, i) < 0.5; extra(q, s, CAMEO[i % 3], { x, y, h: 230, anim: i % 4 === 1 ? 'Interact' : 'Relax', phase: i * 0.61, flip: fl, shadow: 0.5, fb: { x, y, h: 230, pose: i % 3 === 0 ? 'point' : 'look-up', aim: -1.0, t: t + i, seed: 200 + i, flip: fl, expr: 'surprise', look: [0.3, -1], sil: pick(['#5a6fa8', '#6a5a9a', '#4f7f9a', '#7a6090'], hash(813, i)), rim: '255,250,235', rimGlow: 0 } }); }
       // 遮阳篷：被踩下去的那块凹一下
       for (let k = 0; k < MK_SHOPS.length; k++) {
         let dip = 0;
@@ -4001,11 +4172,14 @@
     s.post.vignette(g, 0.24);
   }
   /* ---------- 老板上屋顶（140.70 → 142.83）：楼梯间的门被推开，一身泡沫的老板喘着气——看呆了，然后笑了 ---------- */
+  /** 一身泡沫的店主：o.anim 为官方小人的动画；o.fb 为手绘老板的参数（模型不可用时） */
   function foamyVendor(q, s, o) {
-    vendor(q, o);
-    const top = anchor(vendorKey() || 'crowd', o, 'top', [o.x, o.y - o.h]);
+    if (o.anim && snow(q, s, Object.assign({}, o, { fb: null }))) { snowFoam(q, s, o); return; }
+    const v = o.fb || o;
+    vendor(q, v);
+    const top = anchor(vendorKey() || 'crowd', v, 'top', [v.x, v.y - v.h]);
     for (let i = 0; i < 5; i++) foam(q, top[0] - 50 + i * 26, top[1] + 20 + sin(i * 2) * 10, 24 + (i % 2) * 8, 0.95, i, true, i);
-    const ch = anchor(vendorKey() || 'crowd', o, 'chest', [o.x, o.y - o.h * 0.55]);
+    const ch = anchor(vendorKey() || 'crowd', v, 'chest', [v.x, v.y - v.h * 0.55]);
     for (let i = 0; i < 3; i++) foam(q, ch[0] - 50 + i * 50, ch[1] - 40 + (i % 2) * 20, 20, 0.9, i + 3, true, i);
   }
   function shotVendorRoof(g, s) {
@@ -4017,7 +4191,7 @@
       far: (q) => roofJets(q, s, t, 0.5),
       near: (q) => roofJets(q, s, t, 0.85),
       mid: (q) => {
-        foamyVendor(q, s, { x: lerp(1640, 1560, step), y: RF.wall + 60, h: 420, pose: lt < 1.1 ? 'stand' : 'hips', t, expr: lt < 1.1 ? 'surprise' : 'laugh', look: [-1, -0.5], flip: true, nohat: false });
+        { const vx = lerp(1640, 1560, step); foamyVendor(q, s, { x: vx, y: RF.wall + 60, h: 410, anim: lt < 0.8 ? 'Move' : lt < 1.1 ? 'Relax' : 'Interact', speed: 0.8, flip: true, fb: { x: vx, y: RF.wall + 60, h: 420, pose: lt < 1.1 ? 'stand' : 'hips', t, expr: lt < 1.1 ? 'surprise' : 'laugh', look: [-1, -0.5], flip: true, nohat: false } }); }
         for (let i = 0; i < 8; i++) { const ph = fract(t * 0.5 + i / 8); drop(q, 1520 + hash(145, i) * 160, RF.wall - 320 + ph * 360, 7, PI / 2, (1 - ph) * 0.8, 'pink'); }
         if (lt > 1.1) sfx(q, '哈哈哈！', 1400, RF.wall - 420, 44, clamp((lt - 1.1) / 0.15), { color: '#fff27a', rot: -0.1 });
       },
@@ -4028,8 +4202,33 @@
   function shotToast(g, s) {
     const t = s.t, lt = s.lt;
     const ck = lt;
+    const Sd = SDK(), cardReady = !warmMode && !!(Sd && Sd.card && Sd.card.info && (Sd.card.info('snowsant') || {}).ready);
+    if (cardReady) {
+      // 特写：店主（夏装剧情立绘）举着汽水笑；带头的小羊从右边跳上来，瓶口对瓶口——“叮！”
+      const cam = { x: 1420, y: 470, z: 1.5 + lt * 0.03, ...hand(s, 143, 2, 0.3) };
+      roofScene(g, s, cam, { gold: 0.5, far: (q) => roofJets(q, s, t, 0.5), near: (q) => roofJets(q, s, t, 0.85), mid: (q) => roofJets(q, s, t, 1) });
+      g.fillStyle = 'rgba(255,236,220,0.12)'; g.fillRect(0, 0, VW, VH);
+      const dr = sin(t * 0.8) * 6, bump = ck > 0 && ck < 0.25 ? sin(PI * ck / 0.25) * 14 : 0;
+      const cx = 1065 + dr, cy = 429;   // 瓶口相碰的点：她的瓶子下半截正好握在立绘抬起的那只手里
+      // 她的瓶子（画在立绘后面：她举起的手正好握着瓶身）
+      const r = 0.45, bh = 400, bx = cx - sin(r) * bh * 0.92, by = cy + cos(r) * bh * 0.92;
+      bottle(g, s, bx, by, bh, r, { fl: 'pink', cap: false, fill: 0.7 });
+      snowCard(g, s, { x: 640 + dr, y: 1150, h: 1150, crop: 'bust', expr: [[s.shot.t0 - 1, 10], [s.shot.t0 + 0.06, 11]], xfade: 0.12 });
+      // 小羊和它的瓶子
+      const lr = -0.62, lh = 330, lbx = cx - sin(lr) * lh * 0.92 + bump, lby = cy + cos(lr) * lh * 0.92;
+      bottle(g, s, lbx, lby, lh, lr, { fl: 'mint', cap: false, fill: 0.7 });
+      lamb(g, s, lbx + 120 + bump, lby + 150, 170, { kind: 'boss', pose: 'jump', rot: 0.18, flip: true, expr: 'happy', t, fx: ck > 0.3 ? ['hearts'] : null });
+      if (ck > 0 && ck < 1.2) { sparkle(g, cx, cy, 120 * (1 - ck / 1.2) + 24, 1.2 * (1 - ck / 1.2), ck, '255,250,230'); popBurst(g, cx, cy, 150, ck / 1.2, 147); sfx(g, '叮！', cx + 40, cy - 190, 96, clamp(ck / 0.1), { color: '#fff27a', rot: -0.08, alpha: 1 - clamp((ck - 0.9) / 0.3) }); }
+      for (let i = 0; i < 10; i++) { const ph = fract(t * 0.8 + i / 10); bubble(g, cx + sin(i * 2.3) * 60, cy - ph * 260, 8 + ph * 12, 0.8 * (1 - ph), 'fizz'); }
+      const ck3 = t - 142.83; if (ck3 > 0) s.post.fill(g, '#fff6e0', 0.18 * exp(-ck3 * 6) * flashK(s), 'lighter');
+      s.post.vignette(g, 0.3);
+      return;
+    }
     const vo = { x: 1560, y: RF.wall + 60, h: 420, pose: 'reach', aim: 0.55, t, expr: 'laugh', look: [-1, -0.3], flip: true };
-    const hnd = anchor(vendorKey() || 'crowd', vo, 'handN', [1470, RF.wall - 250]);
+    // 立绘还没到：官方小人（Interact，举起手）；手的位置来自骨骼锚点
+    const so = { x: 1560, y: RF.wall + 60, h: 410, anim: 'Interact', t: 0.45, speed: 0, flip: true };
+    const SA = snowA(s, so);
+    const hnd = SA && SA.handN ? [SA.handN[0] + 6, SA.handN[1] - 30] : anchor(vendorKey() || 'crowd', vo, 'handN', [1470, RF.wall - 250]);
     // 两只瓶子碰在一起的那一点（瓶口在他手的左上方）
     const vRot = -0.75, vbx = hnd[0] + 12, vby = hnd[1] + 44, [cx, cy] = bottleMouth(vbx, vby, 90, vRot);
     const cam = { x: cx + 40, y: cy + 60, z: 2.9 + lt * 0.05, ...hand(s, 143, 2, 0.3) };
@@ -4038,7 +4237,7 @@
       far: (q) => roofJets(q, s, t, 0.5),
       near: (q) => roofJets(q, s, t, 0.85),
       mid: (q) => {
-        foamyVendor(q, s, vo);
+        foamyVendor(q, s, SA ? so : { fb: vo });
         bottle(q, s, vbx, vby, 90, vRot, { fl: 'pink', cap: false });
         // 带头的小羊跳起来，用它的瓶子迎上去：瓶口对瓶口
         const lRot = 0.9, lbh = 84, lbx = cx - sin(lRot) * lbh * 0.92 - 6, lby = cy + cos(lRot) * lbh * 0.92 + 2;
@@ -4070,7 +4269,7 @@
         // 穿过水雾跳来跳去的小羊 + 跟着一起蹦的老板
         for (let j = 0; j < 7; j++) { const L = GANG[j], ph = fract(s.beat + j * 0.14), x = 240 + j * 180 + sin(t + j) * 30, [hy, sq] = hop(ph); lamb(q, s, x, RF.wall + 90 - hy * 90, 50 * L.sc, { kind: L.k, pose: 'jump', sq, spin: j % 3 === 0 ? -ph * TAU : 0, expr: 'happy' }); }
         const [vh] = hop(fract(s.beat * 0.5));
-        foamyVendor(q, s, { x: 1500, y: RF.wall + 70 - vh * 40, h: 420, pose: 'cheer', t, expr: 'laugh', flip: true, look: [-0.5, -0.8] });
+        foamyVendor(q, s, { x: 1500, y: RF.wall + 70 - vh * 40, h: 410, anim: 'Interact', speed: 1.4, flip: true, fb: { x: 1500, y: RF.wall + 70 - vh * 40, h: 420, pose: 'cheer', t, expr: 'laugh', flip: true, look: [-0.5, -0.8] } });
       },
     });
     sparkles(g, t, 30, 149, '255,236,220', { r: 16 });
@@ -4089,7 +4288,9 @@
       mid: (q) => {
         roofJets(q, s, t, 1, { fade: fade * 0.9, H: 1 - fade * 0.6 });
         // 靠着女儿墙坐着的老板，帽子盖在脸上
-        foamyVendor(q, s, { x: 1180, y: RF.wall + 64, h: 420, pose: 'sit-ground', t, expr: 'content', look: [0, 0.4], flip: true });
+        // 店主坐在倒扣的货箱上歇口气（Sit），身上还挂着泡沫
+        if (sdOK(SNOW)) crate(q, s, 1180, RF.wall + 70, 0.6, { no: 3, hoof: 0, lid: 0 });
+        foamyVendor(q, s, { x: 1178, y: RF.wall + 70 - 230 * 0.6 + 4, h: 400, anim: 'Sit', flip: true, fb: { x: 1180, y: RF.wall + 64, h: 420, pose: 'sit-ground', t, expr: 'content', look: [0, 0.4], flip: true } });
         // 躺成一排的小羊：一个接一个打嗝（冒出一个小泡泡）
         for (let j = 0; j < 7; j++) {
           const L = GANG[j], x = 360 + j * 110, y = RF.wall + 110 + (j % 2) * 14;
@@ -4111,6 +4312,16 @@
   /** 小羊们扛着的货箱：箱子底下露出一排小腿（走路），旁边再跟两只推着；(x, y) 箱底中心 */
   function walkingCrate(q, s, t, x, y, sc, o = {}) {
     const V = o.V || 34, legs = 4, sleepy = o.sleepy ?? 0.5, v = o.v || 0, legF = v > 0 ? v / (V * 0.55) : 5;
+    if (sdOK(SD_LAMB.pink)) {
+      // 官方小羊：三只驮着箱子一起走（箱子压在它们背上，只露出脸和腿）
+      const n = 3, VV = V * 0.95, lift = VV * 0.78, wsp = v > 0 ? v / gaitV('run', VV) : 1;
+      for (let i = 0; i < n; i++) { const lx = x - 95 * sc + i * (190 * sc / (n - 1)); lamb(q, s, lx, y, VV, { kind: 'pink', pose: v > 0 ? 'run' : 'stand', t: t + i * 0.23, wspd: wsp, flip: !!o.flip, seed: i }); shadow(q, lx, y + 2, VV * 1.1, 0.3); }
+      const bob = abs(sin(t * 5)) * 2;
+      crate(q, s, x, y - lift - bob, sc, { no: 7, hoof: 1, lid: o.lid ?? 0, wob: sin(t * 2.5) * 0.02 });
+      const fs = o.flip ? -1 : 1;
+      if (o.pushers !== false) for (let j = 0; j < 2; j++) { const L = GANG[[0, 2][j]], VV2 = V * L.sc, px = x - fs * (175 * sc + j * V * 1.3); const ws = v > 0 ? v / gaitV('run', VV2) : 1.5; lamb(q, s, px, y, VV2, { kind: L.k, pose: j === 0 ? 'push' : 'run', t, wspd: ws, flip: !!o.flip, fx: j === 1 && sleepy > 0.5 ? ['zzz'] : null }); shadow(q, px, y + 2, VV2 * 1.1, 0.35); }
+      return;
+    }
     // 箱子底下的小羊（只看得见脚和一点毛）
     for (let i = 0; i < legs; i++) {
       const lx = x - 110 * sc + i * (220 * sc / (legs - 1)), ph = t * legF + i * 1.7;
@@ -4149,7 +4360,7 @@
       for (let i = 0; i < 14; i++) foam(q, 700 + hash(161, i) * 1300, SG + 20 + hash(162, i) * 60, 34 + hash(163, i) * 30, 0.9, i, true, i);
       for (let i = 0; i < 8; i++) foam(q, 640 + i * 90, 452 + sin(i) * 10, 30, 0.95, i + 5, true, i);
       // 老板又在凳子上睡着了（草帽上还顶着泡沫）
-      vendorDoze(q, s, ST.stool);
+      snowDoze(q, s);
       // 7 号货箱（盖子开着）+ 小羊们一拍一瓶往里放
       const cx = 1180, cy = SG + 50;
       crate(q, s, cx, cy, 0.62, { no: 7, hoof: sk < 0 ? 0 : clamp(sk / 0.4), lid: 0.9, lidFly: [-40, 30, -0.5] });
@@ -4230,10 +4441,17 @@
       const gs = E.cast && E.cast.gait ? E.cast.gait('crowd', { h: 250, pose: 'walk' }).speed : 120;
       const gs2 = E.cast && E.cast.gait ? E.cast.gait('crowd', { h: 190, pose: 'walk' }).speed : 90;
       // 远一点的一排（小一点、暗一点，在店门口停停走走）
-      for (let i = 0; i < 8; i++) { const dir = i % 2 ? 1 : -1, walk = hash(1206, i) < 0.6, sp = walk ? 30 + hash(1207, i) * 20 : 0, x = ((hash(1208, i) * 3600 + t * sp * dir) % 3600 + 3600) % 3600 - 300; cast(q, 'crowd', { x, y: LN.street - 16, h: 190, pose: walk ? 'walk' : 'stand', t: t + i * 0.7, speed: walk ? sp / gs2 : 1, seed: 320 + i, flip: dir < 0, sil: '#3a2e58', rim: '255,190,140', rimGlow: 0 }); }
+      // 路人都是客串干员的官方小人，画成剪影 + 暖色轮廓光（看不见的就不画）；走路的播放速度按步速反推，脚不打滑
+      const [vx0, vx1] = visRange(cam, 1);
+      const walker = (i, key, x, y, h, sp, dir, sil, rim, fb) => {
+        if (x < vx0 - 150 || x > vx1 + 150) return;
+        if (sdReady(key)) { if (warmMode) return; const G = sp > 0 ? SDK().gait(key, { h }) : null; if (SDK().draw(q, key, { x, y, h, anim: sp > 0 ? 'Move' : 'Relax', t, phase: i * 0.37, speed: G && G.speed > 1 ? sp / G.speed : 1, flip: dir < 0, tint: [sil, 0.55], rim: { color: rim, amount: 0.9 } })) return; }
+        cast(q, 'crowd', fb);
+      };
+      for (let i = 0; i < 8; i++) { const dir = i % 2 ? 1 : -1, walk = hash(1206, i) < 0.6, sp = walk ? 30 + hash(1207, i) * 20 : 0, x = ((hash(1208, i) * 3600 + t * sp * dir) % 3600 + 3600) % 3600 - 300; walker(i, CAMEO[(i + 1) % 3], x, LN.street - 16, 190, sp, dir, '#3a2e58', '255,190,140', { x, y: LN.street - 16, h: 190, pose: walk ? 'walk' : 'stand', t: t + i * 0.7, speed: walk ? sp / gs2 : 1, seed: 320 + i, flip: dir < 0, sil: '#3a2e58', rim: '255,190,140', rimGlow: 0 }); }
       // 屋檐下一串串小灯泡
       for (let i = 0; i < 40; i++) { const x = -300 + i * 110, y = LN.street - 150 + sin(i * 0.9) * 8; E.glow(q, x, y, 16, '255,210,150', 0.7 + 0.2 * sin(t * 3 + i)); }
-      for (let i = 0; i < 9; i++) { const dir = i % 2 ? 1 : -1, sp = 40 + hash(1205, i) * 30, x = ((hash(1204, i) * 3600 + t * sp * dir) % 3600 + 3600) % 3600 - 300; cast(q, 'crowd', { x, y: LN.street + 6 + (i % 3) * 5, h: 250, pose: 'walk', t: t + i, speed: sp / gs, seed: 300 + i, flip: dir < 0, sil: '#4a3a68', rim: '255,200,150', rimGlow: 0 }); }
+      for (let i = 0; i < 9; i++) { const dir = i % 2 ? 1 : -1, sp = 40 + hash(1205, i) * 30, x = ((hash(1204, i) * 3600 + t * sp * dir) % 3600 + 3600) % 3600 - 300; walker(i + 8, CAMEO[i % 3], x, LN.street + 6 + (i % 3) * 5, 250, sp, dir, '#4a3a68', '255,200,150', { x, y: LN.street + 6 + (i % 3) * 5, h: 250, pose: 'walk', t: t + i, speed: sp / gs, seed: 300 + i, flip: dir < 0, sil: '#4a3a68', rim: '255,200,150', rimGlow: 0 }); }
     });
     // 货箱和小羊：压进夜色里一点（暖色的灯笼光从上面照着）
     tintedLayer(g, s, (q) => inCam(q, cam, 1, (qq) => walkingCrate(qq, s, t, cx, LN.street + 30, 0.5, { V: 40, sleepy: 0.8, v: 100 })), '#3a2250', 0.26);
@@ -4684,7 +4902,12 @@
       key: 'e', base: B, res: B.res, door: 1 - close, fireworks: true,
       // 门里（门扇之后画）：她蹲着往里拖；拖到门口以后箱子也归到门里，关门时被门扇挡住
       inside: (q) => {
-        if (close < 1) doorAdele(q, s, t, { x: lerp(MZ.door.x - 6, MZ.door.x + 30, ease.inOut(drag)), pose: 'crouch', expr: 'smile', look: [-0.4, 0.6], flip: true });
+        if (close < 1) {
+          // 面朝货箱倒着往屋里退（Move 倒放，脚不打滑），把箱子拖进门
+          const ax = lerp(MZ.door.x - 6, MZ.door.x + 30, ease.inOut(drag)), mv = drag > 0 && drag < 1;
+          const ok = sdOK('alter') && SDK().draw(q, 'alter', { x: ax, y: MZ.step - 2, h: 192, anim: mv ? 'Move' : 'Relax', speed: mv ? -0.35 : 1, t, flip: true, rim: { color: '255,210,150', amount: 0.8 } });
+          if (!ok) doorAdele(q, s, t, { x: ax, pose: 'crouch', expr: 'smile', look: [-0.4, 0.6], flip: true });
+        }
         if (drag >= 1 && close < 1) crate(q, s, cx, cy, MZC.sc, { no: 7, hoof: 1, lid: 0 });
       },
       mid: (q) => {
@@ -4860,10 +5083,14 @@
       ],
       poster: 128.9, thumbs: [37.5, 88.4, 140.2, 171.8], accent: '#ff7fb6',
     },
-    needs: ['keyart', 'finish'],
+    needs: ['keyart', 'finish', 'sd'],
+    sd: SD_KEYS,
     prepare: async (ctx) => {
       // 官方立绘（门口那一下的脸部特写）：预载；不可用时特写退回 Q 版
       const ka = ctx && ctx.keyart ? ctx.keyart('alter-e0') : Promise.resolve(false);
+      // 官方 Q 版小人（小羊 × 3、雪雉、纯烬）+ 雪雉的剧情立绘（特写用的几个表情）：预载，最多等 8 秒
+      const Sd = SDK();
+      const sdp = Sd ? Promise.race([Promise.all([Sd.load ? Sd.load(SD_KEYS, 8000) : true, Sd.card && Sd.card.load ? Sd.card.load('snowsant', [1, 2, 3, 9, 10, 11]) : true]), new Promise((r) => setTimeout(r, 8000))]) : Promise.resolve(false);
       const F = FIN(); if (F && F.warm) F.warm(['grain', 'summer-noon', 'golden-hour', 'siesta-sunset', 'night-blue']);
       if (document.fonts) {
         try { await Promise.race([Promise.all(['900 190px "Noto Serif SC"', '700 54px Cinzel', '700 26px "Noto Sans SC"', '500 24px "Noto Sans SC"', '700 44px "Noto Sans SC"'].map((f) => document.fonts.load(f, '汽水汐斯塔易碎本页原创启动工坊砰嗝叮咚咔嚓啵EFFERVESCENCESIESTA'))), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* 字体没到也能画 */ }
@@ -4871,7 +5098,7 @@
       vendorKey();
       // 小羊精灵的包围盒提前量好（避免第一次出场时卡一下）
       for (const k of Object.keys(LAMB)) for (const pose of ['stand', 'jump', 'walk', 'run', 'sit', 'sleep', 'push', 'look-up', 'eat', 'float']) castBox(LAMB[k][0], Object.assign({ pose }, LAMB[k][1]));
-      await ka;
+      await Promise.all([ka, sdp.catch(() => false)]);
     },
     captions,
     overlay,

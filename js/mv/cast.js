@@ -5608,6 +5608,8 @@
   }
   function gait(who, o) {
     o = o || {};
+    // [MVE.sd hook] 官方小人走路时的步速（脚不打滑）
+    const SD = window.MVE && MVE.sd; if (SD && SD.wants && SD.wants(who, o)) { const G = SD.gaitCast && SD.gaitCast(who, o); if (G) return G; }
     const run = o.pose === 'run' || o.pose === 'run-away', sp = o.speed > 0 ? o.speed : 1;
     if (who === 'sheep-black' || who === 'sheep-pink') {
       const bound = o.pose === 'bound' || o.pose === 'gallop';

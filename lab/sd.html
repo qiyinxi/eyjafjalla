@@ -23,9 +23,13 @@
     ?sheet=sizes&key=alter        同一模型在不同屏幕高度（70…900 设计像素）下，旁边是手绘版（MVE.cast）对照；&bg=%23…
     ?sheet=fx&key=alter           剪影 / 逆光 / 调色 / 透明 / 阴影 / 镜像 / 旋转 / 交叉淡化 / 锚点
     ?sheet=cast                   角色库钩子：MVE.cast.draw 各姿势（上：官方小人，下：sd:false 的手绘版）
-    ?sheet=walk&key=alter         走路配速：脚底是否打滑（画出脚的轨迹）
+    ?sheet=walk&key=alter         走路配速：按 gait() 前进的残影 + 两只脚的轨迹；__out.drift = 每只脚着地时的水平漂移（像素 / 秒，≈0 才不打滑）
+    ?sheet=crowd                  汐斯塔的街：客串干员 crowd()、多利、角色库钩子里的阿黛尔与粉色小羊（sd: true）
+    ?sheet=card&t=1.2             立绘卡片 card()：凯勒（全身 / 膝上 / 胸像 / 表情交叉淡化 / 剪影 / 暖光）、多利、雪雉
     ?perf=1&keys=alter,alter-home 性能：1280×720 画布，每个 rAF 画一帧，统计 draw() 的 CPU（含 drawImage）与帧间隔（&n=300 &count=1 同屏几个）
-    ?film=misty-memory-night&audit=1   逐镜头审计：每 &step=0.25 秒渲染一帧，记下每次 cast.draw(adele-…) 是官方小人还是手绘（原因）
+                                  （&w=960 + cdp 的 "mobile": true, "cpu": 4 = 手机档）
+    ?film=misty-memory-night&audit=1   逐镜头审计：每 &step=0.25 秒渲染一帧，记下每次 cast.draw(adele-… / fontaine) 是官方小人还是手绘（原因）；&who=正则
+    ?sheet=feet&film=miss-you&shots=st-walk,un-valley   影片里的走路镜头逐帧（1/60 秒）量着地那只脚的漂移
   通用：&w=1600（画布宽）&sd=off（当作不支持）
   结束后 document.title = DONE（或 ERR ...），结果在 window.__out
 -->
@@ -67,7 +71,7 @@
     const sheet = q.get('sheet') || (q.has('perf') ? 'perf' : q.has('film') ? 'audit' : 'models');
     if (sheet === 'models') {
       await ready(keys);
-      const infos = keys.map((k) => S.info(k));
+      const infos = keys.map((k) => S.info(k) || { id: k + ' (bad key)' });
       out.info = infos;
       const cellW = 220, rowH = 300, cols = Math.max(...infos.map((i) => (i.anims ? i.anims.length : 1)));
       const cw = Math.max(W, cellW * cols + 20);
@@ -80,7 +84,7 @@
         if (!I.anims) return;
         I.anims.forEach(([name, dur], i) => {
           const x = 20 + cellW * i + cellW / 2, y = y0 + rowH - 40;
-          S.draw(g, k, { x, y, h: 200, anim: name, t: Math.min(tt, dur * 0.5), shadow: true });
+          S.draw(g, k, { x, y, h: 200, anim: name, t: Math.min(tt, dur * 0.5), shadow: true, solo: q.get('solo') === '1' });
           label(g, name + ' ' + dur + 's', 20 + cellW * i + 6, y0 + rowH - 12, r % 2 ? '#dde' : '#223');
           g.strokeStyle = 'rgba(255,0,0,.35)'; g.beginPath(); g.moveTo(x - 60, y + 0.5); g.lineTo(x + 60, y + 0.5); g.moveTo(x - 60, y - 200 + 0.5); g.lineTo(x + 60, y - 200 + 0.5); g.stroke();
         });
@@ -167,12 +171,112 @@
       });
       out.cast = res;
       g.restore();
+    } else if (sheet === 'card') {
+      // 立绘卡片：凯勒（多种构图 / 表情 / 剪影 / 调色）、多利、雪雉
+      const C = S.card;
+      out.urls = { keller1: C.url('keller', 1), keller10: C.url('keller', 10), dolly: C.url('dolly'), snowsant3: C.url('snowsant', 3) };
+      await Promise.all([C.load('keller', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), C.load('dolly'), C.load('snowsant', [1, 3, 5])]);
+      const c = mkCanvas(W, Math.round((W * 9) / 16)), g = c.getContext('2d');
+      g.save(); g.scale(W / 1920, W / 1920);
+      const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, '#9fd3f0'); gr.addColorStop(1, '#f6e7d2');
+      g.fillStyle = gr; g.fillRect(0, 0, 1920, 1080);
+      const t = num('t', 1.2), res = [];
+      res.push(C(g, 'keller', { x: 180, y: 1060, h: 900, crop: 'full', t, expr: 1 }));
+      res.push(C(g, 'keller', { x: 520, y: 1060, h: 700, crop: 'upper', t, expr: 3 }));
+      res.push(C(g, 'keller', { x: 880, y: 1060, h: 520, crop: 'bust', t, expr: [[0, 1], [1.0, 6]], xfade: 0.4 }));
+      res.push(C(g, 'keller', { x: 880, y: 500, h: 380, crop: 'bust', t, expr: 9, sil: '#2a1a24', rim: { color: '255,200,160', amount: 0.3 } }));
+      res.push(C(g, 'keller', { x: 1200, y: 500, h: 380, crop: 'bust', t, expr: 5, light: { color: '#ffb080', amount: 0.45 } }));
+      res.push(C(g, 'dolly', { x: 1300, y: 1060, h: 520, crop: 'full', t, bob: 10 }));
+      res.push(C(g, 'snowsant', { x: 1700, y: 1060, h: 820, crop: 'full', t, expr: 3, flip: true }));
+      out.res = res; out.info = { keller: C.info('keller'), dolly: C.info('dolly'), snowsant: C.info('snowsant') };
+      g.restore();
+    } else if (sheet === 'gaitcheck') {
+      // 影片组的检查方法：按 MVE.cast.gait() 的速度匀速前进（h = 300），逐帧（1/60 秒）用 MVE.cast.anchors 的 footL / footR，
+      // 着地脚 = 更低的那只、离它自己的最低点不到 3%·h；漂移 = 着地脚的水平速度（中位数）。另外直接量各模型本身（sd.gait）
+      const cases = [
+        ['adele-child', { pose: 'walk', speed: 1 }], ['adele-child', { pose: 'walk', speed: 3 }], ['adele-child', { pose: 'run', speed: 2 }], ['adele-child', { pose: 'run', speed: 1 }],
+        ['adele-caster', { pose: 'walk', speed: 1 }],
+        ['adele-alter', { pose: 'walk', speed: 1, outfit: 'coat' }], ['adele-alter', { pose: 'run', speed: 1, outfit: 'coat' }], ['adele-alter', { pose: 'walk', speed: 1.5, outfit: 'coat' }],
+        ['adele-alter', { pose: 'walk', speed: 1, outfit: 'home' }], ['adele-alter', { pose: 'run', speed: 1, outfit: 'home' }],
+        ['fontaine', { pose: 'walk', speed: 1 }], ['fontaine', { pose: 'run', speed: 1.5 }],
+      ];
+      const direct = ['alter', 'alter-home', 'caster', 'char_271_spikes/build', 'snowsant', 'swire2', 'bryota', 'char_348_ceylon/build', 'char_340_shwaz/build', 'buildr', 'alter-picnic'];
+      await ready(['alter', 'alter-home', 'caster', 'char_271_spikes/build'].concat(direct));
+      const H = 300, res = [];
+      const run1 = (pos) => {
+        const rec = [];
+        const secs = num('secs', 8); // 窗口要盖住几个完整的步态周期（慢速播放时 4 秒可能还不到一个周期）
+        for (let i = 0; i <= secs * 60; i++) { const t = i / 60; rec.push(pos(t)); }
+        let lowL = -Infinity, lowR = -Infinity;
+        for (const a of rec) { lowL = Math.max(lowL, a.fl[1]); lowR = Math.max(lowR, a.fr[1]); }
+        const d = [];
+        for (let i = 1; i < rec.length; i++) {
+          const a = rec[i - 1], b = rec[i];
+          const useL = a.fl[1] >= a.fr[1];
+          const y = useL ? a.fl[1] : a.fr[1], low = useL ? lowL : lowR;
+          if (low - y <= H * 0.03) d.push(((useL ? b.fl[0] - a.fl[0] : b.fr[0] - a.fr[0])) * 60);
+        }
+        d.sort((p, q2) => p - q2);
+        return { n: d.length, drift: d.length ? +d[Math.floor(d.length / 2)].toFixed(1) : null };
+      };
+      for (const [who, o0] of cases) {
+        const g0 = MVE.cast.gait(who, Object.assign({ h: H }, o0));
+        const v = g0.speed;
+        const r = run1((t) => { const o = Object.assign({ h: H, x: 200 + v * t, y: 600, t }, o0); const A = MVE.cast.anchors(who, o); return { fl: A.footL || A.feet, fr: A.footR || A.feet }; });
+        res.push({ case: who + ' ' + JSON.stringify(o0), gait: +v.toFixed(1), stanceDrift: r.drift, pct: v ? +((100 * r.drift) / v).toFixed(1) : null, n: r.n, sd: MVE.sd.decide(who, Object.assign({ h: H }, o0)).key || 'hand' });
+      }
+      for (const k of direct) {
+        const G = S.gait(k, { h: H });
+        if (!G) { res.push({ case: k, gait: null }); continue; }
+        const r = run1((t) => { const A = S.anchors(k, { h: H, x: 200 + G.speed * t, y: 600, t, anim: 'Move' }); return { fl: A.footL || A.feet, fr: A.footR || A.feet }; });
+        res.push({ case: k + ' (natural)', gait: +G.speed.toFixed(1), period: +G.period.toFixed(2), stanceDrift: r.drift, pct: +((100 * r.drift) / G.speed).toFixed(1), n: r.n });
+      }
+      out.gaitcheck = res;
+      let html = '<table><tr><th>case</th><th>gait px/s</th><th>stance drift</th><th>%</th><th>n</th></tr>';
+      for (const r of res) html += `<tr><td>${r.case}</td><td>${r.gait}</td><td>${r.stanceDrift}</td><td class="${Math.abs(r.pct) > 5 ? 'hot' : 'ok'}">${r.pct}</td><td>${r.n}</td></tr>`;
+      wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    } else if (sheet === 'crowd') {
+      // 汐斯塔的街：活动干员客串（crowd()）+ 角色库钩子里的多利与粉色小羊（sd: true 才接管）
+      const cam = ['snowsant', 'swire2', 'bryota', 'char_348_ceylon_summer_13/build', 'char_340_shwaz/build'];
+      await ready(cam.concat(['dolly', 'enemy_1344_ddlamb', 'enemy_1345_tplamb', 'enemy_1350_mgcshp', 'alter']));
+      const c = mkCanvas(W, Math.round((W * 9) / 16)), g = c.getContext('2d');
+      g.save(); g.scale(W / 1920, W / 1920);
+      bg(g, 1920, 1080);
+      const t = num('t', 2.3);
+      S.draw(g, 'dolly', { x: 1500, y: 560, h: 360, anim: 'Idle_A', t, shadow: 0.2 });
+      const list = [
+        { key: 'snowsant', x: 260, y: 900, h: 300, anim: 'Relax' },
+        { key: 'swire2', x: 520 + ((t * 80) % 300), y: 960, h: 310, anim: 'Move', speed: 80 / (S.gait('swire2', { h: 310 }) || { speed: 80 }).speed },
+        { key: 'bryota', x: 900, y: 880, h: 290, anim: 'Interact', flip: true },
+        { key: 'char_348_ceylon_summer_13/build', x: 1180, y: 940, h: 300, anim: 'Relax', flip: true },
+        { key: 'char_340_shwaz/build', x: 1700, y: 1000, h: 320, anim: 'Relax', flip: true },
+      ];
+      out.drawn = S.crowd(g, list, { t, shadow: true });
+      MVE.cast.draw(g, 'adele-alter', { x: 1400, y: 1010, h: 330, pose: 'wave', t, flip: true, shadow: true });
+      for (let i = 0; i < 5; i++) MVE.cast.draw(g, 'sheep-pink', { x: 300 + i * 150, y: 1060, h: 110, pose: i % 2 ? 'walk' : 'stand', t: t + i * 0.3, seed: i, sd: true, shadow: true, flip: i === 3 });
+      out.lambs = [0, 1, 2, 3, 4].map((i) => S.decide('sheep-pink', { pose: 'stand', seed: i, sd: true }).key);
+      out.dollyCast = S.decide('dolly', { pose: 'stand', sd: true });
+      g.restore();
     } else if (sheet === 'walk') {
       const k = keys[0];
       await ready([k]);
       out.info = S.info(k);
       const G = S.gait(k, { h: 300 });
       out.gait = G;
+      // 数值检查：按 gait().speed 前进时，最低那只脚在相邻两帧之间的水平漂移（像素 / 秒）
+      {
+        const rec = [];
+        for (let t = 0; t < G.period * 2; t += 1 / 60) { const a = S.anchors(k, { x: 100 + G.speed * t, y: 600, h: 300, anim: 'Move', t }); rec.push(a); }
+        // 每只脚分别算：它自己最低 2% 身高以内的帧算着地
+        const one = (f) => {
+          let lowY = -Infinity; for (const a of rec) lowY = Math.max(lowY, a[f][1]);
+          const d = [];
+          for (let i = 1; i < rec.length; i++) { const a = rec[i - 1], b = rec[i]; if (a[f][1] > lowY - 6 && b[f][1] > lowY - 6) d.push((b[f][0] - a[f][0]) * 60); }
+          d.sort((p, q2) => p - q2);
+          return d.length ? +d[Math.floor(d.length / 2)].toFixed(1) : null;
+        };
+        out.drift = { footL: one('footL'), footR: one('footR'), speed: +G.speed.toFixed(1) };
+      }
       const c = mkCanvas(W, 700), g = c.getContext('2d');
       g.save(); g.scale(W / 1920, W / 1920);
       bg(g, 1920, 1400);
@@ -226,6 +330,57 @@
       let html = `<table><tr><th>key</th><th>anim</th><th>cpu avg</th><th>p95</th><th>max</th><th>frame avg</th><th>p95</th></tr>`;
       for (const r of res) html += `<tr><td>${r.key}</td><td class="l">${r.anim}</td><td class="${r.cpu.avg > 0.5 ? 'hot' : 'ok'}">${r.cpu.avg}</td><td>${r.cpu.p95}</td><td>${r.cpu.max}</td><td>${r.frame.avg}</td><td>${r.frame.p95}</td></tr>`;
       wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    } else if (sheet === 'feet') {
+      // 走路打滑检查：逐帧（1/60 秒）记下官方小人两只脚的位置；着地那只脚（最低）的水平漂移速度 ≈ 0 才算不打滑
+      const id = q.get('film');
+      const film = await MVE.load(id, '../js/mv/films/');
+      const an = await MVE.analysis(`../assets/music/${film.analysisId || id}.json`);
+      const c = document.createElement('canvas'); c.width = 640; c.height = 360;
+      // &legacy=1：用旧的步速标定（交付第一版时的数值），对比打滑
+      if (q.get('legacy') === '1') S.opts.gaitScale = { 'char_1016_agoat2/build': 100.1 / 87.7, 'char_1016_agoat2_epoque_57/build': 97.3 / 98.4, 'char_180_amgoat/build': 115 / 151.6, 'char_271_spikes/build': 114.2 / 111.3 };
+      const R = MVE.renderer(c, film, an, {});
+      await R.prepare();
+      // 实验页：等本片的官方小人全部加载完（引擎的 prepare 最多等 8 秒，资源站慢的时候不够）
+      for (let i = 0; i < 3; i++) { if (await S.prepareFilm(film, 60000)) break; await new Promise((r) => setTimeout(r, 10500)); }
+      const shots = (q.get('shots') || '').split(',').filter(Boolean);
+      const res = [];
+      S.audit = true;
+      for (const shId of shots) {
+        const sh = film.shots.find((x) => x.id === shId);
+        if (!sh) continue;
+        const t1 = Math.min(Number.isFinite(sh.t1) ? sh.t1 : an.duration, sh.t0 + 4);
+        const rec = [];
+        for (let t = sh.t0 + 0.05; t < t1; t += 1 / 60) {
+          S.log.length = 0;
+          R.render(t);
+          const e = S.log.find((x) => x.drawn && x.anim === 'Move' && x.x != null && (!q.get('who') || x.who === q.get('who')));
+          if (!e) { rec.push(null); continue; }
+          const A = S.anchorsCast(e.who, e.o);
+          const gv = MVE.cast.gait(e.who, e.o);
+          rec.push(A && A.footL && A.footR ? { t, x: e.o.x, y: e.o.y, fl: A.footL, fr: A.footR, h: e.o.h, gv: gv ? gv.speed : 0, face: e.o.flip ? -1 : 1 } : null);
+        }
+        const drift = [], body = [];
+        // 与影片组的检查方法一致：着地脚 = 两只脚里更低的那只（屏幕 y 更大），而且离它自己在这一段里的最低点
+        // （相对脚底 o.y 的高度）不到 3%·h；漂移 = 这只脚的水平速度（带符号，负 = 往后滑）
+        let lowL = Infinity, lowR = Infinity;
+        for (const a of rec) if (a) { lowL = Math.min(lowL, a.y - a.fl[1]); lowR = Math.min(lowR, a.y - a.fr[1]); }
+        for (let i = 1; i < rec.length; i++) {
+          const a = rec[i - 1], b = rec[i];
+          if (!a || !b) continue;
+          // 方向按她面朝的方向（原地走的镜头里身体只有亚像素抖动，逐帧的符号没有意义）
+          const dt = b.t - a.t, dir = a.face;
+          body.push(Math.abs(b.x - a.x) / dt);
+          const useL = a.fl[1] >= a.fr[1], hgt = useL ? a.y - a.fl[1] - lowL : a.y - a.fr[1] - lowR;
+          if (hgt <= a.h * 0.03) drift.push(((useL ? b.fl[0] - a.fl[0] : b.fr[0] - a.fr[0]) / dt) * dir);
+        }
+        const med = (v) => { if (!v.length) return 0; const s = v.slice().sort((p, q2) => p - q2); return +s[Math.floor(s.length / 2)].toFixed(1); };
+        const bs = med(body), sdr = med(drift), gvs = med(rec.filter(Boolean).map((a) => a.gv));
+        // 原地走（背景在动）：着地脚的后移速度应当等于 MVE.cast.gait() 的速度（影片按它卷动地面时才不打滑）
+        res.push({ shot: shId, frames: rec.filter(Boolean).length, bodySpeed: bs, stanceDrift: sdr, pct: bs > 5 ? +((100 * sdr) / bs).toFixed(1) : 'treadmill', gait: gvs, treadmillErr: bs <= 5 && gvs ? +((100 * (-sdr - gvs)) / gvs).toFixed(1) : null, stanceN: drift.length });
+      }
+      S.audit = false;
+      out.feet = res;
+      wrap.insertAdjacentHTML('beforeend', '<pre>' + JSON.stringify(res, null, 1) + '</pre>');
     } else if (sheet === 'audit') {
       const id = q.get('film');
       const film = await MVE.load(id, '../js/mv/films/');
@@ -233,6 +388,8 @@
       const cw = num('w', 640), c = document.createElement('canvas'); c.width = cw; c.height = Math.round((cw * 9) / 16);
       const R = MVE.renderer(c, film, an, {});
       await R.prepare();
+      // 实验页：等本片的官方小人全部加载完（引擎的 prepare 最多等 8 秒，资源站慢的时候不够）
+      for (let i = 0; i < 3; i++) { if (await S.prepareFilm(film, 60000)) break; await new Promise((r) => setTimeout(r, 10500)); }
       out.preloaded = S.stats.models;
       const step = num('step', 0.25), dur = an.duration;
       S.audit = true;
@@ -244,14 +401,24 @@
         R.render(t);
         cpu.push(performance.now() - c0);
         const sh = R.shotAt(t);
+        // 同一个角色在这一帧里：anchors() 与 draw() 各问一次（去重，以 draw 的结果为准）；gait() 的调用没有 x，忽略
+        // 优先级：真正画了（drawn 有值）> 手绘回退（key 为空，角色库照常画）> 只问了锚点（key 有、drawn 没值）
+        const uniq = new Map(), rank = (e) => (e.drawn !== undefined ? 3 : !e.key ? 2 : 1);
+        const whoRe = new RegExp(q.get('who') || '^(adele|fontaine)');
         for (const e of S.log) {
-          if (!/^adele/.test(e.who)) continue;
+          if (e.x == null || !whoRe.test(e.who)) continue;
+          const k = [e.who, Math.round(e.x), Math.round(e.y), Math.round(e.h || 0)].join('|');
+          const p = uniq.get(k);
+          if (!p || rank(e) > rank(p)) uniq.set(k, e);
+        }
+        for (const e of uniq.values()) {
+          if (rank(e) === 1) continue; // 只问了锚点 / 步速，这一帧没画
           const key = sh.id;
           if (!per.has(key)) per.set(key, { shot: key, t0: sh.t0, t1: sh.t1, sd: 0, hand: 0, reasons: {}, poses: {}, times: [] });
           const r = per.get(key);
           if (e.drawn) r.sd++;
           else { r.hand++; const why = e.key ? 'not-drawn(' + e.key + ')' : e.why; r.reasons[why] = (r.reasons[why] || 0) + 1; if (r.times.length < 6) r.times.push(+t.toFixed(2)); }
-          const pk = e.pose + (e.outfit ? '/' + e.outfit : '') + (e.sil ? '/sil' : '');
+          const pk = (e.who === 'adele-alter' ? '' : e.who + ':') + e.pose + (e.outfit ? '/' + e.outfit : '') + (e.sil ? '/sil' : '') + (e.view ? '/' + e.view : '');
           r.poses[pk] = (r.poses[pk] || 0) + 1;
         }
       }

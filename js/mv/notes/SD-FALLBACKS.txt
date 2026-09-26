@@ -1,0 +1,143 @@
+
+### before-summer  (SD 387 / hand 552 samples; shots with a character: 51; models: char_180_amgoat/build, char_271_spikes/build)
+hand  house @7.8-11.8 [8,8.25] crop:face :: keyart close-up (MVE.keyart) or card()
+hand  attic @15.8-17.8 [16,16.25] crop:face pose:sit-ground :: keyart close-up (MVE.keyart) or card() / sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  lookup @32.8-33.8 [33,33.25] crop:bust :: keyart close-up or card()
+hand  hall @43.8-47.8 [44,44] back:sit :: side SD Sit from behind a railing, or a hand-drawn silhouette
+hand  raise @51.8-53.8 [52,52] arms:write arms:reach-up :: SD Sit
+hand  library @55.8-59.8 [56,56] arms:read pose:reach-up :: SD Sit + a book prop at hands / SD stand / look-up; lift the prop with the film
+hand  reading @63.8-67.8 [64,64] arms:read :: SD Sit + a book prop at hands
+MIXED shh @67.8-71.8 [68,68] arms:read arms:cover :: SD Sit + a book prop at hands / SD Sit/stand
+hand  grass @79.8-83.8 [80,80] crop:face :: keyart close-up (MVE.keyart) or card()
+hand  record @87.8-91.8 [88,88.25] pose:record :: SD stand; the film draws the recorder at handN
+hand  cello @91.8-95.8 [92,92] pose:sit-ground pose:record :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up / SD stand; the film draws the recorder at handN
+MIXED stone @95.8-99.7 [96,96.25] pose:hold pose:point :: SD stand; the film draws the prop at anchors().handN / SD Interact (a wave reads as a gesture) or stand + look
+hand  steal @99.7-103.8 [99.75,100] pose:sit-ground pose:point :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up / SD Interact (a wave reads as a gesture) or stand + look
+hand  fountain-leap @117.8-119.8 [118,118] pose:reach :: SD stand facing the object + reaction insert, or keyart
+MIXED splash @119.8-123.8 [120,120] pose:cover :: SD Interact/stand
+MIXED laugh @123.8-127.8 [124,124.25] arms:record :: SD Sit
+MIXED walkhome @127.8-131.8 [129.75,130] arms:wave arms:wave2 :: SD Sit (or cut to a stand + Interact) / SD stand Interact
+MIXED dusk-house @133.7-139.8 [133.75,134] pose:hug-knees :: SD Sit (arms lap)
+MIXED promise @147.8-149.8 [148.75,149] pose:reach :: SD stand facing the object + reaction insert, or keyart
+hand  smile @151.8-153.7 [152,152.25] crop:bust :: keyart close-up or card()
+hand  window @159.7-163.8 [159.75,160] pose:hug-knees prop:recorder :: SD Sit (arms lap) / ?
+hand  roof @165.8-169.8 [166,166.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  meteors @169.8-173.8 [170,170.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  lanterns @177.8-179.8 [178,178] prop:lantern pose:sit-ground :: the film draws the lantern at handN / sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  wish @179.8-181.8 [180,180.25] crop:bust :: keyart close-up or card()
+hand  dormer @181.8-183.8 [182,182.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  family-roof @183.8-187.8 [184,184.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  coat @187.8-191.8 [188,188.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  sleep-roof @191.8-195.7 [192,192.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+MIXED dawn-door @195.7-199.8 [195.75,195.75] pose:sit-ground pose:wipe :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up / SD stand/Interact
+hand  hug @199.8-203.7 [200,200.25] arms:clasp :: SD Sit
+hand  walkaway @203.7-207.8 [203.75,204] back:wave :: SD back Idle (stand)
+hand  sunrise @207.8-211.7 [208,208.25] back:stand back:wave2 :: SD back Idle (already supported for stand) / SD back Idle
+
+### misty-memory-night  (SD 480 / hand 413 samples; shots with a character: 52; models: char_1016_agoat2_epoque_57/build, char_1016_agoat2/build)
+hand  museum @9.9-14.1 [10,10.25] pose:write :: desk scene: SD Sit behind the desk (desk drawn in front) or keyart
+hand  desk @14.1-18.3 [14.25,14.25] pose:write arms:stretch :: desk scene: SD Sit behind the desk (desk drawn in front) or keyart / SD Sit
+hand  asleep @19.3-20.4 [19.5,19.75] sleep@desk :: SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+hand  tumble @22.4-26.6 [22.5,22.75] sleep@desk :: SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+MIXED wake @26.6-28.7 [26.75,27] arms:cover :: SD Sit/stand
+hand  counting @43.3-47.5 [43.5,43.75] pose:point :: SD Interact (a wave reads as a gesture) or stand + look
+hand  lanterns-out @64.2-68.4 [64.25,64.5] pose:hold :: SD stand; the film draws the prop at anchors().handN
+hand  alone @68.4-72.5 [68.5,68.5] pose:hold :: SD stand; the film draws the prop at anchors().handN
+hand  mist-walk @72.5-76.7 [72.75,72.75] pose:hold arms:hold :: SD stand; the film draws the prop at anchors().handN / SD walk; the film draws the lantern at handN (no arms override)
+hand  memories @76.7-80.9 [76.75,76.75] arms:hold arms:reach :: SD walk; the film draws the lantern at handN (no arms override) / SD walk; no arm override
+hand  table @80.9-85.1 [81,81] arms:hold pose:hold :: SD walk; the film draws the lantern at handN (no arms override) / SD stand; the film draws the prop at anchors().handN
+hand  meet @85.1-89.2 [87.25,87.5] pose:pet :: SD Sit next to the lamb
+MIXED hush @89.2-91.3 [89.25,89.5] pose:pet :: SD Sit next to the lamb
+MIXED jellyfish @99.7-103.8 [101.25,101.5] pose:reach :: SD stand facing the object + reaction insert, or keyart
+hand  fireworks @116.4-120.5 [116.5,116.75] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  path @120.5-124.7 [120.75,121] pose:walk-away :: side-view SD walk (Move) walking into depth, or back-view stand (SD back Idle) + camera move
+hand  hill @124.7-128.9 [124.75,124.75] pose:walk-away pose:sit-ground :: side-view SD walk (Move) walking into depth, or back-view stand (SD back Idle) + camera move / sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  stone @128.9-133.1 [129,129] pose:sit-ground pose:kneel2 :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up / SD Sit clipped by foreground (grass/rock) or keyart close-up of hands
+hand  rumble @133.1-137.2 [133.25,133.5] pose:sit-ground pose:shade :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up / SD stand look-up
+hand  sheepnado @145.6-149.7 [145.75,146] pose:hug :: keyart close-up or silhouette two-shot (hand-drawn sil)
+MIXED coat-return @149.7-153.9 [151.75,152] pose:reach :: SD stand facing the object + reaction insert, or keyart
+MIXED transform @153.9-158.1 [154,154.25] pose:hold pose:twirl :: SD stand; the film draws the prop at anchors().handN / SD Interact
+MIXED sunrise @191.5-199.8 [191.5,191.75] pose:shade pose:hold-up :: SD stand look-up / SD Interact or stand; the film draws the raised prop at handN; or a keyart close-up
+hand  bloom @216.5-224.9 [216.75,217] pose:reach :: SD stand facing the object + reaction insert, or keyart
+hand  morning @224.9-229.1 [225,225] pose:reach sleep@desk :: SD stand facing the object + reaction insert, or keyart / SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+hand  wake-up @229.1-233.2 [231.25,231.5] sleep@desk :: SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+hand  end @233.2-242.1 [233.25,233.5] sleep@desk :: SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+
+### miss-you  (SD 215 / hand 366 samples; shots with a character: 34; models: char_1016_agoat2/build, char_1016_agoat2_epoque_57/build)
+hand  ri-voices @33.1-38.5 [33.25,33.5] pose:record :: SD stand; the film draws the recorder at handN
+MIXED ri-lamb @42.1-45.7 [43.75,44] arms:cover :: SD Sit/stand
+hand  lt-write @45.7-49.2 [45.75,45.75] arms:cover pose:write :: SD Sit/stand / desk scene: SD Sit behind the desk (desk drawn in front) or keyart
+hand  lt-birds @49.2-52.8 [49.25,49.5] pose:write :: desk scene: SD Sit behind the desk (desk drawn in front) or keyart
+MIXED lt-docu @58.2-63.6 [60.25,60.5] pose:point :: SD Interact (a wave reads as a gesture) or stand + look
+MIXED lt-clinic @63.6-70.7 [68.25,68.5] pose:walk-away :: side-view SD walk (Move) walking into depth, or back-view stand (SD back Idle) + camera move
+MIXED un-valley @70.7-74.3 [70.75,71] pose:walk-away :: side-view SD walk (Move) walking into depth, or back-view stand (SD back Idle) + camera move
+MIXED un-girl @74.3-77.9 [76.25,76.5] pose:crouch :: SD Sit clipped by foreground, or a close-up insert
+hand  un-night @77.9-83.3 [78,78] pose:crouch arms:hold :: SD Sit clipped by foreground, or a close-up insert / SD walk; the film draws the lantern at handN (no arms override)
+hand  un-flower @83.3-86.9 [83.5,83.75] pose:kneel2 :: SD Sit clipped by foreground (grass/rock) or keyart close-up of hands
+MIXED un-climb @86.9-90.4 [87,87.25] pose:kneel2 :: SD Sit clipped by foreground (grass/rock) or keyart close-up of hands
+MIXED hw-rest @103.0-108.4 [105.75,106] pose:read :: ?
+hand  hw-letter @108.4-115.5 [113.75,114] crop:bust :: keyart close-up or card()
+hand  dz-staff @122.7-126.3 [124.5,124.75] crop:face :: keyart close-up (MVE.keyart) or card()
+hand  dz-look @126.3-128.1 [126.5,126.75] pose:walk-away :: side-view SD walk (Move) walking into depth, or back-view stand (SD back Idle) + camera move
+MIXED sm-reveal @128.1-131.6 [128.25,128.5] pose:walk-away :: side-view SD walk (Move) walking into depth, or back-view stand (SD back Idle) + camera move
+hand  sm-dig @131.6-135.2 [131.75,132] pose:kneel2 :: SD Sit clipped by foreground (grass/rock) or keyart close-up of hands
+hand  sm-lift @138.8-142.4 [139,139.25] pose:kneel2 :: SD Sit clipped by foreground (grass/rock) or keyart close-up of hands
+hand  sm-wide @153.1-158.5 [153.25,153.5] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  br-still @158.5-163.9 [158.75,158.75] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  br-memories @163.9-169.2 [164,164] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+hand  br-converge @169.2-180.0 [169.25,169.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+MIXED br-build @180.0-187.2 [180,180.25] pose:sit-ground :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up
+MIXED fx-erupt @187.2-190.7 [187.25,187.5] pose:reach-up :: SD stand / look-up; lift the prop with the film
+hand  fx-aurora @190.7-194.3 [190.75,191] pose:twirl pose:reach-up :: SD Interact / SD stand / look-up; lift the prop with the film
+hand  fx-parents @208.7-212.2 [210,210.25] back:wave2 :: SD back Idle
+hand  ot-tape @215.8-223.0 [216,216.25] pose:hug-knees :: SD Sit (arms lap)
+
+### misty-memory-day  (SD 366 / hand 607 samples; shots with a character: 55; models: char_1016_agoat2/build, char_1016_agoat2_epoque_57/build)
+MIXED bow @14.3-18.9 [14.5,14.75] pose:shade :: SD stand look-up
+hand  harbor @18.9-23.4 [19,19.25] arms:carry :: drop the suitcase (SD walk) or roll it separately beside her
+hand  promenade @23.4-27.9 [23.5,23.5] prop:suitcase arms:carry :: SD walk without the suitcase, or the film draws it / drop the suitcase (SD walk) or roll it separately beside her
+hand  stairs @27.9-32.3 [28,28.25] arms:carry :: drop the suitcase (SD walk) or roll it separately beside her
+MIXED museum @32.3-36.9 [32.5,32.5] arms:carry :: drop the suitcase (SD walk) or roll it separately beside her
+MIXED keller @36.9-41.5 [37.25,37.5] pose:bow :: SD Interact
+MIXED hall @41.5-46.0 [41.5,41.75] pose:point :: SD Interact (a wave reads as a gesture) or stand + look
+MIXED scope @46.0-50.6 [50.5] pose:cover :: SD Interact/stand
+MIXED lamb-pop @50.6-55.2 [50.75,50.75] pose:cover pose:reach pose:wipe :: SD Interact/stand / SD stand facing the object + reaction insert, or keyart / SD stand/Interact
+hand  ice-cream @55.2-59.7 [55.25,55.5] pose:hold pose:turn :: SD stand; the film draws the prop at anchors().handN / SD stand flip (turn = switch flip at a cut)
+hand  scold @62.0-66.6 [62.25,62.5] pose:hips pose:point :: SD stand / SD Interact (a wave reads as a gesture) or stand + look
+hand  two-worlds @66.6-71.3 [66.75,67] pose:hips pose:point :: SD stand / SD Interact (a wave reads as a gesture) or stand + look
+hand  toys @71.3-73.7 [71.5,71.75] pose:cover :: SD Interact/stand
+MIXED gather @73.7-78.3 [73.75,74] pose:cover :: SD Interact/stand
+MIXED deal @82.9-87.5 [83,83.25] pose:reach-up pose:hold :: SD stand / look-up; lift the prop with the film / SD stand; the film draws the prop at anchors().handN
+hand  gust @89.7-94.3 [89.75,90] pose:hold-up :: SD Interact or stand; the film draws the raised prop at handN; or a keyart close-up
+hand  vane @94.3-98.9 [94.5,94.75] crop:bust :: keyart close-up or card()
+MIXED kite @98.9-103.5 [101.25,101.5] pose:reach-up :: SD stand / look-up; lift the prop with the film
+MIXED bottle-wind @103.5-108.0 [103.5,103.75] pose:hold-up pose:hold :: SD Interact or stand; the film draws the raised prop at handN; or a keyart close-up / SD stand; the film draws the prop at anchors().handN
+MIXED garden @108.0-112.6 [109.5,109.75] pose:hold-up :: SD Interact or stand; the film draws the raised prop at handN; or a keyart close-up
+MIXED catch @117.2-121.7 [118,118.25] pose:sit-ground pose:hold-up :: sit on a bench/rock/step (seat → SD Sit), or a keyart close-up / SD Interact or stand; the film draws the raised prop at handN; or a keyart close-up
+hand  sprout @121.7-126.3 [121.75,122] pose:dig pose:kneel :: SD Sit clipped by foreground / as kneel2
+hand  wool-shop @128.6-133.2 [128.75,129] pose:point pose:think :: SD Interact (a wave reads as a gesture) or stand + look / SD stand
+MIXED poolside @137.7-142.3 [137.75,138] arms:wave :: SD Sit (or cut to a stand + Interact)
+MIXED prep @144.6-148.9 [144.75,145] arms:hold pose:hold pose:cover :: SD walk; the film draws the lantern at handN (no arms override) / SD stand; the film draws the prop at anchors().handN / SD Interact/stand
+MIXED lantern-ride @148.9-153.5 [149,149.25] pose:reach-up :: SD stand / look-up; lift the prop with the film
+MIXED beach @162.6-167.2 [162.75,163] pose:crouch pose:think pose:cover :: SD Sit clipped by foreground, or a close-up insert / SD stand / SD Interact/stand
+hand  laundry @167.2-171.7 [167.25,167.5] pose:hold pose:think :: SD stand; the film draws the prop at anchors().handN / SD stand
+hand  lamb-tower @171.7-176.3 [171.75,172] pose:clasp pose:cover :: SD stand / SD Interact/stand
+MIXED run-sunset @176.3-183.2 [176.5,176.75] pose:cover :: SD Interact/stand
+MIXED pier @183.2-187.8 [183.25,183.5] back:sit :: side SD Sit from behind a railing, or a hand-drawn silhouette
+MIXED breeze @187.8-192.3 [189.5,189.75] arms:hug :: SD Sit
+hand  coat @192.3-196.9 [192.5,192.75] arms:hug :: SD Sit
+hand  memory @196.9-199.2 [197,197.25] back:sit :: side SD Sit from behind a railing, or a hand-drawn silhouette
+hand  realize @199.2-203.7 [199.25,199.5] back:sit :: side SD Sit from behind a railing, or a hand-drawn silhouette
+hand  dolly-sunset @203.7-208.3 [203.75,204] pose:hug :: keyart close-up or silhouette two-shot (hand-drawn sil)
+MIXED dance @208.3-212.9 [209.5,209.75] pose:twirl :: SD Interact
+hand  lights-on @212.9-217.5 [213,213] pose:twirl pose:turn :: SD Interact / SD stand flip (turn = switch flip at a cut)
+hand  bay @217.5-222.0 [217.5,217.5] pose:turn :: SD stand flip (turn = switch flip at a cut)
+hand  clink @222.0-226.6 [222.25,222.5] pose:hold pose:reach :: SD stand; the film draws the prop at anchors().handN / SD stand facing the object + reaction insert, or keyart
+MIXED release @244.9-249.5 [245,245.25] pose:hold-up :: SD Interact or stand; the film draws the raised prop at handN; or a keyart close-up
+MIXED finale @249.5-254.0 [249.5,249.75] pose:turn :: SD stand flip (turn = switch flip at a cut)
+MIXED drag @265.5-270.0 [266,266.25] arms:reach :: SD walk; no arm override
+MIXED doze-desk @270.0-274.6 [270.25,270.5] pose:write arms:stretch sleep@desk :: desk scene: SD Sit behind the desk (desk drawn in front) or keyart / SD Sit / SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+MIXED end @274.6-283.5 [274.75,275] sleep@desk :: SD Sleep (lying on the floor/sofa) or SD Sit behind the desk; or cutaway
+
+### effervescence  (SD 8 / hand 7 samples; shots with a character: 2; models: char_1016_agoat2/build)
+hand  end @174.7-179.7 [174.75,175] pose:crouch :: SD Sit clipped by foreground, or a close-up insert

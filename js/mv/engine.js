@@ -571,6 +571,8 @@ window.MVE = (() => {
     function render(t) {
       const t0 = performance.now();
       const S = def.shots, i = shotIndexAt(t), shot = S[i];
+      // 官方 Q 版小人（js/mv/sd.js）：告诉它现在是哪个镜头——播放中才加载好的模型等到下一个镜头再换上，不在镜头中间跳变
+      if (window.MVE.sd && window.MVE.sd.frame) window.MVE.sd.frame(def.id + ':' + shot.id);
       const tr = shot.in && shot.in.type !== 'cut' && i > 0 ? shot.in : null;
       const tk = tr ? (t - shot.t0) / (tr.dur || 0.6) : 1;
       if (tr && tk >= 0 && tk < 1) {
@@ -605,7 +607,12 @@ window.MVE = (() => {
         try { await Promise.race([Promise.all(['700 40px "Noto Serif SC"', '600 40px "Noto Serif SC"', '700 40px Cinzel', '400 20px "JetBrains Mono"'].map((f) => document.fonts.load(f))), new Promise((r) => setTimeout(r, 2500))]); } catch (e) {}
       }
       // ctx.keyart(key)：预载官方立绘的分层绑定（js/mv/keyart.js，影片 needs: ['keyart']）；只会 resolve（true / false），不会 reject
-      if (def.prepare) await def.prepare({ svg: svgSprite, img: loadImg, timing: T, keyart: (key) => (window.MVE && MVE.keyart ? MVE.keyart.load(key) : Promise.resolve(false)) });
+      // ctx.sd(key | [keys])：预载官方 Q 版小人（js/mv/sd.js，needs: ['sd']）；影片声明了 needs: ['sd'] 时，引擎还会自动预载
+      // 本片用到的模型（def.sd 列表，没有时按影片脚本里的角色调用推断），与影片自己的 prepare 并行，最多等 8 秒
+      const sdOn = Array.isArray(def.needs) && def.needs.includes('sd') && window.MVE && MVE.sd && MVE.sd.prepareFilm;
+      const sdP = sdOn ? Promise.resolve(MVE.sd.prepareFilm(def, 8000)).catch(() => false) : null;
+      if (def.prepare) await def.prepare({ svg: svgSprite, img: loadImg, timing: T, keyart: (key) => (window.MVE && MVE.keyart ? MVE.keyart.load(key) : Promise.resolve(false)), sd: (key, ms) => (window.MVE && MVE.sd ? MVE.sd.load(key, ms ?? 8000) : Promise.resolve(false)) });
+      if (sdP) await sdP;
     }
     R.resize = resize; R.render = render; R.prepare = prepare; R.cache = cache;
     R.shotAt = (t) => S0()[shotIndexAt(t)];

@@ -53,6 +53,16 @@
     const C = E.cast;
     if (C) C.draw(q, name, o.shadow === true ? Object.assign({}, o, { shadow: false }) : o);
   }
+  /**
+   * 爸爸妈妈在游戏里没有官方形象（只有声音）：本片里他们永远不露脸——背影、逆光剪影、只露手 / 肩、影子，或者在画外。
+   * PSIL：剪影 + 逆光轮廓（rim 为轮廓光的颜色）
+   */
+  const PSIL = (rim = '255,206,160', col = '#2a1c28') => ({ sil: col, rim, rimW: 1.1 });
+  /**
+   * 童年的阿黛尔 = 官方艾雅法拉小人（js/mv/sd.js；站 / 走 / 跑 / 坐 / 睡 / 跳）。她的基建 Interact 是“吓一跳”：
+   * startle(t0) 让它从 t0 起从头播一次（官方小人不可用时退回手绘的站姿）
+   */
+  const startle = (t0) => ({ pose: 'stand', sd: { anim: 'Interact', view: 'build', loop: false, phase: -t0 } });
   /** 相对身高（katia = 1；羊的 h 是身长） */
   const SC = { 'adele-child': 0.6, magna: 0.94, katia: 1, fontaine: 0.74, liese: 0.7, 'sheep-black': 0.3, crowd: 0.95 };
   const HT = (name, base) => base * (SC[name] || 1);
@@ -1113,6 +1123,24 @@
     q.beginPath(); q.moveTo(x - w / 2 - 8, top + 30); q.quadraticCurveTo(x, top - 16, x + w / 2 + 8, top + 30); q.lineTo(x + w / 2 + 8, top + 4); q.quadraticCurveTo(x, top - 42, x - w / 2 - 8, top + 4); q.closePath(); fs(q, col, 3.5);
     q.fillStyle = 'rgba(255,230,190,.25)'; q.fillRect(x - w / 2 + 3, top + 8, 4, bot - top - 12);
   }
+  /** 从背后看的书桌椅（画在坐着的人前面）：四条腿、座面的边、靠背（两根立柱 + 横档 + 竖板）；x 中心，seatY 座面，fy 地面 */
+  function deskChair(q, x, seatY, fy) {
+    const w = 190, col = '#7a4a2c', dkc = '#5a3420';
+    q.beginPath(); q.rect(x - w / 2 + 8, seatY + 20, 18, fy - seatY - 20); q.rect(x + w / 2 - 26, seatY + 20, 18, fy - seatY - 20); fs(q, dkc, 3.5);
+    q.beginPath(); rrect(q, x - w / 2 - 4, seatY, w + 8, 24, 6); fs(q, col, 3.5);
+    q.beginPath(); rrect(q, x - w / 2, seatY - 170, 22, 180, 5); rrect(q, x + w / 2 - 22, seatY - 170, 22, 180, 5); fs(q, dkc, 3.5);
+    q.beginPath(); rrect(q, x - w * 0.16, seatY - 130, 20, 130, 4); rrect(q, x + w * 0.16 - 20, seatY - 130, 20, 130, 4); fs(q, col, 3);
+    q.beginPath(); q.moveTo(x - w / 2 - 8, seatY - 130); q.quadraticCurveTo(x, seatY - 152, x + w / 2 + 8, seatY - 130); q.lineTo(x + w / 2 + 8, seatY - 166); q.quadraticCurveTo(x, seatY - 190, x - w / 2 - 8, seatY - 166); q.closePath(); fs(q, col, 3.5);
+    q.fillStyle = 'rgba(255,220,170,.18)'; q.fillRect(x - w / 2 + 4, seatY - 164, 5, 150);
+    q.beginPath(); q.rect(x - w / 2 + 8, fy - 64, w - 16, 10); fs(q, dkc, 2.5);
+  }
+  /** 夜里的书房（房间坐标）：妈妈背对着我们坐在书桌前，台灯在她前面——暖色的轮廓光；stop：停下笔 */
+  function momAtDesk(q, t, stop) {
+    const X = 960, FY = 905, SEAT = 150;
+    shadow(q, X, FY + 2, 140, 0.4);
+    who(q, 'magna', { x: X, y: FY, h: 600, pose: 'sit', seat: SEAT, desk: FY - 646, arms: stop ? undefined : 'write', view: 'back', t, outfit: 'home', shadow: false, rim: '255,200,130', rimDir: -0.7, rimW: 0.9, rimGlow: 0 });
+    deskChair(q, X, FY - SEAT, FY);
+  }
   /**
    * 书房里的高背扶手椅（画在坐着的人后面；人朝右 3/4 坐着）：高靠背从她肩后露出来，远侧的扶手、坐垫前沿和椅脚在身体两边露出来。
    * x 为人的髋，seatY 座面，fy 地面
@@ -1973,15 +2001,25 @@
     // 黑板上的粉笔火山（随重拍长出来）
     const [bx0] = hp(-4.6, -1.2, 10), [bx1, by1] = hp(4.6, -4.2, 10);
     chalkVolcano(q, (bx0 + bx1) / 2 + 20, by1 - 8, (bx1 - bx0) / 1000, clamp((t - B(21)) / 6), t, 2.4);
-    // 爸爸（讲台边）
-    const [fx, fy] = hp(-2.1, -5, 9.0);
-    who(q, 'katia', { x: fx, y: fy, h: 102, pose: sin(t * 1.3) > 0 ? 'point' : 'stand', t, outfit: 'suit', expr: 'smile', flip: true });
-    // 前排：阿黛尔、芳汀、莉瑟（背影，坐着）
-    const sit = (name, X, Hh, o = {}) => { const Z = rowZX(0, X) + 0.05, [x, y] = hp(X, rowY(0), Z); who(q, name, Object.assign({ x, y, h: HP.f * Hh / Z, pose: 'sit', view: 'back', t, shadow: false }, o)); return [x, y, Z]; };
-    sit('liese', 1.9, 1.22, { prop: 'cello' });
-    const [hx, hy, hz] = sit('fontaine', 0.55, 1.3);
-    glow(q, hx, hy - HP.f * 1.45 / hz, 30, '255,240,170', 0.5 + 0.3 * s.pulse(5));
-    sit('adele-child', -0.75, 1.05, { outfit: 'school', look: [0, -0.3] });
+    // 爸爸：背对着我们站在黑板前，一边讲一边画那座粉笔火山（远远的背影，不露脸）
+    const [fx, fy] = hp(-2.6, -5, 9.25);
+    who(q, 'katia', { x: fx, y: fy, h: 104, pose: 'point', aim: 0.5 + 0.25 * sin(t * 2.2), view: 'back', t, outfit: 'suit' });
+    // 前排的三个人：和满堂的同学一样画成后脑勺 + 肩膀（同一种画法，不会一眼看出是另一套小人），各带一个认得出的特征：
+    // 阿黛尔的小羊角、芳汀的光环、莉瑟的兔耳和背上的大提琴
+    const back = (X, hair, cloth, feat) => {
+      const Z = rowZX(0, X) + 0.05, [x, y] = hp(X, rowY(0) + 1.28, Z), r = 0.27 * HP.f / Z;
+      if (feat === 'cello') { q.save(); q.translate(x + r * 1.2, y + r * 0.6); q.rotate(0.22); q.beginPath(); rrect(q, -r * 0.16, -r * 2.2, r * 0.32, r * 2.4, r * 0.12); fs(q, '#6a3a22', 1.5); q.beginPath(); ell(q, 0, -r * 2.3, r * 0.22, r * 0.3); fs(q, '#3a2418', 1.2); q.restore(); }
+      q.beginPath(); q.ellipse(x, y + r * 1.7, r * 1.55, r * 1.15, 0, PI, TAU); q.lineTo(x + r * 1.55, y + r * 2.4); q.lineTo(x - r * 1.55, y + r * 2.4); q.closePath(); fs(q, cloth, 1.5);
+      if (feat === 'rabbit') for (const sd of [-1, 1]) { q.beginPath(); q.ellipse(x + sd * r * 0.4, y - r * 1.35, r * 0.22, r * 0.62, sd * 0.2, 0, TAU); fs(q, hair, 1.2); }
+      q.beginPath(); circ(q, x, y, r); fs(q, hair, 1.5);
+      q.fillStyle = 'rgba(255,255,255,.18)'; q.beginPath(); q.ellipse(x - r * 0.3, y - r * 0.35, r * 0.4, r * 0.22, -0.5, 0, TAU); q.fill();
+      if (feat === 'horns') { q.strokeStyle = '#efe4d0'; q.lineWidth = r * 0.3; q.lineCap = 'round'; for (const sd of [-1, 1]) { q.beginPath(); q.arc(x + sd * r * 0.72, y - r * 0.5, r * 0.4, sd > 0 ? -1.4 : PI + 1.4, sd > 0 ? 0.7 : PI - 0.7, sd < 0); q.stroke(); } q.beginPath(); q.moveTo(x - r * 0.3, y + r * 0.7); q.quadraticCurveTo(x - r * 0.1, y + r * 2.1, x + r * 0.3, y + r * 1.9); q.lineWidth = r * 0.5; q.strokeStyle = hair; q.stroke(); }
+      if (feat === 'halo') { q.beginPath(); q.ellipse(x, y - r * 1.35, r * 0.75, r * 0.22, 0, 0, TAU); q.lineWidth = r * 0.14; q.strokeStyle = '#ffe9a0'; q.stroke(); glow(q, x, y - r * 1.35, r * 1.6, '255,240,170', 0.5 + 0.3 * s.pulse(5)); }
+      if (feat === 'rabbit') { q.beginPath(); q.moveTo(x + r * 0.5, y + r * 0.5); q.quadraticCurveTo(x + r * 1.1, y + r * 1.4, x + r * 0.7, y + r * 2.2); q.lineWidth = r * 0.36; q.strokeStyle = hair; q.stroke(); }
+    };
+    back(1.9, '#b8603a', '#6a2e3a', 'cello'); back(1.9, '#b8603a', '#6a2e3a', 'rabbit');
+    back(0.55, '#e8d49a', '#2e3a5a', 'halo');
+    back(-0.75, '#7a4a30', '#2e3a5a', 'horns');
   }
   /** 粉笔画的火山剖面：中心底边 (cx, by)，缩放 k，p 为画出来的进度 0..1 */
   const CHALK = (() => {
@@ -2766,10 +2804,10 @@
     if (C && C.anchors) { try { A = C.anchors(name, o); } catch (e) { A = null; } }
     if (!A) return [o.x, o.y - h * 0.6];
     if (name.startsWith('sheep')) {
-      // 羊身上的点（羊的局部坐标，面朝左）：身体的上下颠、前后翘，头的点头 / 低头，坐下时身体和头的下沉，
-      // 都按角色库画羊时同一套公式算 —— 背上的书、嘴里的吐司 / 录音机才不会脱开
+      // 羊身上的点：角色库 v2 的 anchors 直接给嘴 / 背 / 头顶（跟着羊的起伏、低头）；旧版没有时按同一套公式自己算
+      if (A[part]) return A[part];
       const L = part === 'back' ? [3, -37, 0] : part === 'mouth' ? [-3, 6, 1] : part === 'top' ? [2, -42, 0] : null;
-      if (!L) return A[part] || A.head;
+      if (!L) return A.head;
       return sheepPt(o, L[0], L[1], L[2]);
     }
     if (part === 'hand') return A.handN;
@@ -2806,19 +2844,27 @@
     return [o.x + px * c0 - py * s0, o.y + px * s0 + py * c0];
   }
   /** 睡在床上的她：角色的脸部特写侧过来枕在枕头上，被子盖到下巴（阁楼房间坐标） */
+  /**
+   * 睡在床上的她（阁楼房间坐标）：官方小人的睡姿（侧躺），头枕在枕头上；拼布被子从肩膀往下盖住身子，
+   * 被子的上沿顺着身体鼓起来、跟着呼吸起伏
+   */
   function sleepInBed(q, t) {
-    const br = sin(t * 1.6) * 2;
-    // 被子里的身体
-    q.beginPath(); q.moveTo(250, 700); q.bezierCurveTo(330, 640 - br, 590, 646 - br, 730, 700); q.lineTo(730, 740); q.lineTo(250, 740); q.closePath(); fs(q, '#f2b8a0', 4);
-    q.save(); q.clip(); q.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 6; i++) q.fillRect(270 + i * 80, 620, 36, 140); q.restore();
-    // 头发铺在枕头上 + 侧着的脸
-    q.beginPath(); q.moveTo(120, 700); q.bezierCurveTo(60, 660, 90, 560, 180, 560); q.bezierCurveTo(260, 560, 300, 640, 300, 700); q.closePath(); fs(q, '#8a5a44', 3.5);
-    q.save(); q.translate(205, 640); q.rotate(-1.3);
-    who(q, 'adele-child', { x: 0, y: 0, h: 196, crop: 'face', expr: 'closed', outfit: 'pajama', t, shadow: false, blink: false });
+    const br = sin(t * 1.6) * 2.5;
+    who(q, 'adele-child', { x: 305, y: 690, h: 330, pose: 'sleep', t, outfit: 'pajama', shadow: false });
+    // 被子（盖在身上的那一截）：肩膀以下
+    q.beginPath(); q.moveTo(262, 770); q.lineTo(262, 676); q.bezierCurveTo(300, 628 - br, 420, 624 - br, 480, 664); q.quadraticCurveTo(600, 684, 744, 690); q.lineTo(744, 770); q.closePath();
+    fs(q, '#f2b8a0', 4);
+    q.save(); q.clip();
+    const QC = ['#f2b8a0', '#a8c8e0', '#f4d890', '#b8d8a8', '#e8a0b0', '#f6eadc'];
+    for (let yy = 620; yy < 770; yy += 55) for (let xx = 262; xx < 744; xx += 70) { q.fillStyle = QC[((xx + yy * 3) / 5 | 0) % QC.length]; q.fillRect(xx, yy, 70, 55); q.strokeStyle = 'rgba(58,38,32,.2)'; q.lineWidth = 2; q.setLineDash([6, 5]); q.strokeRect(xx + 5, yy + 5, 60, 45); q.setLineDash([]); }
+    q.fillStyle = 'rgba(80,40,30,.12)'; q.fillRect(262, 700, 482, 70);
     q.restore();
-    // 被沿（盖住下巴和肩）
-    q.beginPath(); q.moveTo(236, 712); q.bezierCurveTo(280, 684, 360, 676, 420, 690); q.lineTo(420, 740); q.lineTo(236, 740); q.closePath(); fs(q, '#fffdf4', 4);
+    q.beginPath(); q.moveTo(262, 770); q.lineTo(262, 676); q.bezierCurveTo(300, 628 - br, 420, 624 - br, 480, 664); q.quadraticCurveTo(600, 684, 744, 690); q.lineTo(744, 770); fs(q, null, 4);
+    // 翻过来的被沿（白色的衬里），压在她的肩上
+    q.beginPath(); q.moveTo(250, 690); q.bezierCurveTo(262, 652 - br, 312, 640 - br, 346, 650 - br * 0.6); q.lineTo(352, 676); q.bezierCurveTo(318, 668, 282, 680, 262, 704); q.closePath(); fs(q, '#fffdf4', 3.5);
   }
+  /** 阁楼的床沿（房间坐标）：坐在床边的官方小人（座面 = 床垫顶，脚垂在床边） */
+  const BED_EDGE = { y: 880, seat: 176 };
   /** 双铃闹钟：ring 0..1 时抖动 */
   function alarmClock(q, x, y, k, t, ring) {
     q.save(); q.translate(x, y); q.scale(k, k);
@@ -2865,18 +2911,19 @@
     // 在房子坐标里（2400×1620）：各房间的小人和会动的东西（房间坐标里爸爸身高 ≈ 640）
     const R = (name, fn) => { const b = roomBox(name); q.save(); if (b.clip) { q.beginPath(); q.rect(b.clip[0], b.clip[1], b.clip[2], b.clip[3]); q.clip(); } q.translate(b.x, b.y); q.scale(b.s, b.s); fn(q); q.restore(); };
     R('attic', (q) => {
-      if (mode === 'night') { who(q, 'adele-child', { x: 470, y: 740, h: 384, pose: 'hug-knees', t, outfit: 'pajama', expr: 'content', shadow: false }); }
+      if (mode === 'night') { who(q, 'adele-child', { x: 520, y: BED_EDGE.y, h: 384, pose: 'sit', seat: BED_EDGE.seat, t, outfit: 'pajama', shadow: false }); }
       else sleepInBed(q, t);
       who(q, 'sheep-black', { x: 1010, y: 714, h: 190, pose: 'sleep', t, shadow: false });
       if (mode === 'night') glow(q, 1790, 600, 260, '255,190,110', 0.5);
     });
+    // 爸爸妈妈都背对着我们（不露脸）：爸爸站在穿衣镜前系领带（身子正好挡住镜子），妈妈跪在背包前收拾 / 夜里伏案写东西
     R('F2', (q) => {
       if (mode === 'night') return;
-      who(q, 'katia', { x: 1110, y: 880, h: 640, pose: 'hold', t, expr: 'smile', outfit: 'suit', look: [1, 0] });
+      who(q, 'katia', { x: MIRROR[0], y: 905, h: 660, pose: 'hold', view: 'back', t, outfit: 'suit' });
     });
     R('F1', (q) => {
-      if (mode === 'night') { who(q, 'magna', { x: 900, y: 880, h: 600, pose: 'sit', arms: 'write', t, outfit: 'home', expr: 'content' }); return; }
-      who(q, 'magna', { x: 900, y: 880, h: 600, pose: 'kneel2', arms: 'reach', aim: -0.2, t, expr: 'smile', outfit: 'home' });
+      if (mode === 'night') { momAtDesk(q, t, false); return; }
+      who(q, 'magna', { x: 930, y: 880, h: 600, pose: 'kneel2', arms: 'reach', aim: -0.2, view: 'back3', t, outfit: 'home' });
       backpack(q, 1150, 880, 1.05, 1);
     });
     R('G', (q) => {
@@ -2884,14 +2931,8 @@
       radio(q, night ? DINNER_RADIO[0] : 610, 562, night ? DINNER_RADIO[1] : 0.62, t, 1, night ? 0.3 : 0.6 + 0.3 * s.e, s.bp);
       kettleSteam(q, t, 1400, 470, 1.4);
       toaster(q, 1640, 610, 0.9, 0);
-      if (night) {
-        // 和下一个镜头（晚饭）同样的座位：三把椅子、铺着桌布的餐桌
-        chairBack(q, 238, 590, 800, 160); chairBack(q, 575, 600, 800, 136); chairBack(q, 902, 596, 800, 156);
-        who(q, 'katia', { x: 250, y: 905, h: 640, pose: 'sit', t, outfit: 'suit', expr: 'talk', talk: 0.6, look: [1, 0], shadow: false });
-        who(q, 'magna', { x: 890, y: 905, h: 600, pose: 'sit', t, outfit: 'home', expr: 'smile', flip: true, shadow: false });
-        who(q, 'adele-child', { x: 575, y: 905, h: 384, pose: 'sit', seat: 110, t, outfit: 'school', expr: 'laugh', shadow: false });
-        img(q, s, 'kitchen-table:dinner');
-      }
+      // 和下一个镜头（晚饭）同样的座位：阿黛尔在桌子对面，爸爸妈妈背对着我们
+      if (night) dinnerScene(q, s, t, { U: 640 });
     });
   }
 
@@ -3091,22 +3132,26 @@
   function shotMirror(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 7, 4);
-    const cam = fit({ x: 1230 + hh.sx - 30 * s.p, y: 520 + hh.sy, z: 1.3 + 0.05 * s.p }, 0, 0, VW, VH);
+    // 从爸爸身后拍：他站在穿衣镜正前方系领带，身子正好挡住镜子里的自己（他的脸不入画）；
+    // 镜面上是窗户照进来的晨光，系紧的那一下，领口那儿闪一下光
+    const cam = fit({ x: 1330 + hh.sx - 24 * s.p, y: 560 + hh.sy, z: 1.32 + 0.06 * s.p }, 0, 0, VW, VH);
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'room-parents');
       shaft(q, 900, 150, -0.35, 360, 1100, 0.35);
       const tight = up(lt, 0.95, 1.1, easeO);
-      const expr = lt > 1.05 ? 'wink' : 'smile';
       const [mx, my, mrx, mry] = MIRROR;
+      // 镜面：映着窗外的晨光（一块斜的亮斑慢慢滑过）
       q.save(); q.beginPath(); ell(q, mx, my, mrx, mry); q.clip();
-      cast(q, 'katia', { x: mx + 30, y: 900, h: 620, pose: 'hold', t, flip: true, expr, outfit: 'suit' });
-      q.fillStyle = 'rgba(200,220,235,.3)'; q.fillRect(mx - mrx, my - mry, mrx * 2, mry * 2);
-      q.fillStyle = 'rgba(255,255,255,.3)'; q.beginPath(); q.moveTo(mx - 90, my - 200); q.lineTo(mx - 40, my - 230); q.lineTo(mx - 110, my + 120); q.lineTo(mx - 130, my + 60); q.fill();
+      q.fillStyle = 'rgba(255,248,230,.35)'; q.beginPath(); q.moveTo(mx - 100, my - 240); q.lineTo(mx - 20, my - 240); q.lineTo(mx - 130, my + 240); q.lineTo(mx - 210, my + 240); q.fill();
+      const gx = mx - 60 + 80 * s.p; q.fillStyle = 'rgba(255,255,255,.28)'; q.beginPath(); q.moveTo(gx, my - 240); q.lineTo(gx + 30, my - 240); q.lineTo(gx - 60, my + 240); q.lineTo(gx - 90, my + 240); q.fill();
       q.restore();
-      const K = { x: 1040, y: 900, h: 660, pose: 'hold', t, expr, outfit: 'suit', look: [1, -0.1] };
+      shadow(q, mx, 935, 150, 0.4);
+      const K = { x: mx, y: 935, h: 690, pose: 'hold', view: 'back', t, outfit: 'suit' };
       who(q, 'katia', K);
-      const [tx, ty] = at(K, 'katia', 'tie');
-      sparkle(q, tx + 6, ty, 30 * tight, tight * (1 - up(lt, 1.3, 1.9)), lt * 2);
+      // 系紧的那一下：领口两侧（肩头上方）闪一下光
+      const A = E.cast && E.cast.anchors ? E.cast.anchors('katia', K) : null, cy = A ? lerp(A.chest[1], A.head[1], 0.55) : 935 - 470;
+      const a = tight * (1 - up(lt, 1.3, 1.9));
+      sparkle(q, mx + 130, cy, 34 * tight, a, lt * 2); sparkle(q, mx - 120, cy + 20, 22 * tight, a * 0.8, lt * 3);
     });
   }
 
@@ -3118,7 +3163,8 @@
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'room-study');
       shaft(q, 980, 160, 0.3, 380, 1000, 0.3);
-      who(q, 'magna', { x: 860, y: 905, h: 620, pose: 'kneel2', arms: 'reach', aim: -0.1, t, expr: lt > 1.6 ? 'content' : 'smile', outfit: 'home', look: [1, 0.3] });
+      // 妈妈背对着我们跪在背包前（脸不入画），东西一样一样跳进包里
+      who(q, 'magna', { x: 880, y: 905, h: 620, pose: 'kneel2', arms: 'reach', aim: -0.1, view: 'back3', t, outfit: 'home' });
       const open = 1 - up(lt, 1.75, 1.95, easeO);
       backpack(q, 1160, 905, 1.12, open);
       const items = [
@@ -3151,10 +3197,9 @@
       const awake = t > 17.5;
       if (!awake) sleepInBed(q, t);
       else {
-        who(q, 'adele-child', { x: 330, y: 720, h: 384, pose: 'sit-ground', t, expr: 'surprise', outfit: 'pajama', wind: 0.5, shadow: false, look: [1, 0] });
-        q.beginPath(); q.moveTo(250, 690); q.bezierCurveTo(330, 650, 600, 640, 740, 700); q.lineTo(740, 760); q.lineTo(250, 760); q.closePath(); fs(q, '#f2b8a0', 4);
-        q.save(); q.clip(); q.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 6; i++) q.fillRect(280 + i * 80, 630, 36, 140); q.restore();
-        bang(q, 520, 330, clamp((t - 17.5) / 0.4), 1.2);
+        // 一下子坐起来：坐在床沿上，脚垂在床边（官方小人的坐姿），朝着响个不停的闹钟
+        who(q, 'adele-child', { x: 560, y: BED_EDGE.y, h: 384, pose: 'sit', seat: BED_EDGE.seat, t, outfit: 'pajama', shadow: false });
+        bang(q, 600, 380, clamp((t - 17.5) / 0.4), 1.2);
       }
       const sh = { x: 1010, y: 714, h: 190, pose: awake ? 'jump' : 'sleep', t, expr: awake ? 'surprise' : 'sleepy', air: awake ? 0.5 * sin(PI * clamp((t - 17.5) / 0.26)) : 0 };
       who(q, 'sheep-black', Object.assign(sh, { shadow: false }));
@@ -3193,10 +3238,10 @@
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'stairwell');
       // 爸爸在三楼门口挥手，妈妈在二楼递书包
-      // 爸爸站在穿衣镜前（x 300）：镜头在阁楼时他的脸在画面下沿，要在字幕底带（x ≈ 446 起）的左边，不被字幕压住
-      who(q, 'katia', { x: 300, y: 1300, h: U, pose: t > 18.8 && t < 19.9 ? 'wave2' : 'hold', t, expr: t > 18.8 ? 'laugh' : 'smile', outfit: 'suit' });
+      // 爸爸妈妈背对着我们（3/4 背影，脸朝楼梯那边，不露脸）：爸爸在三楼挥手，妈妈在二楼把书包递过去
+      who(q, 'katia', { x: 300, y: 1300, h: U, pose: t > 18.8 && t < 19.9 ? 'wave2' : 'hold', view: 'back3', t, outfit: 'suit' });
       const handed = t > 20.05;
-      who(q, 'magna', { x: 430, y: 1940, h: HT('magna', U), pose: handed ? 'wave' : 'reach', aim: -0.1, t, expr: 'smile', outfit: 'home', prop: handed ? null : 'satchel' });
+      who(q, 'magna', { x: 430, y: 1940, h: HT('magna', U), pose: handed ? 'wave' : 'reach', aim: -0.1, view: 'back3', t, outfit: 'home', prop: handed ? null : 'satchel' });
       const person = (name, P, o) => {
         if (P.mode === 'hop') {
           // 影子贴着台阶（两个落点之间的连线），跳得越高越淡
@@ -3411,11 +3456,13 @@
     const F = E.finish;
     if (F && F.enabled) F.dof(g, s, 'bs-lookup-bg', bg, { radius: 9, opaque: true, x: -hh.sx * 0.45 }); else { sky(g, s, 'morning'); streetScene(g, s, { x: 3900 + hh.sx * 0.5, y: 390, z: 0.9 }, 'morning'); }
     s.post.fill(g, '#fff3e0', 0.3);
-    s.layer(g, { x: 960, y: 540, z: 1 + 0.04 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
-      who(q, 'sheep-black', { x: 1420, y: 1120, h: 420, pose: 'look-up', t, flip: true, expr: 'surprise', shadow: false });
-      const A = { x: 830, y: 1080, h: 860, crop: 'bust', t, expr: 'surprise', outfit: 'school', wind: 0.3, look: [0.5, -1], rim: '255,244,214', rimDir: -2.2, rimW: 0.7, rimGlow: 0 };
-      who(q, 'adele-child', Object.assign(A, { shadow: false }));
-      bang(q, 1230, 240, clamp((t - 32.9) / 0.35), 1.8);
+    // 中近景（官方小人画得很大、画框在膝盖处切掉）：抬头看见钟——吓了一跳（她的基建 Interact），头上蹦出一个“！”
+    s.layer(g, { x: 960, y: 540, z: 1 + 0.06 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
+      who(q, 'sheep-black', { x: 1440, y: 1130, h: 400, pose: 'look-up', t, flip: true, expr: 'surprise', shadow: false });
+      const A = Object.assign({ x: 820, y: 1250, h: 980, t, outfit: 'school', prop: 'satchel', shadow: false, rim: '255,244,214', rimDir: -2.2, rimW: 0.7, rimGlow: 0 }, startle(32.8));
+      who(q, 'adele-child', A);
+      const [bx, by] = at(A, 'adele-child', 'top');
+      bang(q, bx + 250, max(160, by + 40), clamp((t - 32.9) / 0.35), 1.8);
     });
   }
   function shotRun(g, s) {
@@ -3711,17 +3758,24 @@
       img(q, s, 'hall-side', -240, 0);
       shaft(q, 600, 0, -0.5, 400, 1300, 0.3); shaft(q, 1100, 0, -0.5, 400, 1300, 0.25);
       who(q, 'liese', { x: 740, y: 900, h: HT('liese', U), pose: 'sit', arms: raised ? 'cover' : 'write', t, expr: raised ? 'laugh' : 'smile', look: [1, 0], shadow: false });
-      const F = { x: 1000, y: 900, h: HT('fontaine', U), pose: 'sit', arms: 'write', prop: 'notebook', t, expr: raised ? 'smile' : 'neutral', look: [1, 0], shadow: false };
+      // 芳汀、阿黛尔：官方小人坐着（腿在长桌后面）；答题时她一下子站了起来（蹦一下）
+      const F = { x: 1000, y: 900, h: HT('fontaine', U), pose: 'sit', t, shadow: false };
       who(q, 'fontaine', F);
-      const A = { x: 1270, y: 900, h: HT('adele-child', U), pose: 'sit', arms: raised ? 'reach-up' : 'write', t, expr: raised ? 'determined' : 'smile', outfit: 'school', look: [1, -0.3], shadow: false };
+      const A = raised ? { x: 1270, y: 900, h: HT('adele-child', U), pose: 'jump', air: 0.7 * sin(PI * clamp((t - upT) / 0.4)), t, outfit: 'school', shadow: false } : { x: 1270, y: 900, h: HT('adele-child', U), pose: 'sit', t, outfit: 'school', shadow: false };
       who(q, 'adele-child', A);
-      // 前排长桌
+      // 前排长桌 + 桌上的笔记本 / 录音机
       q.beginPath(); q.rect(560, 764, 920, 34); fs(q, '#c8925a', 4); q.beginPath(); q.rect(560, 798, 920, 110); fs(q, '#8a5a36', 4);
+      for (const [nx, rot] of [[1040, -0.06], [1230, 0.05]]) { q.save(); q.translate(nx, 762); q.scale(1, 0.35); q.rotate(rot); q.beginPath(); q.rect(-60, -46, 120, 92); fs(q, '#fbf6e8', 3); line(q, 0, -46, 0, 46, 2, 'rgba(58,38,32,.4)'); q.restore(); }
       recorder(q, 1350, 766, 0.32, { t, rec: 1, spin: 0.6 });
       const ha = at(A, 'adele-child', 'top');
       if (raised) sparkle(q, ha[0] + 60, ha[1] - 40, 40, clamp(1 - (t - upT) / 0.5), t * 3);
-      // 爸爸在黑板前，点她回答
-      who(q, 'katia', { x: 2020, y: 1000, h: U, pose: t > 52.76 ? 'point' : 'hold', aim: 0.1, t, flip: true, expr: t > 52.76 ? 'laugh' : 'talk', talk: t > 52.76 ? 0 : 0.7, outfit: 'suit' });
+      // 爸爸在黑板前点她回答：只看见他伸进画面的手（拿着粉笔），不露脸
+      const hk = up(t, 52.45, 52.8, easeO);
+      if (hk > 0) {
+        const bob = sin(t * 7) * 6 * (t > 52.8 ? 1 : 0);
+        hand(q, 2240 - 300 * hk, 610 + bob, 1.05, PI + 0.08, 'point', { sleeve: '#f4f1ea', cuff: '#e8e2d6', sleeveLen: 900 });
+        q.save(); q.translate(2240 - 300 * hk + 70, 600 + bob); q.rotate(0.3); q.beginPath(); rrect(q, -6, -30, 12, 34, 4); fs(q, '#fffaf0', 2.5); q.restore();
+      }
       // 芳汀的光环亮一下
       const [fx, fy] = at(F, 'fontaine', 'top');
       glow(q, fx, fy - 20, 70, '255,240,170', 0.3 + 0.5 * s.pulse(5));
@@ -3789,9 +3843,11 @@
       libraryDyn(q, s, t);
       // 远处的芳汀和莉瑟：坐在长桌两边的小凳上看书（面朝桌子，在桌子旁边，不是坐在桌面上）
       for (const [X, Z, name, H0, fl] of [[-1.42, 8.2, 'fontaine', 118, false], [1.42, 9.6, 'liese', 104, true]]) {
-        const [px, py] = lp(X, -3, Z), k = 9.2 / Z, hh = H0 * k, seat = hh * 0.2;
+        const [px, py] = lp(X, -3, Z), k = 9.2 / Z, hh = H0 * k, seat = hh * 0.24;
         q.beginPath(); q.rect(px - hh * 0.2, py - seat, hh * 0.4, hh * 0.05); q.rect(px - hh * 0.17, py - seat, hh * 0.05, seat); q.rect(px + hh * 0.12, py - seat, hh * 0.05, seat); fs(q, '#6a4228', 1.5);
-        who(q, name, { x: px, y: py, h: hh, pose: 'sit', seat, arms: 'read', prop: 'book', t, flip: fl, shadow: false });
+        // 芳汀是官方小人（坐着；书摊在他面前的长桌上），莉瑟手绘（捧着书）
+        if (name === 'fontaine') { who(q, name, { x: px, y: py, h: hh, pose: 'sit', seat, t, flip: fl, shadow: false }); const [bx, by] = lp(-0.7, -2, 8.2); q.save(); q.translate(bx, by); q.beginPath(); q.moveTo(-16, 0); q.lineTo(0, -3); q.lineTo(16, 0); q.lineTo(16, 5); q.lineTo(0, 3); q.lineTo(-16, 5); q.closePath(); fs(q, '#fbf4e2', 1.2); q.restore(); }
+        else who(q, name, { x: px, y: py, h: hh, pose: 'sit', seat, arms: 'read', prop: 'book', t, flip: fl, shadow: false });
       }
       // 背着书的小黑羊：从左边书架底下蹦到右边（每拍一跳，落地时才着地）。走在字幕带的上面、梯子的后面
       const hop = abs(sin(PI * s.bp)), x = 420 + lt * 270;
@@ -3800,7 +3856,11 @@
       const [rx, ry] = lp(3.3, -3, 3.2), [rx2, ry2] = lp(3.3, 4.2, 3.2);
       line(q, rx - 30, ry, rx2 - 20, ry2, 10, '#8a5a3a'); line(q, rx + 40, ry, rx2 + 50, ry2, 10, '#8a5a3a');
       for (let i = 1; i < 8; i++) { const k = i / 8; line(q, lerp(rx - 30, rx2 - 20, k), lerp(ry, ry2, k), lerp(rx + 40, rx2 + 50, k), lerp(ry, ry2, k), 7, '#a8784e'); }
-      who(q, 'adele-child', { x: lerp(rx, rx2, 0.5) + 10, y: lerp(ry, ry2, 0.5), h: 300, pose: 'reach-up', t, flip: false, expr: 'smile', outfit: 'school', shadow: false, look: [0.5, -1] });
+      // 她站在梯子的横档上（官方小人），面朝书架；头顶上方有一本书被她抽出来一半
+      const AX = lerp(rx, rx2, 0.5) + 10, AY = lerp(ry, ry2, 0.5);
+      who(q, 'adele-child', { x: AX, y: AY, h: 300, pose: 'stand', t, flip: false, outfit: 'school', shadow: false });
+      const pull = 0.5 + 0.5 * sin(t * 1.6);
+      q.save(); q.translate(AX + 70 + pull * 18, AY - 330); q.rotate(-0.25 - pull * 0.15); q.beginPath(); rrect(q, -14, -48, 28, 96, 4); fs(q, '#8a3a3a', 3); q.fillStyle = 'rgba(255,230,160,.6)'; q.fillRect(-10, -36, 20, 4); q.restore();
     });
     s.kit.particles(g, t, 'dust', { n: 60, seed: 45, rgb: '255,240,210' });
   }
@@ -3848,11 +3908,13 @@
       const gaitOf = (name, h) => (sneak > 0 ? stride(name, { h, pose: run ? 'run' : 'walk', t: tf }, dx) : {});
       const hl = HT('liese', U), hf = HT('fontaine', U), ha = HT('adele-child', U);
       who(q, 'liese', Object.assign({ x: 420 + dx, y: 900, h: hl, pose: pose('sit'), arms, prop, t: tf, expr: frozen ? 'surprise' : run ? 'laugh' : shh ? 'surprise' : 'laugh', shadow: false }, gaitOf('liese', hl)));
-      const F = Object.assign({ x: 900 + dx, y: 900, h: hf, pose: pose('sit'), arms, prop, t: tf, expr: frozen ? 'surprise' : run ? 'laugh' : 'content', shadow: false }, gaitOf('fontaine', hf));
+      // 芳汀、阿黛尔：官方小人（坐着看书 → 被“嘘”得定住（动画停在那一帧）→ 起身溜走 → 跑）；书摊在他们面前的桌上
+      const F = Object.assign({ x: 900 + dx, y: 900, h: hf, pose: pose('sit'), t: tf, shadow: false }, gaitOf('fontaine', hf));
       who(q, 'fontaine', F);
       const [fx, fy] = at(F, 'fontaine', 'top'); glow(q, fx, fy - 20, 110, '255,240,170', 0.45 + 0.2 * sin(t * 2));
-      who(q, 'adele-child', Object.assign({ x: 1380 + dx, y: 900, h: ha, pose: pose('sit'), arms, prop, t: tf, expr: frozen ? 'surprise' : run ? 'laugh' : lt > 2.6 && !shh ? 'laugh' : 'smile', outfit: 'school', flip: sneak <= 0, look: lt > 2.6 && !shh ? [-1, 0] : [0, 0.3], shadow: false }, gaitOf('adele-child', ha)));
+      who(q, 'adele-child', Object.assign({ x: 1380 + dx, y: 900, h: ha, pose: pose('sit'), t: tf, outfit: 'school', flip: sneak <= 0, shadow: false }, gaitOf('adele-child', ha)));
       img(q, s, 'reading-fg');
+      if (sneak <= 0) for (const [bx, rot] of [[930, 0.04], [1360, -0.05]]) { q.save(); q.translate(bx, 760); q.scale(1, 0.32); q.rotate(rot); q.beginPath(); q.moveTo(-120, 0); q.quadraticCurveTo(-60, -40, 0, -10); q.quadraticCurveTo(60, -40, 120, 0); q.lineTo(120, 90); q.quadraticCurveTo(60, 60, 0, 80); q.quadraticCurveTo(-60, 60, -120, 90); q.closePath(); fs(q, '#fbf4e2', 4); line(q, 0, -10, 0, 80, 3, 'rgba(58,38,32,.4)'); q.restore(); }
       // 小黑羊（在桌子前面的地板上，整个身子都看得见）：溜走时一蹦一蹦，不是拖着腿滑
       who(q, 'sheep-black', Object.assign({ x: 1140 + dx * 0.9, y: 1060, h: HT('sheep-black', U), pose: frozen ? 'stand' : 'sleep', t: tf, expr: frozen ? 'surprise' : 'sleepy' }, sneak > 0 ? bound(run ? 0.22 : 0.3) : {}));
       E.field(q, tf, { n: 10, every: 0.4, life: 4, seed: 53, prewarm: true, make: (r) => ({ x: 200 + r(1) * 1500, s: 0.7 + r(2) * 0.5, ph: r(3) * 6 }), draw: (qq, p, age, k) => { pageBird(qq, p.x + sin(age * 1.7 + p.ph) * 80, -60 + age * 260, p.s, 0.6 + sin(age * 3 + p.ph) * 0.3, sin(age * 2 + p.ph) * 0.8, sin(PI * k)); } });
@@ -3938,13 +4000,19 @@
     const cam = { x: 960, y: 540, z: 1.2 - 0.14 * easeIO(s.p), r: -0.1 + 0.08 * s.p };
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'grass-top', -100, -100, VW + 200, VH + 200);
-      // 三个人头挨着头躺在草地上（俯拍）：身体往外伸出画面
-      const kid = (name, x, y, ang, o) => { q.save(); q.translate(x, y); q.rotate(ang); who(q, name, Object.assign({ x: 0, y: 0, h: 250, crop: 'face', t, shadow: false, blink: true }, o)); q.restore(); };
-      kid('liese', 800, 470, 2.25, { expr: 'laugh' });
-      kid('fontaine', 1120, 470, -2.25, { expr: 'content' });
-      kid('adele-child', 960, 690, 0, { expr: lt > 2 ? 'laugh' : 'smile', view: 'front', outfit: 'school' });
+      // 三个人头挨着头躺在草地上（俯拍）：整个人躺着（官方小人的睡姿 / 莉瑟手绘），身体往外伸，头凑在中间
+      // lie(name, 头的位置, 头→脚的方向)：用 anchors 找到头，把人转到这个方向（官方小人、手绘都一样）
+      const lie = (name, hx, hy, dir, o) => {
+        const O = Object.assign({ x: 0, y: 0, t, shadow: false }, o), C = E.cast;
+        const A = C && C.anchors ? C.anchors(name, O) : null, head = A ? A.head : [0, -O.h * 0.2], foot = A ? (A.hip || A.feet) : [0, 0];
+        const a0 = atan2(foot[1] - head[1], foot[0] - head[0]);
+        q.save(); q.translate(hx, hy); q.rotate(dir - a0); who(q, name, Object.assign(O, { x: -head[0], y: -head[1] })); q.restore();
+      };
+      lie('liese', 850, 500, PI + 0.55, { h: 320, pose: 'lie', expr: 'laugh' });
+      lie('fontaine', 1075, 505, -0.55, { h: 360, pose: 'sleep' });
+      lie('adele-child', 960, 650, PI / 2, { h: 330, pose: 'sleep', outfit: 'school' });
       who(q, 'sheep-black', { x: 1360, y: 830, h: 230, pose: 'sleep', t, shadow: false, heat: 0.3 });
-      recorder(q, 590, 840, 0.5, { t, rec: 1, spin: 0.6, shadow: false, rot: -0.3 });
+      recorder(q, 640, 800, 0.5, { t, rec: 1, spin: 0.6, shadow: false, rot: -0.3 });
     });
     for (let i = 0; i < 3; i++) { const x = ((t * 140 + i * 900) % 2800) - 500; g.globalAlpha = 0.22; g.drawImage(s.kit.fogSprite('40,60,40'), x - 400, 200 + i * 260 - 200, 900, 460); g.globalAlpha = 1; }
     s.kit.particles(g, t, 'petals', { n: 16, seed: 59, rgb: '255,255,250' });
@@ -3992,16 +4060,17 @@
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 63, 3);
     const cam = fit({ x: 900 + hh.sx + 30 * s.p, y: 600 + hh.sy, z: 1.3 }, -240, -1e5, 2160, 1200);
-    const A = { x: 830, y: 905, h: 330, pose: 'record', prop: 'recorder', t, expr: 'content', outfit: 'school', look: [1, 0.3] };
+    // 她（官方小人）站在河边，手里提着录音机、朝着河水录音
+    const A = { x: 830, y: 905, h: 330, pose: 'stand', t, outfit: 'school' };
     skyClouds(g, s, 'noon', 12);
     riverScene(g, s, cam, 'afternoon', { mid: (q) => {
+      who(q, 'sheep-black', { x: 560, y: 905, h: 165, pose: 'sit', t, expr: 'content' });
+      who(q, 'adele-child', A);
+      const [tx, ty] = heldRecorder(q, A, t, 0.24);
       // 声音：从水面流向录音机
-      const R = E.cast && E.cast.anchors ? E.cast.anchors('adele-child', A) : null, tx = R && R.prop ? R.prop[0] : 900, ty = R && R.prop ? R.prop[1] : 700;
       q.save(); q.globalCompositeOperation = 'lighter';
       for (let j = 0; j < 5; j++) { const ph = (t * 0.6 + j / 5) % 1; q.globalAlpha = 0.45 * sin(PI * ph); q.strokeStyle = '#ffffff'; q.lineWidth = 4; q.beginPath(); q.arc(tx, ty, 50 + (1 - ph) * 420, -PI * 0.25, PI * 0.2); q.stroke(); }
       q.restore();
-      who(q, 'sheep-black', { x: 560, y: 905, h: 165, pose: 'sit', t, expr: 'content' });
-      who(q, 'adele-child', A);
     } });
     s.kit.particles(g, t, 'sparkle', { n: 12, seed: 64 });
     fgFrame(g, s, 'bs-fg-willow-l', 1, true, hh, -40 * s.p);
@@ -4016,8 +4085,15 @@
       willow(q, t, 380, 1000, 1.25);
       who(q, 'liese', { x: 610, y: 930, h: HT('liese', U), pose: 'play', prop: 'cello', t, expr: 'closed' });
       notesFrom(q, t, 700, 520, 12, 21, 'rgba(58,38,32,.85)', 1.6);
-      who(q, 'fontaine', { x: 1230, y: 960, h: HT('fontaine', U), pose: 'sit-ground', arms: 'read', prop: 'book', t, expr: 'content', flip: true });
-      who(q, 'adele-child', { x: 960, y: 945, h: HT('adele-child', U), pose: 'record', prop: 'recorder', t, expr: 'smile', outfit: 'school', flip: true });
+      // 芳汀（官方小人）坐在河边的大石头上听，书摊在石头上；阿黛尔提着录音机录莉瑟的琴声
+      const RX = 1235, RY = 962, RH = 96;
+      q.beginPath(); q.moveTo(RX - 120, RY + 6); q.quadraticCurveTo(RX - 128, RY - RH + 10, RX - 60, RY - RH); q.quadraticCurveTo(RX + 40, RY - RH - 14, RX + 110, RY - RH + 16); q.quadraticCurveTo(RX + 138, RY - 30, RX + 124, RY + 6); q.closePath(); fs(q, '#a8a098', 4);
+      q.fillStyle = 'rgba(255,255,255,.22)'; q.beginPath(); ell(q, RX - 30, RY - RH + 14, 60, 10, -0.08); q.fill(); shadow(q, RX, RY + 4, 150, 0.4);
+      who(q, 'fontaine', { x: RX - 10, y: RY, h: HT('fontaine', U), pose: 'sit', seat: RH, t, flip: true, shadow: false });
+      q.save(); q.translate(RX + 76, RY - RH + 4); q.rotate(0.1); q.beginPath(); q.moveTo(-34, 0); q.lineTo(0, -8); q.lineTo(34, 0); q.lineTo(34, 10); q.lineTo(0, 4); q.lineTo(-34, 10); q.closePath(); fs(q, '#fbf4e2', 2.5); line(q, 0, -8, 0, 4, 1.5, 'rgba(58,38,32,.4)'); q.restore();
+      const A = { x: 960, y: 945, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', flip: true };
+      who(q, 'adele-child', A);
+      heldRecorder(q, A, t, 0.2);
       for (let i = 0; i < 3; i++) { const x = 900 + sin(t * 0.9 + i * 2) * 300, y = 600 + sin(t * 1.7 + i) * 60; q.save(); q.translate(x, y); q.rotate(sin(t * 3 + i) * 0.3); line(q, -30, 0, 30, 0, 5, '#4a7ab0'); q.globalAlpha = 0.6; q.fillStyle = '#e8f4ff'; const f = sin(t * 60 + i) * 0.4; for (const d of [-1, 1]) { q.beginPath(); q.ellipse(-2, d * 16, 26, 7, d * (0.3 + f), 0, TAU); q.fill(); q.beginPath(); q.ellipse(10, d * 14, 22, 6, d * (0.5 + f), 0, TAU); q.fill(); } q.restore(); }
     } });
   }
@@ -4037,9 +4113,12 @@
         q.globalAlpha = 1;
       }
       const thrown = t > 96.95, cheer = t > 98.3;
-      who(q, 'fontaine', { x: 600, y: 970, h: HT('fontaine', U), pose: cheer ? 'cheer' : thrown ? 'point' : 'hold', aim: 0.1, t, expr: cheer ? 'laugh' : 'determined' });
+      // 芳汀（官方小人）：站着瞄准 → 甩出去以后抬手（他的基建 Interact）；阿黛尔（官方小人）看着石头跳，跳到第三下高兴得原地蹦起来
+      who(q, 'fontaine', { x: 600, y: 970, h: HT('fontaine', U), pose: thrown ? 'wave' : 'stand', t, phase: thrown ? -96.95 : 0 });
       who(q, 'liese', { x: 300, y: 985, h: HT('liese', U), pose: cheer ? 'clap' : 'stand', t, expr: cheer ? 'laugh' : 'smile' });
-      who(q, 'adele-child', { x: 1030, y: 990, h: HT('adele-child', U), pose: cheer ? 'cheer' : 'look-up', t, expr: cheer ? 'laugh' : 'surprise', outfit: 'school', look: [1, -0.2] });
+      const jy = cheer ? 46 * abs(sin(PI * (t - 98.3) / 0.42)) : 0;
+      shadow(q, 1030, 990, 70, 0.4 * (1 - jy / 90));
+      who(q, 'adele-child', { x: 1030, y: 990 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false });
       who(q, 'sheep-black', { x: 1300, y: 1000, h: HT('sheep-black', U), pose: cheer ? 'jump' : 'stand', t, expr: 'laugh' });
       let k = -1; for (let i = 0; i < hops.length - 1; i++) if (t >= hops[i] && t < hops[i + 1]) k = i;
       if (k >= 0) { const f = (t - hops[k]) / (hops[k + 1] - hops[k]); const [x, y] = k === 0 ? arc3(560, 700, X[1], Y[1], 120, f) : arc3(X[k], Y[k], X[k + 1], Y[k + 1], 70 / k, f); q.beginPath(); ell(q, x, y, 10, 7); fs(q, '#8a8494', 2.5); }
@@ -4063,14 +4142,31 @@
       if (!grab) { const [ex] = at(Object.assign({}, sh, { pose: 'eat' }), 'sheep', 'mouth'); recorder(q, ex, 978, sh.h * 0.0013, { t, rec: 1, spin: 0.6 }); }
       else recInMouth(q, sh, tf, { spin: 0.8 });
       const notice = t > 102.26;
-      who(q, 'adele-child', { x: 700, y: 990, h: HT('adele-child', U), pose: notice ? 'point' : 'sit-ground', aim: 0, t: tf, expr: notice ? 'surprise' : 'smile', outfit: 'school' });
-      who(q, 'liese', { x: 420, y: 1000, h: HT('liese', U), pose: notice ? 'cover' : 'sit-ground', t: tf, expr: notice ? 'surprise' : 'laugh' });
+      // 她和莉瑟坐在河边的长椅上；发现录音机被叼走——她吓得一下子站起来（官方小人的 Interact：吓一跳），莉瑟捂住嘴
+      const BX = 560, BY = 995, BH = 112;
+      q.beginPath(); q.rect(BX - 250, BY - BH + 18, 18, BH - 18); q.rect(BX + 232, BY - BH + 18, 18, BH - 18); fs(q, '#5a3a24', 3.5);
+      q.beginPath(); rrect(q, BX - 270, BY - BH, 540, 24, 6); fs(q, '#8a5a36', 4); q.fillStyle = 'rgba(255,230,190,.25)'; q.fillRect(BX - 262, BY - BH + 4, 524, 5);
+      shadow(q, BX, BY + 4, 280, 0.35);
+      who(q, 'liese', { x: 420, y: BY, h: HT('liese', U), pose: notice ? 'cover' : 'sit', seat: notice ? undefined : BH, t: tf, expr: notice ? 'surprise' : 'laugh', shadow: false });
+      if (notice) who(q, 'adele-child', Object.assign({ x: 700, y: BY + 4, h: HT('adele-child', U), t: tf, outfit: 'school' }, startle(102.26)));
+      else who(q, 'adele-child', { x: 690, y: BY, h: HT('adele-child', U), pose: 'sit', seat: BH, t: tf, outfit: 'school', shadow: false });
+      // 背后的长椅靠背（在人后面画会被挡住：这里画在前面的只有扶手的一小截）
+      q.beginPath(); rrect(q, BX - 276, BY - BH - 50, 16, 70, 4); rrect(q, BX + 260, BY - BH - 50, 16, 70, 4); fs(q, '#6a4228', 3);
       if (frozen) { bang(q, 760, 360, clamp((t - 102.76) / 0.3), 1.2); bang(q, 470, 420, clamp((t - 102.86) / 0.3), 1); bang(q, 1300, 700, clamp((t - 102.96) / 0.3), 0.9); }
     } });
     if (frozen) s.post.fill(g, '#ffe2b0', 0.18, 'multiply');
   }
 
   /* ---------- 31–39 追逐：小黑羊叼着录音机一路跑到广场的喷泉 ---------- */
+  /**
+   * 她提在手里的录音机：背带挂在近侧的手上，机身吊在手下面、轻轻晃（官方小人的手就是这样垂着的）。
+   * 返回录音机麦克风的位置（给“声音飘进录音机”的波纹用）
+   */
+  function heldRecorder(q, A, t, k = 0.24) {
+    const [hx, hy] = at(A, 'adele-child', 'hand'), sw = 0.08 * sin(t * 2.1);
+    q.save(); q.translate(hx, hy); q.rotate(sw); recorder(q, 0, 250 * k, k, { t, rec: 1, spin: 0.6, shadow: false }); q.restore();
+    return [hx - 136 * k, hy + 122 * k];
+  }
   /** 羊嘴里叼着的录音机（跟着羊的大小） */
   function recInMouth(q, sh, t, o = {}) {
     // 录音机的背带叼在嘴里（背带的顶点 = 支点在嘴上），机身吊在下巴底下：不会挡住羊脸。跑 / 蹦的时候往后甩、一晃一晃
@@ -4217,8 +4313,9 @@
       glow(q, x, y - 90, 240, '255,120,50', 0.4);
       who(q, 'sheep-black', sh);
       recInMouth(q, sh, tf);
-      who(q, 'fontaine', { x: 110, y: 1030, h: HT('fontaine', U), pose: 'reach', aim: -0.5, t: tf, expr: 'surprise' });
-      who(q, 'adele-child', { x: 330, y: 1020, h: HT('adele-child', U), pose: 'reach', aim: -0.6, t: tf, expr: 'surprise', outfit: 'school', wind: 1 });
+      // 两个人（官方小人）：芳汀抬手想拦，阿黛尔吓了一跳
+      who(q, 'fontaine', { x: 110, y: 1030, h: HT('fontaine', U), pose: 'wave', t: tf, phase: -117.76 });
+      who(q, 'adele-child', Object.assign({ x: 330, y: 1020, h: HT('adele-child', U), t: tf, outfit: 'school' }, startle(117.9)));
       if (slow) { for (let i = 0; i < 20; i++) { const px = 300 + hash(83, i) * 1300, py = 200 + hash(84, i) * 600; q.globalAlpha = 0.7; q.fillStyle = '#eef8ff'; q.beginPath(); ell(q, px + sin(tf + i) * 4, py, 5, 8); q.fill(); } q.globalAlpha = 1; }
     });
     if (slow) s.post.fill(g, '#ffe0b0', 0.12, 'soft-light');
@@ -4247,8 +4344,11 @@
       rainbow(q, 980, 900, 620, up(t, 120.3, 121.2) * (1 - up(t, 122.8, 123.7)));
       // 两边被溅了一身水的小伙伴：先挡，再笑
       const shield = lt < 0.9, laugh = lt > 1.4;
-      who(q, 'fontaine', { x: 130, y: 1040, h: HT('fontaine', U), pose: shield ? 'cover' : laugh ? 'clap' : 'stand', t, expr: laugh ? 'laugh' : 'surprise' });
-      who(q, 'adele-child', { x: 370, y: 1030, h: HT('adele-child', U), pose: shield ? 'cover' : laugh ? 'cheer' : 'stand', t, expr: laugh ? 'laugh' : 'surprise', outfit: 'school' });
+      // 官方小人：水花溅起来时阿黛尔吓一跳、芳汀抬手挡；缓过来以后都笑了（芳汀抬手，阿黛尔原地蹦）
+      who(q, 'fontaine', { x: 130, y: 1040, h: HT('fontaine', U), pose: shield || laugh ? 'wave' : 'stand', t, phase: laugh ? -121.2 : -119.76 });
+      const jy = laugh ? 40 * abs(sin(PI * (t - 121.2) / 0.45)) : 0;
+      if (shield) who(q, 'adele-child', Object.assign({ x: 370, y: 1030, h: HT('adele-child', U), t, outfit: 'school' }, startle(119.76)));
+      else { shadow(q, 370, 1030, 80, 0.4 * (1 - jy / 80)); who(q, 'adele-child', { x: 370, y: 1030 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false }); }
       who(q, 'liese', { x: 1610, y: 1040, h: HT('liese', U), pose: shield ? 'cover' : laugh ? 'clap' : 'stand', t, flip: true, expr: lt > 1.6 ? 'laugh' : 'surprise', prop: 'cello' });
       // 溅在他们身上的水珠
       if (lt > 0.2 && lt < 2.5) for (let i = 0; i < 16; i++) { const x = [260, 470, 1600][i % 3] + (hash(151, i) - 0.5) * 200, y = 520 + hash(152, i) * 380 + (lt - 0.2) * 60; q.globalAlpha = 0.8 * (1 - (lt - 0.2) / 2.3); q.fillStyle = '#eef8ff'; q.beginPath(); ell(q, x, y, 5, 8); q.fill(); }
@@ -4271,11 +4371,13 @@
       q.globalAlpha = 1;
       who(q, 'liese', { x: 420, y: 1060, h: HT('liese', U), pose: 'sit', seat, arms: 'clap', t, expr: 'laugh', prop: 'cello', shadow: false });
       who(q, 'fontaine', { x: 700, y: 1060, h: HT('fontaine', U), pose: 'sit', seat, t, expr: 'laugh', shadow: false });
-      const A = { x: 1420, y: 1060, h: HT('adele-child', U), pose: 'sit', seat, arms: 'record', prop: 'recorder', t, expr: 'laugh', outfit: 'school', flip: true, shadow: false };
+      // 阿黛尔（官方小人）坐在池沿上，录音机放在身边，正在回放刚才录下的声音
+      const A = { x: 1420, y: 1060, h: HT('adele-child', U), pose: 'sit', seat, t, outfit: 'school', flip: true, shadow: false };
       who(q, 'adele-child', A);
-      // 回放：从录音机里飘出来的声音
-      const R = E.cast && E.cast.anchors ? E.cast.anchors('adele-child', A) : null;
-      const [hx, hy] = R && R.prop ? R.prop : at(A, 'child', 'hand');
+      const RK = 0.3, RXc = 1250, RYc = 1060 - seat + 6;
+      recorder(q, RXc, RYc, RK, { t, rec: 1, spin: 0.8, shadow: false, key: 'play' });
+      // 回放：从录音机的喇叭里飘出来的声音
+      const hx = RXc + 130 * RK, hy = RYc - 130 * RK;
       // 回放的声音从录音机里飘出来，往左上方（画面中间）飘：不从她的脸前面经过
       E.field(q, t, { n: 10, every: 0.4, life: 3, seed: 88, prewarm: true, make: (r) => ({ vx: -(30 + r(1) * 50), k: floor(r(2) * 4), ph: r(3) * 6 }), draw: (qq, p, age, k) => {
         const x = hx - 80 + p.vx * age * 1.4 + sin(age * 3 + p.ph) * 14, y = hy - 30 - age * 150, a = sin(PI * k);
@@ -4302,13 +4404,14 @@
       const walker = (name, o, d) => { const w = o.pose === 'walk'; who(q, name, Object.assign(o, w ? stride(name, { h: o.h, pose: 'walk', t }, d) : {})); };
       // 芳汀（走在最前面）：走到 1.8 秒停下、回身挥手，2.1 秒起往右走（边走边挥手）。不从阿黛尔身后穿过去
       const fT = 280, fx = lt < 1.8 ? 730 + V * lt : lt < 2.1 ? 1000 : 1000 + fT * (lt - 2.1);
-      walker('fontaine', { x: fx, y: 955, h: HT('fontaine', U), pose: lt < 1.8 || lt >= 2.1 ? 'walk' : 'stand', arms: lt >= 1.8 ? 'wave' : undefined, flip: lt >= 1.8 && lt < 2.1, t, expr: 'smile', sha: 0.6, rim }, lt < 1.8 ? V * lt : fT * (lt - 2.1));
+      // （官方小人：停下时回身抬手 = 他的 Interact；走的时候就是走）
+      walker('fontaine', { x: fx, y: 955, h: HT('fontaine', U), pose: lt < 1.8 || lt >= 2.1 ? 'walk' : 'wave', phase: lt < 2.1 ? -129.57 : 0, flip: lt >= 1.8 && lt < 2.1, t, sha: 0.6, rim }, lt < 1.8 ? V * lt : fT * (lt - 2.1));
       // 莉瑟：停下、转身，2.1 秒起往左走（面朝左，边走边挥手）
       const lT = 170, lx = lt < 1.8 ? V * lt : lt < 2.1 ? 270 : 270 - lT * (lt - 2.1);
       walker('liese', { x: lx, y: 960, h: HT('liese', U), pose: lt < 1.8 || lt >= 2.1 ? 'walk' : 'stand', arms: lt >= 1.8 ? 'wave' : undefined, flip: lt >= 1.8, t, expr: 'smile', prop: 'cello', sha: 0.6, rim }, lt < 1.8 ? V * lt : lT * (lt - 2.1));
       // 阿黛尔：走到 TS 停下，先朝左挥手送莉瑟，再朝右挥手送芳汀
       const ax = 510 + V * min(lt, TS);
-      walker('adele-child', { x: ax, y: 965, h: HT('adele-child', U), pose: lt < TS ? 'walk' : 'stand', arms: lt >= TS ? 'wave2' : undefined, t, expr: 'smile', outfit: 'school', prop: 'satchel', flip: lt >= TS && lt < 2.94, sha: 0.6, rim }, V * lt);
+      walker('adele-child', { x: ax, y: 965, h: HT('adele-child', U), pose: lt < TS ? 'walk' : 'wave2', t, outfit: 'school', prop: 'satchel', flip: lt >= TS && lt < 2.94, sha: 0.6, rim }, V * lt);
       // 小黑羊跟着她走（小碎步），她停下它也停下
       walker('sheep-black', { x: 370 + V * min(lt, TS), y: 968, h: HT('sheep-black', U), pose: lt < TS ? 'walk' : 'stand', t, sha: 0.6 }, V * lt);
     } });
@@ -4392,26 +4495,37 @@
     const story = lt > 0.9;
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'room-kitchen:night');
-      // 收音机放在窗台右边、阿黛尔和妈妈之间的空当里（不在谁的脑袋后面）
       radio(q, DINNER_RADIO[0], 562, DINNER_RADIO[1], t, 1, 0.25 + 0.3 * s.e, s.bp);
-      // 三把餐椅（椅背露在桌面上方）；座面都在桌面以下，被桌子和桌布挡住
-      chairBack(q, 238, 590, 800, 160); chairBack(q, 575, 600, 800, 136); chairBack(q, 902, 596, 800, 156);
-      // 爸爸讲起宠物大赛：摘下领带，举过头顶当指挥棒挥（两只拳头都在头的两侧，领带在头顶上方挥，不从脸前面扫过）
-      const K = { x: 250, y: 905, h: U, pose: 'sit', arms: story ? 'cheer' : undefined, t, expr: story ? 'laugh' : 'talk', talk: story ? 0 : 0.8, outfit: 'suit', look: [1, 0], shadow: false };
-      who(q, 'katia', K);
-      if (story) waveTie(q, K, t, U);
-      who(q, 'magna', { x: 890, y: 905, h: HT('magna', U), pose: 'sit', arms: story ? 'clap' : undefined, t, expr: story ? 'laugh' : 'smile', outfit: 'home', flip: true, shadow: false });
-      // 阿黛尔坐在椅子上（腰以下在桌面后面），两条腿悬着晃（被桌布挡住）
-      who(q, 'adele-child', { x: 575, y: 905, h: HT('adele-child', U), pose: 'sit', seat: 110, t, expr: 'laugh', outfit: 'school', look: story ? [-1, -0.2] : [0, 0], shadow: false });
-      img(q, s, 'kitchen-table:dinner');
-      glow(q, 470, 700, 70 + 6 * sin(t * 13) + 4 * sin(t * 7.3), '255,200,120', 0.7);
-      for (const bx of [330, 600, 820]) { q.beginPath(); q.ellipse(bx, 770, 70, 14, 0, 0, TAU); fs(q, '#f4efe6', 3.5); q.beginPath(); q.moveTo(bx - 70, 770); q.quadraticCurveTo(bx, 830, bx + 70, 770); fs(q, '#f4efe6', 3.5); q.fillStyle = '#d88a4a'; q.beginPath(); q.ellipse(bx, 770, 60, 10, 0, 0, TAU); q.fill(); soupSteam(q, t + bx, bx, 750, 0.9); }
-      // 小黑羊在桌子前面的地板上打盹；大家一笑，它跟着拍子蹦起来（在桌布前面）
-      const hop = story ? abs(sin(PI * clamp((t - B(70)) / 0.5))) : 0;
-      who(q, 'sheep-black', { x: 700, y: 1072 - hop * 50, h: HT('sheep-black', U), pose: story ? 'jump' : 'sleep', air: 0, t, expr: 'laugh', heat: story ? 0.5 : 0, shadow: false });
+      dinnerScene(q, s, t, { story, U, hopT: B(70) });
       line(q, 560, 40, 560, 290, 3, INK); q.beginPath(); q.moveTo(470, 350); q.lineTo(650, 350); q.lineTo(610, 290); q.lineTo(510, 290); q.closePath(); fs(q, '#e8a060', 4);
     });
     nightGrade(g, [[...scr(cam, 560, 360), 520, 0.45], [...scr(cam, 560, 760), 460, 0.25]]);
+  }
+  /**
+   * 晚饭的一桌（厨房房间坐标，镜头从爸爸妈妈身后看过去——过肩镜头）：
+   *   阿黛尔坐在桌子对面，面朝我们（官方小人的坐姿，腰以下在桌后）；
+   *   爸爸（左）妈妈（右）坐在靠镜头这一边，背对我们，被吊灯勾出暖色的轮廓——他们的脸始终不入画。
+   *   story：爸爸把领带举过头顶挥（背影里也看得见），妈妈拍手，小黑羊从他们中间蹦起来
+   */
+  function dinnerScene(q, s, t, o = {}) {
+    const U = o.U || 640, story = !!o.story;
+    chairBack(q, 575, 600, 800, 136);
+    // 她看着讲故事的爸爸（面朝左）
+    who(q, 'adele-child', { x: 575, y: 905, h: HT('adele-child', U), pose: 'sit', seat: 110, t, outfit: 'school', flip: story, shadow: false });
+    img(q, s, 'kitchen-table:dinner');
+    glow(q, 470, 700, 70 + 6 * sin(t * 13) + 4 * sin(t * 7.3), '255,200,120', 0.7);
+    for (const bx of [330, 600, 830]) { q.beginPath(); q.ellipse(bx, 770, 70, 14, 0, 0, TAU); fs(q, '#f4efe6', 3.5); q.beginPath(); q.moveTo(bx - 70, 770); q.quadraticCurveTo(bx, 830, bx + 70, 770); fs(q, '#f4efe6', 3.5); q.fillStyle = '#d88a4a'; q.beginPath(); q.ellipse(bx, 770, 60, 10, 0, 0, TAU); q.fill(); soupSteam(q, t + bx, bx, 750, 0.9); }
+    // 小黑羊在爸爸妈妈中间的地板上；大家一笑，它跟着拍子蹦起来
+    const hop = story ? abs(sin(PI * clamp((t - (o.hopT ?? 0)) / 0.5))) : 0;
+    who(q, 'sheep-black', { x: 600, y: 1050 - hop * 60, h: HT('sheep-black', U), pose: story ? 'jump' : 'sleep', air: 0, t, expr: 'laugh', heat: story ? 0.5 : 0, shadow: false });
+    // 近处的两个人：背影（比桌子那边的人离镜头近，画得大一点），吊灯在他们前上方 → 轮廓光
+    const kU = 1.22, rim = '255,196,130';
+    const K = { x: 225, y: 1250, h: U * kU, pose: 'sit', seat: 400, view: 'back', arms: story ? 'cheer' : undefined, t, outfit: 'suit', shadow: false, rim, rimDir: -0.9, rimW: 0.9, rimGlow: 0 };
+    who(q, 'katia', K);
+    if (story) waveTie(q, K, t, U * kU);
+    who(q, 'magna', { x: 930, y: 1250, h: HT('magna', U) * kU, pose: 'sit', seat: 400, view: 'back', arms: story ? 'clap' : undefined, t, outfit: 'home', flip: true, shadow: false, rim, rimDir: -2.2, rimW: 0.9, rimGlow: 0 });
+    // 他们的椅背（离镜头更近，挡住腰）
+    chairBack(q, 225, 900, 1120, 230, '#8a5a38'); chairBack(q, 930, 900, 1120, 220, '#8a5a38');
   }
   function shotMap(g, s) {
     const t = s.t, lt = s.lt;
@@ -4445,9 +4559,9 @@
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'room-kitchen:night');
       radio(q, DINNER_RADIO[0], 562, DINNER_RADIO[1], t, 1, 0.25 + 0.3 * s.e, s.bp); // 窗台上的收音机（和晚饭的镜头同一个位置）
-      const reach = lt > 0.8;
-      who(q, 'adele-child', { x: 1020, y: 905, h: HT('adele-child', U), pose: reach ? 'reach' : 'stand', aim: 0.25, t, expr: lt > 1.3 ? 'smile' : 'neutral', outfit: 'school', look: [1, -0.2] });
-      who(q, 'katia', { x: 1400, y: 905, h: U, pose: 'kneel', arms: 'reach', aim: 0.15, t, expr: 'smile', outfit: 'suit', flip: true, look: [-1, 0.1] });
+      // 过肩镜头：爸爸单膝跪在前景（背影，离镜头更近），向她伸出手；她（官方小人）站在对面看着他。爸爸的脸不入画
+      who(q, 'adele-child', { x: 1010, y: 905, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: true });
+      who(q, 'katia', { x: 1440, y: 1010, h: U * 1.18, pose: 'kneel', arms: 'reach', aim: 0.15 + 0.08 * up(lt, 0.5, 1.2, easeO), view: 'back3', flip: true, t, outfit: 'suit', shadow: false, rim: '255,196,130', rimDir: -2.4, rimW: 0.9, rimGlow: 0 });
     });
     nightGrade(g, [[...scr(cam, 560, 330), 560, 0.4]]);
   }
@@ -4483,8 +4597,13 @@
     else s.layer(g, { x: 700, y: 560, z: 2.2, sx: hh.sx * 0.5, sy: hh.sy * 0.5 }, 1, (q) => { img(q, s, 'room-kitchen:night'); radio(q, DINNER_RADIO[0], 562, DINNER_RADIO[1], t, 1, 0.3, s.bp); });
     s.post.fill(g, '#3a2830', 0.35);
     if (fin) F.bokeh(g, s, { n: 11, seed: 23, a: 0.3, colors: ['255,200,140', '255,176,110', '255,226,180'], depth: [0.2, 1], size: [36, 120], rect: [0, 0, VW, 760], drift: [4, -3], twinkle: 0.3 });
-    s.layer(g, { x: 960, y: 540, z: 1 + 0.03 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
-      who(q, 'adele-child', { x: 960, y: 1080, h: 900, crop: 'bust', t, expr: lt < 1.2 ? 'smile' : 'content', outfit: 'school', shadow: false, look: lt < 1.2 ? [0, 0] : [0.2, 0.5], rim: '255,200,140', rimDir: -2.3, rimW: 0.8, rimGlow: 0 });
+    // 中近景：她（官方小人，画得很大）坐在餐桌后面，桌沿在胸口以下把画面切开；镜头慢慢推近。左上方的吊灯给她一圈暖色轮廓光
+    s.layer(g, { x: 960, y: 540, z: 1.0 + 0.07 * easeS(s.p), sx: hh.sx, sy: hh.sy }, 1, (q) => {
+      who(q, 'adele-child', { x: 940, y: 1340, h: 1180, pose: 'sit', seat: 300, t, outfit: 'school', shadow: false, rim: '255,200,140', rimDir: -2.3, rimW: 0.8, rimGlow: 0 });
+      // 桌沿（前景，景深外的一条暖色木边 + 桌布）
+      q.fillStyle = lg(q, 0, 900, 0, 1100, [[0, '#f4e6cc'], [1, '#d8c4a0']]); q.fillRect(-100, 905, 2200, 300);
+      q.fillStyle = 'rgba(80,40,30,.18)'; q.fillRect(-100, 905, 2200, 14);
+      q.beginPath(); q.ellipse(1310, 905, 150, 26, 0, PI, TAU); fs(q, '#f4efe6', 4); glow(q, 520, 880, 140, '255,200,120', 0.5);
     });
     nightGrade(g, [[600, 200, 700, 0.35]]);
   }
@@ -4533,14 +4652,11 @@
   function shotStudyNight(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 119, 2);
-    const cam = fit({ x: 1060 + hh.sx, y: 600 + hh.sy, z: 1.35 }, 0, 0, VW, VH);
+    // 慢慢推近：夜里的书房，妈妈背对着我们在台灯下写考察资料；写完停下笔（她的脸始终不入画）
+    const cam = fit({ x: 1060 + hh.sx - 40 * s.p, y: 600 + hh.sy, z: 1.3 + 0.1 * easeS(s.p) }, 0, 0, VW, VH);
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'room-study:night');
-      // 她坐在书桌前的椅子上，笔记本摊在膝上写（台灯在身后）；写着写着停下笔，抬起头，笑了一下
-      const look = lt > 1.0, X = 900, FY = 905, SEAT = 127;
-      shadow(q, X - 10, FY + 2, 190, 0.5);
-      armchair(q, X, FY - SEAT, FY);
-      who(q, 'magna', { x: X, y: FY, h: 600, pose: 'sit', seat: SEAT, arms: 'write', prop: 'notebook', desk: 110, t, expr: look ? 'content' : 'neutral', outfit: 'home', look: look ? [1, -0.25] : [0.3, 0.4], shadow: false });
+      momAtDesk(q, t, lt > 1.1);
     });
     nightGrade(g, [[...scr(cam, 1140, 560), 560, 0.35]], 0.8);
   }
@@ -4555,8 +4671,14 @@
       if (mk > 0 && mk < 1) { q.save(); q.beginPath(); circ(q, 960, 330, 118); q.clip(); const x = 880 + mk * 160, y = 280 + mk * 70; line(q, x, y, x - 60, y - 26, 3, 'rgba(255,255,240,.9)'); glow(q, x, y, 20, '255,250,220', 1); q.restore(); }
       const up2 = t > 162.8;
       who(q, 'sheep-black', { x: 330, y: 718, h: 190, pose: 'sleep', t, expr: 'content', shadow: false });
-      if (!up2) { who(q, 'adele-child', { x: 520, y: 720, h: 384, pose: 'hug-knees', t, expr: t > 162.2 ? 'surprise' : 'content', outfit: PJ, look: [1, -0.7], shadow: false }); recorder(q, 660, 716, 0.3, { t, rec: 0, spin: 0, shadow: false }); }
-      else who(q, 'adele-child', { x: 600, y: 720, h: 384, pose: 'jump', air: 0.4 * sin(PI * clamp((t - 162.8) / 0.5)), prop: 'recorder', t, expr: 'laugh', outfit: PJ, look: [1, -0.7], shadow: false });
+      // 坐在床沿上（官方小人），录音机放在身边的床上；看见流星，站起来、抓起录音机蹦了一下
+      if (!up2) { who(q, 'adele-child', { x: 520, y: BED_EDGE.y, h: 384, pose: 'sit', seat: BED_EDGE.seat, t, outfit: PJ, shadow: false }); recorder(q, 668, 706, 0.3, { t, rec: 0, spin: 0, shadow: false }); }
+      else {
+        const A = { x: 600, y: 890, h: 384, pose: 'jump', air: 0.6 * sin(PI * clamp((t - 162.8) / 0.5)), t, outfit: PJ, shadow: false };
+        shadow(q, 600, 892, 90, 0.35);
+        who(q, 'adele-child', A);
+        const [hx, hy] = at(A, 'adele-child', 'hand'); recorder(q, hx, hy + 30, 0.26, { t, rec: 0, spin: 0, shadow: false, strap: false });
+      }
       if (t > 162.2) sparkle(q, 640, 300, 44, clamp(1 - (t - 162.2) / 0.6), t * 2);
     });
     nightGrade(g, [[1500, 560, 500, 0.25]], 0.7);
@@ -4589,24 +4711,83 @@
   }
   const PJ = 'pajama', MOON = '190,205,255';
   const UF = 440; // 屋顶近景里“爸爸的身高”
-  /** 披在她肩上的外套（妈妈的火山防护外套）：用角色的胸口、头的挂点定位 */
-  function coatOn(q, name, o, drop = 0) {
-    const C = E.cast;
-    const A = C && C.anchors ? C.anchors(name, o) : null;
-    if (!A) return;
-    const nx = lerp(A.chest[0], A.head[0], 0.3), ny = lerp(A.chest[1], A.head[1], 0.36);
-    q.save(); q.beginPath(); q.rect(nx - 400, ny - 600 + drop * 0, 800, 600 + (o.y - ny) + 20); q.clip();
-    coat(q, nx, ny - 16 - (1 - drop) * 0, o.h * 0.0023, 0);
+  /** 前景屋顶的屋脊（roof-fg 里屋脊盖瓦的上沿） */
+  const ridgeY = (x) => 792 - (x + 40) * 0.02;
+  /** 坐在屋脊上（官方小人的坐姿：臀部在屋脊上，两条小腿垂在朝我们这一面的瓦上） */
+  const onRidge = (x, h) => { const S = 0.22 * h + 2; return { x, y: ridgeY(x) + S, seat: S, pose: 'sit' }; };
+  /**
+   * 妈妈的米白外套披在坐着的她身上（正面、近景；o = 她的 who() 选项，官方小人的坐姿）。
+   * part 'back'：身后那一片（先画，从她头顶上方落下来 drop 像素）；'front'：两片前襟从肩头垂到腿上（后画，k 0→1 从上往下展开）
+   */
+  function drapedCoat(q, o, part, k = 1, drop = 0) {
+    const h = o.h, cx = o.x + (o.flip ? 1 : -1) * 0.02 * h, sy = o.y - o.seat, sh = sy - 0.3 * h;
+    const lw = max(2, h * 0.006);
+    q.save(); q.translate(cx, sh - drop); q.scale(h / 100, h / 100); q.lineJoin = 'round';
+    const L = lw * 100 / h;
+    // 月光下的米白：偏冷、偏暗一点（白天那件是 #f3ecdf）
+    if (part === 'back') {
+      // 身后：肩膀比她宽一点、两只空袖子垂在两边（被她的头发和身子挡住大半，只露出一圈边）
+      q.beginPath(); q.moveTo(-11, -3); q.quadraticCurveTo(-23, -5, -28, 3); q.quadraticCurveTo(-32, 15, -33, 27); q.quadraticCurveTo(0, 31, 33, 27); q.quadraticCurveTo(32, 15, 28, 3); q.quadraticCurveTo(23, -5, 11, -3); q.quadraticCurveTo(0, -8, -11, -3); q.closePath();
+      fs(q, lg(q, 0, -6, 0, 30, [[0, '#d9d4df'], [1, '#9c96ad']]), L);
+      for (const sx of [-1, 1]) {
+        q.beginPath(); q.moveTo(sx * 27, 4); q.quadraticCurveTo(sx * 33.5, 13, sx * 34, 25); q.lineTo(sx * 29, 25.5); q.quadraticCurveTo(sx * 29, 15, sx * 24, 7); q.closePath(); fs(q, '#b5afc2', L);
+        q.fillStyle = '#c54a44'; q.beginPath(); q.moveTo(sx * 29.2, 22); q.lineTo(sx * 33.9, 21.6); q.lineTo(sx * 34, 23.4); q.lineTo(sx * 29.1, 23.8); q.closePath(); q.fill();
+      }
+    } else if (k > 0) {
+      q.beginPath(); q.rect(-50, -12, 100, 12 + 42 * k); q.clip();
+      for (const sx of [-1, 1]) {
+        // 前襟：从领口经过肩头垂下来，下摆微微张开；盖住她两侧的头发和手，中间敞开露出脸、胸前和腿
+        q.beginPath(); q.moveTo(sx * 10, -1.5); q.quadraticCurveTo(sx * 22, -4, sx * 27, 3); q.quadraticCurveTo(sx * 31.5, 14, sx * 32, 26.5);
+        q.quadraticCurveTo(sx * 26, 30.5, sx * 19, 29.5); q.quadraticCurveTo(sx * 15, 15, sx * 11, 5); q.closePath();
+        fs(q, lg(q, sx * 11, 0, sx * 32, 0, [[0, '#ebe7ee'], [0.55, '#cdc7d6'], [1, '#a59eb4']]), L);
+        // 两道衣褶、翻领、红系带垂在前襟里边、下摆的红条
+        q.strokeStyle = 'rgba(40,30,60,.2)'; q.lineWidth = L * 1.1; q.lineCap = 'round';
+        q.beginPath(); q.moveTo(sx * 21, 7); q.quadraticCurveTo(sx * 25, 17, sx * 24, 28.5); q.stroke();
+        q.beginPath(); q.moveTo(sx * 15.5, 12); q.quadraticCurveTo(sx * 17.5, 20, sx * 18.5, 28); q.stroke();
+        q.beginPath(); q.moveTo(sx * 10, -1.5); q.lineTo(sx * 19, -2.6); q.lineTo(sx * 13, 8.5); q.closePath(); fs(q, '#f2eff5', L * 0.8);
+        q.strokeStyle = '#c54a44'; q.lineWidth = L * 1.1; q.beginPath(); q.moveTo(sx * 15, 13); q.quadraticCurveTo(sx * 12.5, 18, sx * 14.5, 23); q.stroke();
+        q.strokeStyle = 'rgba(197,74,68,.85)'; q.lineWidth = L * 1.4; q.beginPath(); q.moveTo(sx * 20, 28.2); q.quadraticCurveTo(sx * 26, 29.2, sx * 31.6, 25.4); q.stroke();
+      }
+    }
     q.restore();
+  }
+  /** 剪影里披着的外套：她背后多出来的一片（同一个剪影颜色） */
+  function coatSil(q, A, col) {
+    const C = E.cast, P = C && C.anchors ? C.anchors('adele-child', A) : null;
+    if (!P || !P.chest || !P.head) return;
+    const h = A.h, nx = lerp(P.chest[0], P.head[0], 0.35), ny = lerp(P.chest[1], P.head[1], 0.35);
+    q.save(); q.beginPath(); q.moveTo(nx - 0.16 * h, ny + 0.03 * h); q.quadraticCurveTo(nx, ny - 0.05 * h, nx + 0.16 * h, ny + 0.03 * h);
+    q.lineTo(A.x + 0.24 * h, A.y); q.lineTo(A.x - 0.24 * h, A.y); q.closePath(); q.fillStyle = col; q.fill(); q.restore();
+  }
+  /** 近景里我们这边的屋顶（矢量，放大也清楚）：屋脊上沿在 RY，往镜头这边是一排排鳞片瓦 */
+  function closeRoof(q, RY, k) {
+    q.fillStyle = lg(q, 0, RY, 0, VH + 40, [[0, '#23254c'], [1, '#12132a']]); q.fillRect(-120, RY, VW + 240, VH - RY + 160);
+    for (let r = 0; r < 6; r++) for (let c = -2; c < 2 + VW / (130 * k); c++) {
+      const x = c * 130 * k + (r % 2) * 65 * k, y = RY + 20 * k + r * 58 * k;
+      q.beginPath(); q.arc(x, y, 66 * k, 0, PI); fs(q, r % 2 ? '#262953' : '#21234a', 2.5, 'rgba(8,8,24,.55)');
+      q.strokeStyle = 'rgba(190,205,255,.1)'; q.lineWidth = 2; q.beginPath(); q.arc(x, y, 60 * k, 0.2, PI - 0.2); q.stroke();
+    }
+    q.beginPath(); rrect(q, -140, RY - 16 * k, VW + 280, 34 * k, 14 * k); fs(q, '#2f3266', 3, 'rgba(8,8,24,.6)');
+    line(q, -140, RY - 12 * k, VW + 140, RY - 12 * k, 2.5, 'rgba(190,205,255,.35)');
+  }
+  /** 近景的背景：夜空 + 远处的屋顶（景深外，模糊一次缓存） */
+  function roofCloseBg(g, s, hh, lowY = 300) {
+    const bg = (q) => { img(q, s, 'night-sky', -100, -200, VW + 200, VH + 200); img(q, s, 'rooftops', -240, lowY, 2400, 1080); };
+    const F = E.finish;
+    if (F && F.enabled) {
+      F.dof(g, s, 'bs-roofclose-bg', bg, { radius: 7, opaque: true, x: -hh.sx * 0.3, y: -hh.sy * 0.3 });
+      F.bokeh(g, s, { n: 12, seed: 31, a: 0.34, colors: ['255,206,140', '255,180,120', '210,220,255'], depth: [0.2, 0.7], size: [24, 80], rect: [-40, lowY + 330, VW + 80, 260], parallax: 0.3, drift: [4, -2], twinkle: 0.45 });
+    } else bg(g);
   }
   function shotRoof(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 183, 3);
     const cam = fit({ x: 960 + hh.sx, y: 520 + hh.sy - 20 * s.p, z: 1.03 + 0.03 * s.p }, 0, 0, VW, VH);
     roofScene(g, s, cam, { sky: (q) => meteors(q, t, B(82), B(84), 1.6), fg: (q) => {
-      who(q, 'adele-child', { x: 880, y: 800, h: HT('adele-child', UF), pose: 'sit-ground', t, expr: 'smile', outfit: PJ, look: [0.5, -1], rim: MOON });
-      who(q, 'sheep-black', { x: 1060, y: 792, h: HT('sheep-black', UF), pose: 'sit', t, rim: MOON });
-      recorder(q, 990, 794, 0.15, { t, rec: 1, spin: 0.5, shadow: false });
+      const ha = HT('adele-child', UF);
+      who(q, 'adele-child', Object.assign(onRidge(880, ha), { h: ha, t, outfit: PJ, rim: MOON, shadow: false }));
+      who(q, 'sheep-black', { x: 1060, y: ridgeY(1060) + 4, h: HT('sheep-black', UF), pose: 'sit', t, rim: MOON });
+      recorder(q, 985, ridgeY(985) + 3, 0.15, { t, rec: 1, spin: 0.5, shadow: false });
     } });
     const a = t - B(82);
     if (a >= 0 && a < 1.2) { const x = 300 + a * 1100, y = 120 + a * 380; g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = lg(g, x, y, x - 330, y - 115, [[0, 'rgba(255,250,235,1)'], [1, 'rgba(180,200,255,0)']]); g.lineWidth = 6; g.lineCap = 'round'; g.globalAlpha = sin(PI * a / 1.2); g.beginPath(); g.moveTo(x, y); g.lineTo(x - 330, y - 115); g.stroke(); g.restore(); glow(g, x, y, 40, '255,250,230', sin(PI * a / 1.2)); }
@@ -4616,8 +4797,15 @@
     const hh = hand0(s, 185, 3);
     const cam = fit({ x: 900 + hh.sx, y: 560 + hh.sy, z: 1.5 + 0.05 * s.p }, 0, 0, VW, VH);
     roofScene(g, s, cam, { fg: (q) => {
-      who(q, 'adele-child', { x: 880, y: 800, h: HT('adele-child', UF), pose: 'sit-ground', arms: 'hold-up', prop: 'recorder', t, expr: 'laugh', outfit: PJ, look: [0.3, -1], rim: MOON });
-      who(q, 'sheep-black', { x: 1060, y: 792, h: HT('sheep-black', UF), pose: 'look-up', t, rim: MOON, expr: 'laugh' });
+      // 坐在屋脊上（官方小人），录音机立在身边的屋脊上，红灯亮着，把流星也录进去
+      const ha = HT('adele-child', UF);
+      who(q, 'adele-child', Object.assign(onRidge(880, ha), { h: ha, t, outfit: PJ, rim: MOON, shadow: false }));
+      const rx = 975, ry = ridgeY(975) + 3;
+      recorder(q, rx, ry, 0.16, { t, rec: 1, spin: 0.6, shadow: false, key: 'rec' });
+      q.save(); q.globalCompositeOperation = 'lighter';
+      for (let j = 0; j < 3; j++) { const ph = (t * 0.7 + j / 3) % 1; q.globalAlpha = 0.4 * sin(PI * ph); q.strokeStyle = '#dfe6ff'; q.lineWidth = 3; q.beginPath(); q.arc(rx - 22, ry - 20, 18 + (1 - ph) * 150, -PI * 0.9, -PI * 0.35); q.stroke(); }
+      q.restore();
+      who(q, 'sheep-black', { x: 1060, y: ridgeY(1060) + 4, h: HT('sheep-black', UF), pose: 'look-up', t, rim: MOON, expr: 'laugh' });
     } });
     meteors(g, t, B(84), B(86), 5.5);
     s.kit.particles(g, t, 'sparkle', { n: 16, seed: 186, rgb: '220,230,255' });
@@ -4646,58 +4834,67 @@
       const TY = 700;
       q.beginPath(); q.rect(1040, TY + 4, 420, 300); fs(q, '#262a56', 3, '#10122a');
       q.fillStyle = 'rgba(160,170,230,.12)'; q.fillRect(1040, TY + 4, 420, 6);
-      for (const [x, name, i] of [[1180, 'liese', 0], [1330, 'fontaine', 1]]) {
-        const O = { x, y: TY, h: name === 'liese' ? 210 : 222, pose: i ? 'wave' : 'stand', arms: i ? undefined : 'hold', prop: 'lantern', t, rim: '255,200,130', expr: 'laugh', flip: true, shadow: false };
-        who(q, name, O);
-        const A = E.cast && E.cast.anchors ? E.cast.anchors(name, O) : null;
-        if (A && A.prop) glow(q, A.prop[0], A.prop[1] + 10, 120, '255,190,110', 0.6 + 0.1 * sin(t * 5 + i));
-      }
+      // 芳汀（官方小人）朝这边抬手打招呼；两盏纸灯笼挂在栏杆上，暖光照着他
+      glow(q, 1250, TY - 70, 260, '255,190,110', 0.35 + 0.05 * sin(t * 5));
+      who(q, 'fontaine', { x: 1250, y: TY, h: 222, pose: 'wave', t, rim: '255,200,130', flip: true, shadow: false });
       q.lineCap = 'round';
       for (let x = 1050; x <= 1450; x += 28) line(q, x, TY + 6, x, TY - 36, 5, '#1a1c3e');
       line(q, 1040, TY - 38, 1460, TY - 38, 7, '#1a1c3e'); line(q, 1040, TY - 40, 1460, TY - 40, 2, 'rgba(255,200,140,.35)');
+      for (const [lx, ph] of [[1118, 0], [1402, 1.7]]) {
+        q.save(); q.translate(lx, TY - 38); q.rotate(0.08 * sin(t * 2.3 + ph)); line(q, 0, 0, 0, 26, 2, '#1a1c3e'); lantern(q, 0, 60, 0.62, t, 1); q.restore();
+      }
     }, fg: (q) => {
-      who(q, 'adele-child', { x: 880, y: 800, h: HT('adele-child', UF), pose: 'sit-ground', arms: 'wave', t, expr: 'laugh', outfit: PJ, rim: MOON, look: [1, -0.2] });
-      who(q, 'sheep-black', { x: 740, y: 792, h: HT('sheep-black', UF), pose: 'stand', t, rim: MOON });
+      const ha = HT('adele-child', UF);
+      who(q, 'adele-child', Object.assign(onRidge(880, ha), { h: ha, t, outfit: PJ, rim: MOON, shadow: false }));
+      who(q, 'sheep-black', { x: 740, y: ridgeY(740) + 4, h: HT('sheep-black', UF), pose: 'stand', t, rim: MOON });
     } });
     meteors(g, t, B(88), B(89), 2);
   }
   function shotWish(g, s) {
     const t = s.t, lt = s.lt;
-    img(g, s, 'night-sky', -100, -200, VW + 200, VH + 200);
-    s.kit.stars(g, t, { n: 50, seed: 191, h: 800, size: 2.6, tw: 0.6 });
+    const hh = hand0(s, 193, 1.5);
+    // 中近景：她坐在屋脊上（官方小人），一颗大流星从她头顶上方划过去；背景的夜空和远处屋顶在景深外
+    roofCloseBg(g, s, hh, 330);
+    s.kit.stars(g, t, { n: 50, seed: 191, h: 700, size: 2.6, tw: 0.6 });
     const k = clamp(lt / 1.95), mx = 200 + k * 1500, my = 140 + k * 260;
     g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = lg(g, mx, my, mx - 600, my - 104, [[0, 'rgba(255,250,235,.95)'], [1, 'rgba(180,200,255,0)']]); g.lineWidth = 8; g.lineCap = 'round'; g.beginPath(); g.moveTo(mx, my); g.lineTo(mx - 600, my - 104); g.stroke(); g.restore();
     glow(g, mx, my, 70, '255,250,230', 1);
-    const hh = hand0(s, 193, 1.5);
-    s.layer(g, { x: 960, y: 540, z: 1 + 0.04 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
-      who(q, 'adele-child', { x: 960, y: 1080, h: 920, crop: 'bust', pose: 'clasp', t, expr: 'closed', outfit: PJ, shadow: false, rim: MOON });
+    s.layer(g, { x: 960, y: 540, z: 1 + 0.05 * easeS(s.p), sx: hh.sx, sy: hh.sy }, 1, (q) => {
+      const RY = 905, H = 760, S = 0.22 * H + 2;
+      closeRoof(q, RY, 1.5);
+      who(q, 'adele-child', { x: 860, y: RY + S, seat: S, pose: 'sit', h: H, t, outfit: PJ, rim: MOON, rimW: 1.2, shadow: false });
     });
     glow(g, mx * 0.3 + 672, 500, 700, '200,215,255', 0.18 * sin(PI * k), 'lighter', false);
-    s.post.vignette(g, 0.35);
   }
   function shotDormer(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 195, 3);
     const cam = fit({ x: 700 + hh.sx, y: 620 + hh.sy, z: 1.3 }, 0, 0, VW, VH);
     roofScene(g, s, cam, { fg: (q) => {
+      // 老虎窗亮着：爸爸妈妈从窗里探出来——窗里的灯在他们身后，只看得见两个逆光的剪影
       const pk = up(lt, 0.2, 0.8, easeO), pm = up(lt, 0.9, 1.5, easeO);
       q.save(); q.beginPath(); rrect(q, 254, 624, 172, 162, 8); q.clip();
-      who(q, 'magna', { x: 330, y: 1180 - pm * 280, h: 420, pose: 'stand', t, expr: 'smile', outfit: 'home', shadow: false });
-      who(q, 'katia', { x: 345, y: 1190 - pk * 300, h: 440, pose: 'wave', t, expr: 'laugh', outfit: 'suit', shadow: false });
+      who(q, 'magna', Object.assign({ x: 330, y: 1180 - pm * 280, h: 420, pose: 'stand', t, outfit: 'home', shadow: false }, PSIL('255,200,130')));
+      who(q, 'katia', Object.assign({ x: 345, y: 1190 - pk * 300, h: 440, pose: 'wave', t, outfit: 'suit', shadow: false }, PSIL('255,200,130')));
       q.restore();
-      who(q, 'adele-child', { x: 880, y: 800, h: HT('adele-child', UF), pose: 'sit-ground', t, expr: lt > 0.6 ? 'laugh' : 'surprise', outfit: PJ, flip: true, rim: MOON, look: [-1, 0] });
-      who(q, 'sheep-black', { x: 1060, y: 792, h: HT('sheep-black', UF), pose: 'sit', t, rim: MOON });
+      const ha = HT('adele-child', UF);
+      who(q, 'adele-child', Object.assign(onRidge(880, ha), { h: ha, t, outfit: PJ, flip: true, rim: MOON, shadow: false }));
+      who(q, 'sheep-black', { x: 1060, y: ridgeY(1060) + 4, h: HT('sheep-black', UF), pose: 'sit', t, rim: MOON });
     } });
     meteors(g, t, B(90), B(91), 5);
   }
+  /** 从背后看的一家三口（坐在屋脊上看流星）：月光逆光里三个剪影 */
   function familyOnRoof(q, t, o = {}) {
-    const lean = o.lean || 0;
-    who(q, 'katia', { x: 760, y: 800, h: UF, pose: 'sit-ground', view: o.view || 'back3', t, expr: o.dadExpr || 'smile', outfit: 'suit', rim: MOON });
-    const A = { x: 930, y: 800, h: HT('adele-child', UF), pose: 'sit-ground', view: o.view || 'back3', rot: lean, t, expr: o.expr || 'laugh', outfit: PJ, look: [0, -1], rim: MOON };
+    // 腿垂在屋脊另一边（看不见）：剪影在屋脊上沿截住
+    const S = PSIL(MOON, '#1b1a38');
+    q.save(); q.beginPath(); q.moveTo(-200, -400); q.lineTo(2200, -400); q.lineTo(2200, ridgeY(2200) + 2); q.lineTo(-200, ridgeY(-200) + 2); q.closePath(); q.clip();
+    who(q, 'katia', Object.assign({ x: 760, y: ridgeY(760) + 8, h: UF, pose: 'sit-ground', view: 'back3', t, outfit: 'suit', shadow: false }, S));
+    const A = Object.assign({ x: 930, y: ridgeY(930) + 8, h: HT('adele-child', UF), pose: 'sit-ground', view: 'back3', rot: o.lean || 0, t, outfit: PJ, shadow: false }, S);
     who(q, 'adele-child', A);
-    if (o.coat != null) coatOn(q, 'adele-child', A, o.coat);
-    who(q, 'magna', { x: 1090, y: 800, h: HT('magna', UF), pose: o.momPose || 'sit-ground', arms: o.momArms, aim: -0.3, view: o.view || 'back3', t, expr: o.momExpr || 'smile', outfit: 'home', flip: true, rim: MOON });
-    who(q, 'sheep-black', { x: 1230, y: 792, h: HT('sheep-black', UF), pose: 'sleep', t, rim: MOON });
+    if (o.coat) coatSil(q, A, S.sil);
+    who(q, 'magna', Object.assign({ x: 1090, y: ridgeY(1090) + 8, h: HT('magna', UF), pose: 'sit-ground', view: 'back3', t, outfit: 'home', flip: true, shadow: false }, S));
+    q.restore();
+    who(q, 'sheep-black', { x: 1230, y: ridgeY(1230) + 4, h: HT('sheep-black', UF), pose: 'sleep', t, sil: S.sil, rim: MOON, shadow: false });
     return A;
   }
   function shotFamilyRoof(g, s) {
@@ -4710,11 +4907,27 @@
   function shotCoat(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 199, 2);
-    const cam = fit({ x: 950 + hh.sx, y: 640 + hh.sy, z: 1.9 + 0.06 * s.p }, 0, 0, VW, VH);
-    const ck = easeO(clamp((lt - 0.15) / 0.8));
-    roofScene(g, s, cam, { sky: (q) => meteors(q, t, B(93), B(95), 4), fg: (q) => {
-      familyOnRoof(q, t, { view: 'three', coat: ck, expr: ck > 0.9 ? 'content' : 'surprise', momPose: ck < 1 ? 'kneel2' : 'sit-ground', momArms: ck < 1 ? 'reach' : undefined, momExpr: 'smile' });
-    } });
+    // 近景：妈妈站在她身后（画外），两只手提着外套从上面落下来、披到她肩上，前襟垂下来；手松开、收回画外
+    roofCloseBg(g, s, hh, 330);
+    s.kit.stars(g, t, { n: 40, seed: 199, h: 600, size: 2.4, tw: 0.6 });
+    meteors(g, t, B(93), B(95), 4);
+    const ck = easeO(clamp((lt - 0.1) / 1.0)), drop = (1 - ck) * 900, fk = up(lt, 0.95, 1.4, easeO), rel = up(lt, 1.45, 2.3, ease.in);
+    s.layer(g, { x: 960, y: 540, z: 1 + 0.04 * easeS(s.p), sx: hh.sx, sy: hh.sy }, 1, (q) => {
+      const RY = 890, H = 640, S = 0.22 * H + 2;
+      closeRoof(q, RY, 1.3);
+      const A = { x: 900, y: RY + S, seat: S, pose: 'sit', h: H, t, outfit: PJ, rim: MOON, shadow: false };
+      who(q, 'sheep-black', { x: 1330, y: RY + 6, h: 360, pose: 'sleep', t, rim: MOON });
+      drapedCoat(q, A, 'back', 1, drop);
+      // 妈妈的两只手：抓着外套的两个肩角（在她身后，先画），袖子伸出画面上沿
+      const cx = A.x - 0.02 * H, sh = A.y - S - 0.3 * H - drop;
+      for (const sx of [-1, 1]) {
+        // 左手从左上方伸进来、右手从右上方（手指朝下、扣住外套的肩角）
+        const ang = PI / 2 + sx * 0.36, s2 = 0.8, gx = cx + sx * 0.28 * H, gy = sh + 0.01 * H;
+        hand(q, gx - cos(ang) * 58 * s2 + sx * rel * 80, gy - sin(ang) * 58 * s2 - rel * 760, s2, ang, 'hold', { sleeve: '#45375c', cuff: '#392d4e', sleeveLen: 1000, flip: sx > 0 });
+      }
+      who(q, 'adele-child', A);
+      drapedCoat(q, A, 'front', fk);
+    });
   }
   function shotSleepRoof(g, s) {
     const t = s.t, lt = s.lt;
@@ -4722,7 +4935,7 @@
     const hh = hand0(s, 201, 2);
     const cam = fit({ x: 960 + hh.sx, y: 500 + hh.sy, z: 1.08 - 0.06 * s.p }, 0, 0, VW, VH);
     roofScene(g, s, cam, { dawn, sky: (q) => meteors(q, t, B(95), B(97), 1.2 * (1 - dawn)), fg: (q) => {
-      const A = familyOnRoof(q, t, { view: 'back3', coat: 1, lean: -0.22, expr: 'sleepy', dadExpr: 'content', momExpr: 'content' });
+      const A = familyOnRoof(q, t, { coat: 1, lean: -0.22 });
       recorder(q, 1010, 794, 0.15, { t, rec: 1, spin: 0.5, shadow: false });
       const [hx, hy] = at(A, 'adele-child', 'top'); zzz(q, hx + 30, hy, t, 0.8);
     } });
@@ -4739,14 +4952,17 @@
     streetScene(g, s, cam, 'dawn2', { mid: (q) => {
       homeDoorOpen(q, 1, 0.55);
       glow(q, HOME_DOOR, GY - 100, 200, '255,200,130', 0.6);
-      // 爸爸妈妈走出门口几步、停下回头：步子跟着走过的路程（放慢时步子也放慢）
-      const out = up(lt, 0.2, 1.4, easeO);
-      const K = { x: HOME_DOOR + 110 + out * 280, y: SY, h: US, pose: out < 1 ? 'walk' : 'stand', t, expr: 'smile', outfit: 'field', prop: ['backpack', 'hammer'], rim: DAWN_RIM };
-      const M = { x: HOME_DOOR + 50 + out * 190, y: SY + 4, h: HT('magna', US), pose: out < 1 ? 'walk' : 'stand', t, expr: 'smile', outfit: 'field', prop: 'backpack', rim: DAWN_RIM };
+      // 爸爸妈妈走出门口几步、停下回头：朝着日出走，逆光里只是两个剪影；步子跟着走过的路程（放慢时步子也放慢）
+      const out = up(lt, 0.2, 1.4, easeO), PS = PSIL(DAWN_RIM, '#4a2e4c');
+      // 他们身后（街的那一头）是日出的逆光
+      q.save(); q.globalCompositeOperation = 'lighter'; glow(q, HOME_DOOR + 480, SY - 260, 560, '255,206,160', 0.5); q.restore();
+      const K = Object.assign({ x: HOME_DOOR + 110 + out * 280, y: SY, h: US, pose: out < 1 ? 'walk' : 'stand', t, outfit: 'field', prop: ['backpack', 'hammer'] }, PS);
+      const M = Object.assign({ x: HOME_DOOR + 50 + out * 190, y: SY + 4, h: HT('magna', US), pose: out < 1 ? 'walk' : 'stand', t, outfit: 'field', prop: 'backpack' }, PS);
       who(q, 'katia', Object.assign(K, out < 1 ? stride('katia', { h: K.h, pose: 'walk', t }, out * 280) : {}));
       who(q, 'magna', Object.assign(M, out < 1 ? stride('magna', { h: M.h, pose: 'walk', t }, out * 190) : {}));
       who(q, 'sheep-black', { x: HOME_DOOR - 110, y: GY + 12, h: HT('sheep-black', US), pose: 'sit', t, expr: 'sleepy' });
-      who(q, 'adele-child', { x: HOME_DOOR - 10, y: GY + 8, h: HT('adele-child', US), pose: lt < 2.2 ? 'wipe' : 'stand', t, expr: 'sleepy', outfit: PJ, rim: DAWN_RIM });
+      // 她站在门口（官方小人），门里的灯从背后照过来
+      who(q, 'adele-child', { x: HOME_DOOR - 10, y: GY + 8, h: HT('adele-child', US), pose: 'stand', t, outfit: PJ, rim: DAWN_RIM });
     } });
     // 前景的路灯放在画面两边，别挡住门口的一家人
     s.layer(g, cam, 1.3, (q) => { const o = (cam.x - 960) * 1.3 + 960; for (const sx of [-760, 780]) lampPost(q, o + sx / cam.z, 1110, 1.3, 1); });
@@ -4760,13 +4976,19 @@
     if (F && F.enabled) F.dof(g, s, 'bs-hug-bg', bg, { radius: 9, opaque: true, x: -hh.sx * 0.3, y: -hh.sy * 0.3 }); else bg(g);
     s.post.fill(g, '#f0c0b8', 0.3);
     glow(g, 1750, 560, 700, '255,190,140', 0.7, 'lighter', false);
-    const U = 1000;
+    const U = 640, Y = 1010;
     s.layer(g, { x: 960, y: 540, z: 1 + 0.04 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
-      // 妈妈跪下来从侧后方搂住她、脸贴着她的头；她闭着眼、两手攥在胸前；爸爸弯腰把手搭在妈妈肩上。
-      // 三张脸都看得见（原来妈妈的头整个挡在她的脸前面）
-      who(q, 'katia', { x: 1330, y: 1160, h: U, pose: 'reach', aim: -0.5, t, expr: 'smile', outfit: 'field', prop: 'backpack', flip: true, rim: DAWN_RIM, shadow: false });
-      who(q, 'magna', { x: 1080, y: 1160, h: HT('magna', U), pose: 'kneel2', arms: 'hug', t, expr: 'closed', outfit: 'field', flip: true, rim: DAWN_RIM, shadow: false });
-      who(q, 'adele-child', { x: 860, y: 1160, h: HT('adele-child', U), pose: 'stand', arms: 'clasp', view: 'front', t, expr: 'closed', outfit: PJ, rim: DAWN_RIM, shadow: false });
+      // 逆光里的一张剪影：妈妈跪下来把她搂进怀里（两个头挨着），爸爸弯腰把手搭在妈妈肩上。
+      // 三个人都只剩轮廓和一圈暖色的边光（父母不露脸）
+      const PS = Object.assign(PSIL(DAWN_RIM, '#3a2238'), { rimW: 1.3 });
+      const HM = HT('magna', U), mx = 1080, ax = mx - 0.2 * HM, kx = mx + 0.36 * HM;
+      q.save(); q.globalCompositeOperation = 'lighter'; glow(q, mx - 40, Y - 330, 520, '255,214,176', 0.55); q.restore();
+      who(q, 'katia', Object.assign({ x: kx, y: Y, h: U, pose: 'reach', aim: -0.55, t, outfit: 'field', prop: 'backpack', flip: true, shadow: false }, PS));
+      const M = Object.assign({ x: mx, y: Y, h: HM, pose: 'kneel2', arms: 'hug', t, outfit: 'field', flip: true, shadow: false }, PS);
+      who(q, 'magna', M);
+      who(q, 'adele-child', Object.assign({ x: ax, y: Y, h: HT('adele-child', U), pose: 'stand', flip: true, t, outfit: PJ, shadow: false }, PS));
+      // 妈妈的两只手臂环在她背上：把妈妈手臂那一段再画一遍，盖在她身上
+      q.save(); q.beginPath(); q.rect(mx - 0.24 * HM, Y - 0.27 * HM, 0.27 * HM, 0.12 * HM); q.clip(); who(q, 'magna', M); q.restore();
     });
     s.post.leak(g, t, { x: 1900, y: 540, r: 900, rgb: '255,170,120', a: 0.45 });
   }
@@ -4957,7 +5179,7 @@
     { id: 'meteors', t0: B(84), uses: ['night-sky', 'rooftops', 'roof-fg'], draw: shotMeteors },
     { id: 'constel', t0: B(86), uses: ['night-sky'], draw: shotConstel },
     { id: 'lanterns', t0: B(88), uses: ['night-sky', 'rooftops', 'roof-fg'], draw: shotLanterns },
-    { id: 'wish', t0: B(89), uses: ['night-sky'], draw: shotWish },
+    { id: 'wish', t0: B(89), uses: ['night-sky', 'rooftops'], draw: shotWish },
     { id: 'dormer', t0: B(90), uses: ['night-sky', 'rooftops', 'roof-fg'], draw: shotDormer },
     { id: 'family-roof', t0: B(91), uses: ['night-sky', 'rooftops', 'roof-fg'], draw: shotFamilyRoof },
     { id: 'coat', t0: B(93), uses: ['night-sky', 'rooftops', 'roof-fg'], draw: shotCoat },
@@ -4998,7 +5220,9 @@
     captions: CAPTIONS,
     shots: SHOTS,
     // 后期工具箱（js/mv/finish.js）：分段调色、辉光、颗粒、景深。没载到时照样能放（退回原来的颗粒 + 暗角）
-    needs: ['finish'],
+    needs: ['finish', 'sd'],
+    // 官方 Q 版小人（js/mv/sd.js）：童年的阿黛尔 = 艾雅法拉（char_180_amgoat）、芳汀（char_271_spikes）；片头之前预载
+    sd: ['char_180_amgoat/build', 'char_271_spikes/build'],
     prepare() { const F = E.finish; if (F) F.warm(['grain', 'paper', 'dust', 'dirt']); },
     /** 播放器切走 / 离得很远时调用：丢掉本片自己的位图缓存（之后用到时再按需重画） */
     release() {
@@ -5110,10 +5334,11 @@
       }
       const cr = up(t, 229.6, 230.8) * fi;
       if (cr > 0) {
-        const o = { size: 26, weight: 600, color: '#fff2e2', spacing: 3, alpha: cr, font: 'sans', stroke: 'rgba(40,20,20,.55)', strokeW: 6 }, y0 = fin ? 884 : 860;
+        const o = { size: 26, weight: 600, color: '#fff2e2', spacing: 3, alpha: cr, font: 'sans', stroke: 'rgba(40,20,20,.55)', strokeW: 6 }, y0 = fin ? 868 : 846;
         E.text(g, '歌曲　Before Summer — 塞壬唱片-MSR / Adam Gubman / Matilda Stray', 960, y0, o);
-        E.text(g, 'MV　本页原创同人影像，与官方无关', 960, y0 + 44, o);
-        E.text(g, '角色与世界观 © Hypergryph', 960, y0 + 88, Object.assign({}, o, { alpha: cr * 0.9, size: 24 }));
+        E.text(g, 'MV　本页原创同人影像，与官方无关', 960, y0 + 42, o);
+        E.text(g, '角色与世界观 © Hypergryph', 960, y0 + 82, Object.assign({}, o, { alpha: cr * 0.9, size: 24 }));
+        E.text(g, (E.sd && E.sd.credit) || 'Q版小人 © Hypergryph（官方 Spine 模型）', 960, y0 + 118, Object.assign({}, o, { alpha: cr * 0.9, size: 24 }));
       }
     }
   }

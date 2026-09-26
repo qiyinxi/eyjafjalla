@@ -50,9 +50,42 @@
   let FST = 0;
   const SUNP = { st: -1, x: 0, y: 0, a: 0 };
   let KAST = -1;
-  /** 角色身上的关键点（角色库提供 anchors；没有时用估计值 fb） */
+  /*
+   * 官方 Q 版小人（MVE.sd，needs: ['sd']）：阿黛尔用游戏里的纯烬基建小人（站 Relax / 走跑 Move / 坐 Sit / 挥手 Interact / 背面 Idle）。
+   * 手绘版里官方小人演不了的手势，在这里统一“改戏”成它能演的（用户的决定：手绘小人太粗糙）：
+   *   指 / 叉腰 / 捂脸 / 想 / 捧着 / 递 / 鞠躬 / 擦眼睛 / 手搭凉棚 → 站着（Relax）；举高 / 欢呼 / 转圈 / 拍手 → 挥手（Interact）；
+   *   回头看的背影（turn）→ 作战背面 Idle；跪 / 蹲 / 坐地上 → 坐（镜头里给她一个座：木箱、台阶、长椅）；
+   *   手里拿的东西（手提箱、甜筒、瓶子、种子袋、风筝线、卡片、天灯）由影片画在 anchors().handN 上。
+   * 姿势按镜头整段统一决定，同一个镜头里不会一会儿官方小人、一会儿手绘版（sd.js 也会等到下一个镜头才换上中途加载好的模型）。
+   * 官方小人不可用（?sd=off / 没有 WebGL）时，一切照手绘版原来的戏演。
+   */
+  const SDON = () => { const S = E.sd; try { return !!(S && S.enabled !== false && (!S.supported || S.supported())); } catch (e) { return false; } };
+  const POSE_SD = {
+    hold: 'stand', point: 'stand', hips: 'stand', think: 'stand', cover: 'stand', clasp: 'stand', shade: 'stand', bow: 'stand', wipe: 'stand',
+    reach: 'stand', crouch: 'stand', talk: 'stand', pout: 'stand', listen: 'stand', 'look-up': 'look-up', stand: 'stand', idle: 'stand',
+    'hold-up': 'wave', 'reach-up': 'wave', cheer: 'wave', twirl: 'wave', clap: 'wave', wave: 'wave', joy: 'wave',
+    walk: 'walk', run: 'run', jump: 'jump', sit: 'sit', 'sit-ground': 'sit', kneel: 'sit', dig: 'sit', write: 'sit', sleep: 'sit',
+  };
+  const SD_PROP = { staff: 1, satchel: 1, backpack: 1, bag: 1, stone: 1 };
+  function sdo(o) {
+    if (!o || o.sd === false || o.crop || !SDON()) return o;
+    const q = Object.assign({}, o);
+    const p = o.pose || 'stand';
+    if (p === 'turn') { q.pose = 'stand'; q.view = 'back'; delete q.turn; }
+    else if (POSE_SD[p]) q.pose = POSE_SD[p];
+    else q.pose = 'stand';
+    if (q.pose === 'sit') { if (q.view === 'back3' || q.view === 'back') delete q.view; delete q.desk; delete q.headPose; }
+    if (q.pose !== 'stand' && q.view === 'back3') delete q.view;
+    if (q.view === 'back3') q.view = 'back';
+    delete q.arms; delete q.legs; delete q.aim;
+    if (q.pose !== 'jump') delete q.air;
+    const props = [].concat(o.prop || []).filter((x) => SD_PROP[x]);
+    if (props.length) q.prop = props.length === 1 ? props[0] : props; else delete q.prop;
+    return q;
+  }
+  /** 角色身上的关键点（角色库提供 anchors；没有时用估计值 fb）；阿黛尔按“改过戏”的姿势取（道具要贴在官方小人的手上） */
   function anchor(who, o, key, fb) {
-    try { if (E.cast && E.cast.anchors) { const A = E.cast.anchors(who, o); if (A && A[key]) return A[key]; } } catch (e) { /* 用估计值 */ }
+    try { if (E.cast && E.cast.anchors) { const A = E.cast.anchors(who, who === 'adele-alter' ? sdo(Object.assign({ outfit: 'coat' }, o)) : o); if (A && A[key]) return A[key]; } } catch (e) { /* 用估计值 */ }
     return fb;
   }
   /** 推荐的相对身高（卡提亚 = 1） */
@@ -76,12 +109,89 @@
   /** 阿黛尔（纯烬）：默认穿外套、脚下有影子 */
   function adele(g, o) {
     if (o.shadow !== false && !o.sil) groundShadow(g, o.x, o.shadowY ?? o.y, (o.h || 300) * 0.27, (o.shadowA ?? 0.22) * (o.alpha ?? 1));
-    cast(g, 'adele-alter', Object.assign({ outfit: 'coat' }, o, { shadow: false }));
+    cast(g, 'adele-alter', sdo(Object.assign({ outfit: 'coat' }, o, { shadow: false })));
+  }
+  /*
+   * 官方剧情立绘做的“人物剪纸”（MVE.sd.card）：凯勒老师（用户选的：对话与近景用她的官方立绘，10 种表情）、多利。
+   * 每个镜头开头决定一次用不用（那时图已经加载好才用），同一个镜头里不会从手绘突然换成立绘
+   */
+  const KEXPR = [1, 2, 3, 9];
+  const CARDDEC = new Map();
+  function cardOn(s, key) {
+    const S = E.sd;
+    if (!S || !S.card || S.enabled === false) return false;
+    const id = ((s.shot && s.shot.id) || '') + '|' + key, now = performance.now();
+    let d = CARDDEC.get(id);
+    if (!d || now - d.at > 1500) {
+      let ready = false;
+      try { const info = S.card.info(key); ready = !!(info && info.ready); if (!ready) S.card.load(key, key === 'keller' ? KEXPR : 1); } catch (e) { ready = false; }
+      d = { on: ready };
+    }
+    d.at = now; CARDDEC.set(id, d);
+    return d.on;
+  }
+  /*
+   * 客串的官方小人（汐斯塔街上的人，全是那个夏天在汐斯塔的《火山旅梦》活动干员）：同样在镜头开头决定一次用不用。
+   * 雪雉（休闲街上开杂货铺——毛线铺的店主就是她）、琳琅诗怀雅、苍苔、锡兰（夏装）。全片模型 ≤ 8 个
+   */
+  const CAMEOS = ['char_383_snsant/build', 'char_1033_swire2/build', 'char_4106_bryota/build', 'char_348_ceylon_summer_13/build'];
+  const CAMEO = CAMEOS[0];
+  const POSE_INTERACT = { cheer: 1, clap: 1, point: 1, 'reach-up': 1, 'hold-up': 1, wave: 1, reach: 1, cover: 1, joy: 1 };
+  /**
+   * 手绘路人 → 官方客串小人：o 是原来 person() 的选项（x, y, h, pose, flip, t, speed…），k 选第几个模型；
+   * 姿势：walk → Move（按步速反推播放速度，脚底不打滑）、指 / 拍手 / 举手 / 捂嘴 → Interact、坐 → Sit、其余 → Relax。
+   * 屏幕上矮于约 60 像素的远景小人，仍用手绘剪影
+   */
+  function townsfolk(q, s, o, k = 0) {
+    const key = CAMEOS[((k % CAMEOS.length) + CAMEOS.length) % CAMEOS.length], h = o.h || 300;
+    let big = true;
+    try { const M = q.getTransform(), sc = Math.hypot(M.a, M.b) / (q.canvas.width / VW); big = h * sc >= 60; } catch (e) { /* 按大的画 */ }
+    if (big && sdOn(s, key)) {
+      const pose = o.pose || 'stand';
+      const anim = o.anim || (pose === 'walk' || pose === 'run' ? 'Move' : POSE_INTERACT[pose] ? 'Interact' : pose === 'sit' ? 'Sit' : 'Relax');
+      let speed = 1;
+      if (anim === 'Move') {
+        const v = o.walkV || gaitSpeed('crowd', { h, pose: 'walk', speed: o.speed || 1 }, 0.3 * h);
+        try { const G = E.sd.gait(key, { h: h * 0.94 }); if (G && G.speed > 1) speed = v / G.speed; } catch (e) { /* 默认 */ }
+      }
+      if (o.shadow !== false) groundShadow(q, o.x, o.y, h * 0.25, 0.17 * (o.alpha ?? 1));
+      const ph = hash(k * 13 + 7, Math.round(o.x), 3) * 3;
+      if (E.sd.draw(q, key, { x: o.x, y: o.y, h: h * 0.94, flip: o.flip, t: o.t ?? s.t, anim, speed, phase: ph, alpha: o.alpha, seat: o.seat, sil: o.sil, rim: o.rim })) return true;
+    }
+    person(q, o);
+    return false;
+  }
+  function sdOn(s, key) {
+    const S = E.sd;
+    if (!S || !S.ready || !SDON()) return false;
+    const id = ((s.shot && s.shot.id) || '') + '|sd|' + key, now = performance.now();
+    let d = CARDDEC.get(id);
+    if (!d || now - d.at > 1500) { let r = false; try { r = !!S.ready(key); if (!r) S.load(key); } catch (e) { r = false; } d = { on: r }; }
+    d.at = now; CARDDEC.set(id, d);
+    return d.on;
+  }
+  /** 凯勒老师：立绘剪纸（o: { x, y 构图块底边中点, h, crop, expr, flip, light, alpha }）；没有立绘时画手绘版（fb） */
+  function kellerCard(q, s, o, fb) {
+    if (cardOn(s, 'keller') && E.sd.card(q, 'keller', Object.assign({ t: s.t, breath: 1 }, o))) return true;
+    if (fb) fb(q);
+    return false;
+  }
+  /** 手里提着的东西（官方小人不带手绘道具：影片画在 handN 上）——手提箱 */
+  function suitcaseAt(q, s, o, a = 1) {
+    if (!SDON()) return; // 手绘版自己画箱子
+    const hp = anchor('adele-alter', o, 'handN', [o.x + (o.flip ? -1 : 1) * o.h * 0.12, o.y - o.h * 0.35]);
+    const w = o.h * 0.3, h = w * 110 / 120;
+    const c = LC(s, 'suitcase', 120, 110, suitcaseArt, 1.2);
+    q.save(); q.translate(hp[0], hp[1] - h * 0.06); q.rotate(Math.sin((o.t || 0) * 6.2) * 0.04 * (o.pose === 'walk' ? 1 : 0));
+    if (a < 1) q.globalAlpha *= a;
+    q.drawImage(c, -w * 0.5, 0 - h * 0.05, w, h);
+    q.restore();
   }
   function keller(g, o) {
     if (o.shadow !== false && !o.sil) groundShadow(g, o.x, o.y, (o.h || 300) * 0.25, 0.2 * (o.alpha ?? 1));
     cast(g, 'keller', Object.assign({}, o, { shadow: false }));
   }
+  /** 手绘路人（只给远景的小剪影、以及官方小人不可用时的替代）；近一点的路人用 townsfolk() */
   function person(g, o) {
     if (o.shadow !== false && !o.sil && (o.h || 0) > 60) groundShadow(g, o.x, o.y, (o.h || 300) * 0.24, 0.16 * (o.alpha ?? 1));
     cast(g, 'crowd', Object.assign({}, o, { shadow: false }));
@@ -599,7 +709,23 @@
    * 画一只（精灵图）小羊：(x, y) 脚底，V 可见高度
    * o: { kind, pose, expr, flip, sq(挤压 -1..1), spin(绕身体中心转), rot(绕脚底转), alpha, glow, shadow }
    */
+  /*
+   * 官方的粉色小羊（「火山旅梦」的敌人模型 enemy_1345_tplamb：戴耳机、叼飞盘的粉羊）：角色库的 opt-in（sd: true）。
+   * 全片只用这一种（控制下载量）；姿势：站 / 坐 / 睡 / 吃 / 飘 → Idle，走 / 跑 / 跳 → Move（跳的高度仍由影片自己算）
+   */
+  const LAMB_SD = 'enemy_1345_tplamb';
+  const LAMB_POSE = { stand: 'stand', sit: 'stand', sleep: 'stand', eat: 'stand', float: 'stand', 'look-up': 'stand', open: 'stand', walk: 'walk', run: 'run', jump: 'walk', bounce: 'walk', push: 'push' };
+  function lambSD(g, s, x, y, V, o) {
+    const S = E.sd;
+    if (!S || !S.drawCast || !SDON()) return false;
+    const pose = LAMB_POSE[o.pose || 'stand'] || 'stand';
+    const q = { x, y, h: V * 1.28, t: s.t, phase: (x * 0.013) % 3, pose, sd: true, variant: LAMB_SD, flip: !o.flip, alpha: o.alpha, rot: (o.rot || 0) + (o.spin || 0) * 0.6, speed: pose === 'walk' ? 1.3 : 1 };
+    if (o.shadow) groundShadow(g, x, o.shadowY ?? y, V * 0.62, 0.16 * (o.alpha ?? 1) * clamp(1 - ((o.shadowY ?? y) - y) / 300));
+    if (o.glow) E.glow(g, x, y - V * 0.45, V * 1.1, o.glowRgb || '255,170,215', 0.26 * o.glow * (o.alpha ?? 1));
+    try { return !!S.drawCast(g, 'sheep-pink', q); } catch (e) { return false; }
+  }
   function lamb(g, s, x, y, V, o = {}) {
+    if ((o.kind || 'pink') === 'pink' && lambSD(g, s, x, y, V, o)) return;
     const L = lambSpr(s, o.kind || 'pink', o.pose || 'stand', o.expr || 'neutral');
     const b = L.b, bh = b.y1 - b.y0, sc = V / bh, sq = o.sq || 0;
     if (o.shadow) groundShadow(g, x, o.shadowY ?? y, V * 0.62, 0.16 * (o.alpha ?? 1) * clamp(1 - ((o.shadowY ?? y) - y) / 300));
@@ -1158,8 +1284,9 @@
       q.fillStyle = '#e0505a'; q.beginPath(); q.moveTo(1840, 424); for (let i = 0; i <= 10; i++) q.lineTo(1840 - i * 14, 424 + Math.sin(t * 11 - i * 0.8) * (3 + i * 1.2) + i * 1.5); for (let i = 10; i >= 0; i--) q.lineTo(1840 - i * 14, 468 + Math.sin(t * 11 - i * 0.8 + 0.4) * (3 + i * 1.2) - i * 1.2); q.closePath(); q.fill();
       q.fillStyle = '#ffffff'; q.beginPath(); q.arc(1800, 446, 8, 0, TAU); q.fill();
       // 同船的游客：一个举着相机，一个指着岛
-      person(q, { x: 250, y: 900, h: 450, seed: 13, pose: 'hold', prop: 'camera', t, flip: false, look: [1, -0.2], expr: 'smile', wind: 0.6, windDir: -1 });
-      person(q, { x: 440, y: 880, h: 330, seed: 0, pose: 'point', aim: -0.25, t: t + 0.5, flip: false, look: [1, -0.4], expr: 'laugh', wind: 0.6, windDir: -1 });
+      // 同船的旅客：琳琅诗怀雅（看风景）、苍苔（指着岸上）
+      townsfolk(q, s, { x: 250, y: 900, h: 450, seed: 13, pose: 'hold', prop: 'camera', t, flip: false, look: [1, -0.2], expr: 'smile', wind: 0.6, windDir: -1 }, 1);
+      townsfolk(q, s, { x: 440, y: 880, h: 330, seed: 0, pose: 'point', aim: -0.25, t: t + 0.5, flip: false, look: [1, -0.4], expr: 'laugh', wind: 0.6, windDir: -1 }, 2);
       // 她：先手搭凉棚远望，第二小节开始挥手
       const waveOn = t > D[7] - 0.05;
       adele(q, { x: 1180, y: 846, h: 470, pose: waveOn ? 'wave' : 'shade', t, expr: waveOn ? 'laugh' : 'smile', look: [1, -0.3], wind: 0.85, windDir: -1 });
@@ -1480,17 +1607,18 @@
         // 游客：匀速往右走（步频按移动速度算，脚底不打滑）
         const tv = 118;
         for (let i = 0; i < 4; i++) {
-          const seed = [13, 0, 26, 58][i], st = [-5.4, -4.2, -2.6, 3.4][i], u = lt - st;
+          const seed = [13, 0, 26, 58][i], st = [-6.9, -5.0, -3.0, 3.4][i], u = lt - st;
           if (u < 0) continue;
           const d = u * tv, ramp = 310, x = d < ramp ? 520 + d : 830 + (d - ramp);
           const y = d < ramp ? lerp(736, 884, d / ramp) : 888 + (i % 2) * 14;
           if (x > vr[1] + 100) continue;
-          person(q, { x, y, h: 300, seed, pose: 'walk', speed: stepRate('crowd', 300, tv), t: t + i * 0.37, prop: i % 2 ? 'suitcase' : 'bag', arms: i % 2 ? 'carry' : undefined, expr: 'smile' });
+          townsfolk(q, s, { x, y, h: 300, seed, pose: 'walk', speed: stepRate('crowd', 300, tv), walkV: tv, t: t + i * 0.37, prop: i % 2 ? 'suitcase' : 'bag', arms: i % 2 ? 'carry' : undefined, expr: 'smile' }, i + 1);
         }
         // 她：从舷梯上走下来（提着箱子），到了码头上，抬头看见迎客的拱门
         const av = 128, walkT = clamp(lt - 0.9, 0, 3.6), ax = 540 + walkT * av, done = lt > 4.5;
         const ay = ax < 830 ? lerp(736, 884, (ax - 520) / 310) : 900;
-        adele(q, { x: ax, y: ay, h: 360, pose: lt > 0.9 && !done ? 'walk' : done ? 'look-up' : 'stand', speed: stepRate('adele-alter', 360, av), arms: !done ? 'carry' : undefined, prop: 'suitcase', t, expr: done ? 'laugh' : 'smile', look: done ? [0.8, -0.8] : [1, -0.1], wind: 0.3 });
+        const ao = { x: ax, y: ay, h: 360, pose: lt > 0.9 && !done ? 'walk' : done ? 'look-up' : 'stand', speed: stepRate('adele-alter', 360, av), arms: !done ? 'carry' : undefined, prop: 'suitcase', t, expr: done ? 'laugh' : 'smile', look: done ? [0.8, -0.8] : [1, -0.1], wind: 0.3 };
+        adele(q, ao); suitcaseAt(q, s, ao);
         // 系缆桩上的一只海鸥
         gull(q, 1240, 846, 0.9, 0.4 + Math.sin(t * 3) * 0.1, -1);
       }),
@@ -1530,7 +1658,9 @@
             const dir = i % 2 ? 1 : -1, sp = 60 + hash(71, i) * 40, span = 3000, x0 = hash(72, i) * span;
             const x = ((x0 + dir * sp * t) % span + span) % span + 100;
             if (x < vr[0] - 100 || x > vr[1] + 100) continue;
-            person(q, { x, y: 896 + (i % 2) * 10, h: 272 + (i % 2) * 10, seed: TOURISTS[(i * 5 + 3) % TOURISTS.length], pose: 'walk', speed: stepRate('crowd', 272 + (i % 2) * 10, sp), flip: dir < 0, t: t + i, expr: 'smile', prop: i % 3 === 0 ? 'umbrella' : i % 3 === 1 ? 'bag' : undefined, umbrellaColor: pick(['#ff9ab8', '#8ad0ff', '#ffd27a'], hash(73, i)) });
+            const po = { x, y: 896 + (i % 2) * 10, h: 272 + (i % 2) * 10, seed: TOURISTS[(i * 5 + 3) % TOURISTS.length], pose: 'walk', speed: stepRate('crowd', 272 + (i % 2) * 10, sp), flip: dir < 0, t: t + i, expr: 'smile', prop: i % 3 === 0 ? 'umbrella' : i % 3 === 1 ? 'bag' : undefined, umbrellaColor: pick(['#ff9ab8', '#8ad0ff', '#ffd27a'], hash(73, i)) };
+            // 步道上散步的客串干员（官方 Q 版小人）
+            townsfolk(q, s, Object.assign(po, { walkV: sp }), i);
           }
           // 步道靠房子一侧的棕榈与路灯（在她身后，不会挡脸）
           for (let i = 0; i < 9; i++) {
@@ -1541,7 +1671,8 @@
           }
           // 路边的冰淇淋车（伏笔）
           iceCart(q, 1680, 925, 1, t);
-          adele(q, Object.assign({ x: ax, y: 972, t, expr: 'laugh', look: [0.6, -0.5] }, wo));
+          const ao = Object.assign({ x: ax, y: 972, t, expr: 'laugh', look: [0.6, -0.5] }, wo);
+          adele(q, ao); suitcaseAt(q, s, ao);
         });
       },
       front: (q) => {
@@ -1651,7 +1782,8 @@
       // 她：提着箱子一拍一级半地往上爬（箱子在台阶上磕一下）；步频跟着移动速度走
       const per = 1.5, step = Math.max(0, bt * 1 + 0.3), si = Math.floor(step), f = fract(step);
       const ax = STAIR.x0 - 40 + (si + ease.inOut(f)) * STAIR.run * per, ay = stairY(ax) + 2 - Math.sin(PI * f) * 10;
-      adele(q, { x: ax, y: ay, h: 330, pose: 'walk', arms: 'carry', prop: 'suitcase', t, speed: stepRate('adele-alter', 330, (STAIR.run * per) / BEAT), expr: lt > 3.4 ? 'surprise' : 'determined', look: lt > 3.4 ? [0.7, -0.8] : [1, -0.3], wind: 0.25 });
+      const ao = { x: ax, y: ay, h: 330, pose: 'walk', arms: 'carry', prop: 'suitcase', t, speed: stepRate('adele-alter', 330, (STAIR.run * per) / BEAT), expr: lt > 3.4 ? 'surprise' : 'determined', look: lt > 3.4 ? [0.7, -0.8] : [1, -0.3], wind: 0.25 };
+      adele(q, ao); suitcaseAt(q, s, ao);
       if (f < 0.15 && si > 0) pop(q, '咚', ax + 70, ay - 60, 1 - f / 0.15, { size: 30, color: '#6a7aa0', rot: 0.2 });
     });
     fgFrame(g, s, cam, 'flowers', 'br', { depth: 1.5 });
@@ -1851,16 +1983,18 @@
     museumD(g, s, cam, {
       pal: 'day', opening: 1, bk: 'wide', base: { x: 920, y: 640, z: 0.8 },
       mid: (q) => {
-        // 排队的游客（在门口）
-        for (let i = 0; i < 8; i++) {
-          const x = 1110 - i * 88 - (i % 2) * 10, y = 1092 + (i % 3) * 14;
-          person(q, { x, y, h: 330, seed: TOURISTS[(i * 3 + 1) % TOURISTS.length], pose: i % 3 === 0 ? 'point' : 'stand', aim: -0.4, t: t + i * 0.7, flip: false, expr: i % 2 ? 'smile' : 'laugh', look: [1, -0.3], prop: i % 4 === 1 ? 'camera' : undefined });
-        }
+        // 排队的游客（在门口）：客串的干员们（官方 Q 版小人）排成一排，一个指着门口的彩旗
+        const qpo = (i, tt) => { const x = 1110 - i * 190, y = 1092 + (i % 2) * 16; return { x, y, h: 330, seed: TOURISTS[(i * 3 + 1) % TOURISTS.length], pose: i === 3 ? 'point' : 'stand', aim: -0.4, t: tt + i * 0.7, flip: false, expr: i % 2 ? 'smile' : 'laugh', look: [1, -0.3], prop: i % 4 === 1 ? 'camera' : undefined }; };
+        [0, 1, 2, 3].map((i) => [i, qpo(i, t)]).sort((a, b) => a[1].y - b[1].y).forEach(([i, po]) => townsfolk(q, s, po, i));
         // 凯勒老师：门口，一拍一招手
         keller(q, { x: 1330, y: 1034, h: 360 * KH(), pose: 'wave', t, expr: 'laugh', flip: true, look: [-1, 0.1] });
         // 她：从左边走进来（匀速，脚底不打滑），走到广场上停下挥手
         const av = 140, ax = -170 + Math.min(lt, 3.9) * av;
-        adele(q, { x: ax, y: 1200, h: 400, pose: lt < 3.9 ? 'walk' : 'wave', speed: stepRate('adele-alter', 400, av), arms: lt < 3.9 ? 'carry' : undefined, prop: lt < 3.9 ? 'suitcase' : null, t, expr: 'laugh', look: [1, -0.2] });
+        const ao = { x: ax, y: 1200, h: 400, pose: lt < 3.9 ? 'walk' : 'wave', speed: stepRate('adele-alter', 400, av), arms: lt < 3.9 ? 'carry' : undefined, prop: lt < 3.9 ? 'suitcase' : null, t, expr: 'laugh', look: [1, -0.2] };
+        // 官方小人：走到广场上，把箱子放在脚边，腾出手来挥手
+        if (SDON() && lt >= 3.9) { q.save(); q.translate(ax - 70, 1200); q.drawImage(LC(s, 'suitcase', 120, 110, suitcaseArt, 1.2), -60, -104, 120, 110); q.restore(); }
+        adele(q, ao);
+        if (lt < 3.9) suitcaseAt(q, s, ao);
       },
       front: (q) => { gulls(q, t, { n: 3, seed: 61, y0: -200, y1: 100, s: 1.3, speed: 90 }); },
     });
@@ -1887,14 +2021,19 @@
       pal: 'day', opening: 1, bk: 'kel', base: { x: 1260, y: 870, z: 1.8 }, fg: [['flowers', 'bl', { sc: 0.9 }]],
       mid: (q) => {
         q.save(); q.translate(1500, 1052); q.drawImage(LC(s, 'suitcase-sp', 120, 110, suitcaseArt, 1.4), -150, -96, 108, 99); q.restore();
-        keller(q, { x: 1120, y: 1052, h: 380 * KH(), pose: lt < 1.6 ? 'wave' : lt < 2.4 ? 'reach' : 'clap', aim: -0.1, t, expr: 'laugh', look: [1, 0], talk: lt < 1.6 ? 1 : 0 });
+        // 凯勒老师：官方立绘的剪纸（膝上构图，站在画面左边）；说“欢迎！”时张嘴，徽章别上之后眯眼笑
+        const t0 = s.shot.t0;
+        const useCard = kellerCard(q, s, { x: 1060, y: 1150, h: 520, crop: 'upper', flip: true, expr: [[t0, 3], [t0 + 1.6, 1], [t0 + 2.3, 9]] },
+          (qq) => keller(qq, { x: 1120, y: 1052, h: 380 * KH(), pose: lt < 1.6 ? 'wave' : lt < 2.4 ? 'reach' : 'clap', aim: -0.1, t, expr: 'laugh', look: [1, 0], talk: lt < 1.6 ? 1 : 0 }));
         adele(q, ao);
-        // 徽章：凯勒老师的手一碰，就别在了她的外套上
+        // 徽章：从凯勒老师那边飞过来（立绘剪纸够不着她），“叮”地别在外套上
         const ch = anchor('adele-alter', ao, 'chest', [1400, 900]);
-        badge(q, ch[0] + 6, ch[1] - 6, 0.9, pin);
+        const fly = useCard ? clamp((lt - 1.55) / 0.4) : 1, bx = lerp(1150, ch[0] + 6, ease.inOut(fly)), by = lerp(820, ch[1] - 6, ease.inOut(fly)) - Math.sin(PI * fly) * 60;
+        if (useCard && fly > 0 && fly < 1) badge(q, bx, by, 0.9, 1);
+        badge(q, ch[0] + 6, ch[1] - 6, 0.9, useCard ? (fly >= 1 ? pin : 0) : pin);
         if (pin > 0 && pin < 1) sparkle(q, ch[0] + 6, ch[1] - 6, 60 * pin, 1 - pin, pin * 2, '255,236,160');
         if (laugh) for (let i = 0; i < 3; i++) star4(q, ch[0] + 40 + i * 26, ch[1] - 180 - i * 20 + Math.sin(t * 4 + i) * 6, 12, t + i, '#ffd24a', 0.9 * clamp((lt - 2.4) / 0.3));
-        if (lt < 1.6) speech(q, '欢迎！', 1170, 700, clamp(lt / 0.2) * (1 - clamp((lt - 1.4) / 0.2)), { w: 220, h: 96, dx: 60, size: 44 });
+        if (lt < 1.6) speech(q, '欢迎！', useCard ? 1240 : 1170, useCard ? 720 : 700, clamp(lt / 0.2) * (1 - clamp((lt - 1.4) / 0.2)), { w: 220, h: 96, dx: useCard ? -70 : 60, size: 44 });
       },
     });
     vig(g, s, 0.32);
@@ -2231,12 +2370,14 @@
     hallD(g, s, cam, {
       mid: (q) => {
         // 听讲的游客（背对镜头一点）
-        for (let i = 0; i < 4; i++) person(q, { x: 1180 + i * 110 + (i % 2) * 20, y: 1010 + (i % 2) * 22, h: 330 - (i === 3 ? 90 : 0), seed: TOURISTS[(i * 4 + 5) % TOURISTS.length], pose: i === 1 ? 'point' : 'stand', aim: -0.5, t: t + i, flip: true, look: [-1, -0.4], expr: t > drop + 0.2 && i === 0 ? 'surprise' : 'smile' });
+        for (const i of [0, 2, 1, 3]) townsfolk(q, s, { x: 1160 + i * 150 + (i % 2) * 16, y: 1010 + (i % 2) * 22, h: 330 - (i === 3 ? 60 : 0), seed: TOURISTS[(i * 4 + 5) % TOURISTS.length], pose: i === 1 ? 'point' : 'stand', aim: -0.5, t: t + i, flip: true, look: [-1, -0.4], expr: t > drop + 0.2 && i === 0 ? 'surprise' : 'smile' }, i + 1);
         // 她：拿法杖指着模型讲解
-        adele(q, { x: 620 - 40, y: 1030, h: 400, pose: 'point', aim: 0.1, prop: 'staff', t, expr: 'talk', talk: 1, look: [1, -0.2] });
+        // （官方小人：抬手讲解——Interact；手绘版：拿法杖指着模型）
+        adele(q, { x: 620 - 40, y: 1030, h: 400, pose: SDON() ? 'wave' : 'point', aim: 0.1, prop: 'staff', t, expr: 'talk', talk: 1, look: [1, -0.2] });
         // 小朋友和浮石
         const kx = 470, ky = 990;
-        person(q, { x: kx, y: ky, h: 220, seed: 48, pose: t < drop ? 'reach' : 'cheer', aim: -0.2, t, expr: t < drop ? 'smile' : 'laugh', flip: false, look: [1, -0.5] });
+        // 丢浮石的是雪雉（站在水盆边，“扑通”之后开心地挥手）
+        townsfolk(q, s, { x: kx, y: ky, h: 250, seed: 48, pose: t < drop ? 'stand' : 'cheer', aim: -0.2, t, expr: t < drop ? 'smile' : 'laugh', flip: false, look: [1, -0.5] }, 0);
         const a = t - drop;
         if (a < 0) pumice(q, kx + 60, ky - 150, 16);
         else {
@@ -2334,7 +2475,7 @@
     inCam(g, cam, 1, (q) => q.drawImage(LC(s, 'dome', VW + 400, VH + 400, (qq) => { qq.translate(200, 200); domeArt(qq); }, 0.8), -200, -200, VW + 400, VH + 400));
     inCam(g, cam, 1, (q) => {
       // 凯勒老师在转圆顶的摇柄
-      keller(q, { x: 1480, y: 1000, h: 400 * KH(), pose: 'point', aim: 0.8, t, flip: true, expr: 'smile', look: [-1, -0.6] });
+      kellerCard(q, s, { x: 1500, y: 1085, h: 540, crop: 'upper', expr: after ? 9 : 1 }, (qq) => keller(qq, { x: 1480, y: 1000, h: 400 * KH(), pose: 'point', aim: 0.8, t, flip: true, expr: 'smile', look: [-1, -0.6] }));
       telescope(q, 1010, 690, 0.9, 0.62);
       // 她：弯腰凑到目镜上；回过神来时往后一仰
       adele(q, { x: 880, y: 1000, h: 400, pose: after ? 'cover' : 'stand', t, expr: after ? 'surprise' : 'closed', look: after ? [0.4, -0.3] : [1, -0.2], headPose: after ? undefined : 'down', rot: after ? -0.08 * Math.exp(-(lt - pov1) * 3) : 0.06 });
@@ -2357,7 +2498,7 @@
       bk: 'case', base: { x: 1450, y: 650, z: 1.6 },
       mid: (q) => {
         // 背后路过、什么也没看见的游客
-        for (let i = 0; i < 2; i++) person(q, { x: 900 + ((t * 80 + i * 500) % 900), y: 960, h: 300, seed: TOURISTS[(i * 9 + 4) % TOURISTS.length], pose: 'walk', speed: stepRate('crowd', 300, 80), t: t + i, expr: 'smile' });
+        for (let i = 0; i < 2; i++) townsfolk(q, s, { x: 180 + ((t * 80 + i * 420) % 820), y: 960, h: 280, seed: TOURISTS[(i * 9 + 4) % TOURISTS.length], pose: 'walk', speed: stepRate('crowd', 300, 80), walkV: 80, t: t + i, expr: 'smile' }, i + 2);
         // 小羊：一拍冒出一只（柜子里的那只在啃标签）
         for (const [b, x, y, V, pose] of pops) {
           const a = bt - b;
@@ -2406,15 +2547,19 @@
       pal: 'day', sun: [1500, 60], bk: 'ice', base: { x: 930, y: 700, z: 1.5 }, dof: 1, fg: [['flowers', 'br', {}]],
       terrace: (q) => {
         // 凯勒老师（左）：递过冰淇淋，然后自己也看海；回头时一脸问号
-        keller(q, { x: 600, y: 1060, h: 400 * KH(), pose: back ? 'think' : bt < 1.5 ? 'reach' : 'turn', turn: 0.9, aim: -0.1, t, expr: back ? 'surprise' : 'smile', look: back ? [1, 0.3] : bt < 1.5 ? [1, 0] : [0, -0.1], flip: false });
-        if (back) pop(q, '？', 560, 560, clamp((bt - 6.5) / 0.25), { size: 64, color: '#3a8ad0' });
+        // （官方立绘剪纸：凯勒老师一直笑着和她聊天，什么也没察觉；最后一脸问号）
+        const b0 = s.shot.t0 + 6.4 * BEAT;
+        const kc = kellerCard(q, s, { x: 560, y: 1150, h: 620, crop: 'upper', flip: true, expr: [[s.shot.t0, 3], [s.shot.t0 + 1.2, 9], [b0, 4]] },
+          (qq) => keller(qq, { x: 600, y: 1060, h: 400 * KH(), pose: back ? 'think' : bt < 1.5 ? 'reach' : 'turn', turn: 0.9, aim: -0.1, t, expr: back ? 'surprise' : 'smile', look: back ? [1, 0.3] : bt < 1.5 ? [1, 0] : [0, -0.1], flip: false }));
+        if (back) pop(q, '？', kc ? 640 : 560, kc ? 520 : 560, clamp((bt - 6.5) / 0.25), { size: 64, color: '#3a8ad0' });
         // 她：接过冰淇淋 → 转身看海（甜筒还举在身边）→ 转回来：只剩甜筒
+        // （官方小人：转过去和凯勒老师说话——甜筒举在身边，小羊们在她背后一口一口地啃）
         const ao = turned
-          ? { x: 1000, y: 1060, h: 420, pose: 'turn', turn: 0.25, t, flip: false, arms: 'hold', expr: 'content' }
+          ? (SDON() ? { x: 1000, y: 1060, h: 420, pose: 'wave', t, flip: true } : { x: 1000, y: 1060, h: 420, pose: 'turn', turn: 0.25, t, flip: false, arms: 'hold', expr: 'content' })
           : { x: 1000, y: 1060, h: 420, pose: 'hold', t, expr: back ? 'surprise' : 'laugh', look: back ? [0.3, 0.6] : [-1, 0.2], flip: false };
         adele(q, ao);
         const hn = anchor('adele-alter', ao, 'handN', [1060, 800]);
-        const cx = hn[0] + (turned ? 60 : 4), cy = hn[1] + 20;
+        const cx = hn[0] + (turned && !SDON() ? 60 : 4), cy = hn[1] + 20;
         // 栏杆上的三只小羊：趁她转身，一拍一口
         for (let i = 0; i < 3; i++) {
           const vis = win(bt, 1.3 + i * 0.25, 1.6 + i * 0.25, 6.1, 6.4);
@@ -2451,7 +2596,10 @@
       if (i === 0) {
         // 游客的遮阳帽上坐着一只
         panelBg(g, 0, 0, w, h, '#7cc4ee', '#dff2f8');
-        cast(g, 'crowd', { x: cx - 60, y: h + 80, h: 460, crop: 'bust', seed: 54, t, expr: 'smile', look: [0.6, 0] });
+        // 游客（客串的锡兰，夏装）：近景，头顶的遮阳帽上坐着一只小羊（她一点也没察觉）
+        const ck = CAMEOS[3];
+        if (!(sdOn(s, ck) && E.sd.draw(g, ck, { x: cx - 70, y: 800, h: 650, t, anim: 'Relax', flip: false })))
+          cast(g, 'crowd', { x: cx - 60, y: h + 80, h: 460, crop: 'bust', seed: 54, t, expr: 'smile', look: [0.6, 0] });
         const hd = [cx - 70, 200];
         g.fillStyle = '#f4d88a'; g.beginPath(); g.ellipse(hd[0], hd[1], 200, 38, -0.05, 0, TAU); g.fill(); g.beginPath(); g.ellipse(hd[0], hd[1] - 34, 104, 70, 0, PI, 0); g.fill();
         g.fillStyle = '#ff6a8a'; g.fillRect(hd[0] - 104, hd[1] - 44, 208, 16);
@@ -2508,13 +2656,14 @@
       pal: 'day', sun: [1500, 60], bk: 'scold', base: { x: 1180, y: 700, z: 1.45 }, fg: [['flowers', 'bl', { sc: 0.9 }]],
       terrace: (q) => {
         // 身后看热闹的游客
-        person(q, { x: 580, y: 1000, h: 330, seed: 1, pose: o.whisper ? 'cover' : 'stand', t, flip: false, expr: 'surprise', look: [1, 0] });
-        person(q, { x: 680, y: 1012, h: 300, seed: 22, pose: 'point', aim: -0.1, t: t + 1, flip: false, expr: 'surprise', look: [1, 0] });
+        townsfolk(q, s, { x: 615, y: 1000, h: 270, seed: 1, pose: o.whisper ? 'cover' : 'stand', t, flip: false, expr: 'surprise', look: [1, 0] }, 1);
+        townsfolk(q, s, { x: 755, y: 1012, h: 250, seed: 22, pose: 'point', aim: -0.1, t: t + 1, flip: false, expr: 'surprise', look: [1, 0] }, 2);
         bench(q, BENCH.x, BENCH.y, BENCH.w);
         if (o.lambs) o.lambs(q);
         // 她：叉腰 → 竖起手指（一拍一换）
         const wag = fract(bt * 0.5) > 0.5;
-        adele(q, { x: 1010, y: 1060, h: 440, pose: wag ? 'point' : 'hips', aim: -0.3, t, expr: 'talk', talk: 1, flip: false, look: [1, 0.3] });
+        // （官方小人：一直抬着手“训话”——Interact；手绘版：叉腰 / 竖手指一拍一换）
+        adele(q, { x: 1010, y: 1060, h: 440, pose: SDON() ? 'wave' : wag ? 'point' : 'hips', aim: -0.3, t, expr: 'talk', talk: 1, flip: false, look: [1, 0.3] });
         speech(q, '不许偷吃！', 1090, 590, clamp((bt - 0.3) / 0.25), { w: 330, h: 104, dx: 70, size: 48, color: '#e0506a' });
         if (bt > 3) for (let i = 0; i < 2; i++) pop(q, '？', 560 + i * 110, 600 - i * 20, clamp((bt - 3 - i * 0.3) / 0.25), { size: 60, color: '#3a8ad0', rot: (i - 0.5) * 0.3 });
       },
@@ -2565,7 +2714,8 @@
       terrace: (q) => {
         // 游客们围成半圈：先惊讶，再鼓掌
         const clap = bt > 2.2;
-        for (let i = 0; i < 5; i++) person(q, { x: 260 + i * 150 + (i > 2 ? 700 : 0), y: 1000 + (i % 2) * 20, h: 320, seed: TOURISTS[(i * 6 + 7) % TOURISTS.length], pose: clap ? 'clap' : i % 2 ? 'cover' : 'point', aim: -0.6, t: t + i, flip: i > 2, expr: clap ? 'laugh' : 'surprise', look: [i > 2 ? -0.3 : 0.3, -0.8] });
+        // 围观的游客（客串干员）：先站着看，球飘起来以后一起拍手（Interact）
+        for (const i of [0, 2, 4, 1, 3]) townsfolk(q, s, { x: 230 + i * 170 + (i > 2 ? 650 : 0), y: 1000 + (i % 2) * 20, h: 290, seed: TOURISTS[(i * 6 + 7) % TOURISTS.length], pose: clap ? 'clap' : 'stand', aim: -0.6, t: t + i, flip: i > 2, expr: clap ? 'laugh' : 'surprise', look: [i > 2 ? -0.3 : 0.3, -0.8] }, i);
         // 沙滩球：底下两只小羊顶着，飘起来转圈
         const up = ease.out(clamp(lt / 1.6)), bx = 960 + Math.sin(t * 2.2) * 60, by = lerp(1000, 520, up) + Math.sin(t * 3) * 14;
         beachBall(q, bx, by - 70, 70, t * 2);
@@ -2774,7 +2924,12 @@
     const t = s.t;
     E.glow(g, x, y - h * 0.5, h * 1.4, '255,190,220', 0.18 * form);
     dollyCloudD(g, s, x - h * 0.08, y - h * 0.45, h / 280, form, o);
-    if (form > 0.25) cast(g, 'dolly', { x, y, h, t, glow: 0.6, form: 'cloud', fade: 1 - sst(0.3, 1, form), expr: o.expr || 'smile', look: o.look || [-0.4, 0.6], alpha: o.alpha ?? 1 });
+    // 多利本体：官方剧情立绘（avg_npc_1014_1：一大团粉云、黑脸、荆棘冠），雾团从它身后聚过来；没有立绘时用角色库的脸
+    if (form > 0.25) {
+      const ka = sst(0.3, 1, form) * (o.alpha ?? 1);
+      if (!(cardOn(s, 'dolly') && E.sd.card(g, 'dolly', { x: x - h * 0.02, y: y + h * 0.16, h: h * 1.18, t, breath: 1.6, bob: h * 0.012, alpha: ka, light: o.light })))
+        cast(g, 'dolly', { x, y, h, t, glow: 0.6, form: 'cloud', fade: 1 - sst(0.3, 1, form), expr: o.expr || 'smile', look: o.look || [-0.4, 0.6], alpha: o.alpha ?? 1 });
+    }
   }
 
   /* ---------- 镜头 17 · 聚拢（73.69 → 78.33）：小羊们领她上了灯塔崖，叠成一堆，“噗”地变成一朵粉云升上天 ---------- */
@@ -2907,16 +3062,18 @@
     const t = s.t, lt = s.lt, bt = s.beat - T0beat(s);
     const cam = { x: 920, y: lerp(560, 640, lt / 4.6), z: lerp(1.5, 1.62, lt / 4.6), ...hand(s, 37, 3, 0.35) };
     const fly = clamp(lt / 1.3), land = clamp((lt - 1.3) / 1.0);
-    const ao = { x: 900, y: cliffTop(900) + 130, h: 440, pose: land >= 1 ? (bt > 5 ? 'cheer' : 'hold') : 'reach-up', t, expr: land >= 1 ? (bt > 5 ? 'laugh' : 'determined') : 'surprise', look: [0, -1], wind: 0.5, windDir: -1 };
+    // （官方小人：整个镜头都举着手——先去够、再举着卡片——Interact；卡片贴在举起的那只手上）
+    const SDk = SDON();
+    const ao = { x: 900, y: cliffTop(900) + 130, h: 440, pose: SDk ? 'wave' : land >= 1 ? (bt > 5 ? 'cheer' : 'hold') : 'reach-up', t, expr: land >= 1 ? (bt > 5 ? 'laugh' : 'determined') : 'surprise', look: [0, -1], wind: 0.5, windDir: -1 };
     cliffW(g, s, cam, {
       wind: 0.35, base: { x: 920, y: 600, z: 1.55 }, bk: 'deal',
       sky: (q) => { withAlpha(q, 0.8, (qq) => dollyCloudD(qq, s, 1200, 120, 1.0, 0.9, { a: 0.55 })); },
       mid: (q) => {
         adele(q, ao);
-        const hp = anchor('adele-alter', Object.assign({}, ao, { pose: 'hold' }), 'handN', [900, 800]);
+        const hp = anchor('adele-alter', SDk ? ao : Object.assign({}, ao, { pose: 'hold' }), 'handN', [900, 800]);
         // 卡片：从空中飘下来（左右摆），落到手上
-        // 落点在胸前（卡片上沿低于下巴，不挡脸）
-        const cx = lerp(1040, hp[0] + 10, land), cy = lerp(260, hp[1] + 62, ease.out(land)) + (land < 1 ? Math.sin(lt * 5) * 20 * (1 - land) : 0);
+        // 落点：手绘版在胸前（卡片上沿低于下巴，不挡脸）；官方小人在举起的手上（手的外侧，不挡脸）
+        const cx = lerp(1040, hp[0] + (SDk ? 70 : 10), land), cy = lerp(260, hp[1] + (SDk ? -30 : 62), ease.out(land)) + (land < 1 ? Math.sin(lt * 5) * 20 * (1 - land) : 0);
         const rot = land < 1 ? Math.sin(lt * 4) * 0.3 * (1 - land) : -0.05;
         if (lt > 1.0) tradeCard(q, s, cx, cy, lerp(0.24, 0.34, land), rot, 0, t);
         // 三个图标从天上飞向卡片
@@ -2977,8 +3134,9 @@
       sky: (q) => { kite(q, t, 1500 + Math.sin(t) * 30, 150 - wind * 30, 1.1, 1700, 900, ['#ff6a8a', '#ffd24a', '#4ac0e0'], 1); kite(q, t, 700, 240 - wind * 40, 0.8, 1640, 900, ['#4ac0e0', '#ffffff', '#ff8ab8'], 2); },
       mid: (q) => {
         // 放风筝的两个小孩
-        person(q, { x: 1700, y: 960, h: 250, seed: 40, pose: 'hold-up', t, flip: true, expr: 'laugh', look: [-0.2, -1] });
-        person(q, { x: 1640, y: 990, h: 230, seed: 57, pose: 'cheer', t, flip: true, expr: 'laugh' });
+        // 放风筝的两个人（客串：雪雉拉着线，锡兰在旁边欢呼）
+        townsfolk(q, s, { x: 1700, y: 960, h: 250, seed: 40, pose: 'stand', t, flip: true, expr: 'laugh', look: [-0.2, -1] }, 0);
+        townsfolk(q, s, { x: 1640, y: 990, h: 230, seed: 57, pose: 'cheer', t, flip: true, expr: 'laugh' }, 3);
         // 被风吹得打滚的小羊
         for (let i = 0; i < 6; i++) {
           const a = lt - 0.1 - i * 0.12;
@@ -3023,8 +3181,20 @@
       else { pop(q, '北！', vx + 130, vy - 70, clamp((bt - 6) / 0.25), { size: 64, color: '#e0508a' }); sparkle(q, vx + 60, vy - 10, 80 * clamp((bt - 6) / 0.4), 1 - clamp((bt - 6.3) / 1.2), t, '255,236,160'); }
     });
     // 前景：她抬头看（胸像，画面右下；屏幕坐标，跟着手持轻轻晃）
+    // 官方立绘（纯烬 · 精英零）的半身：抬头望着风向标，风越刮越大；指到“北”的那一拍笑起来。没有立绘时用官方 Q 版小人站在右下角
     g.save(); g.translate((cam.sx || 0) * 1.5, (cam.sy || 0) * 1.5);
-    adele(g, { x: 1480, y: 1120, h: 620, crop: 'bust', t, pose: 'shade', expr: north ? 'laugh' : 'pout', look: [-0.7, -1], wind: north ? 1 : 0.5, windDir: -1, shadow: false });
+    const K = KA();
+    // 立绘在镜头开头就绪才用（镜头中途才加载好不换，免得从小人跳成立绘）
+    const kid = 'vane|ka', now = performance.now();
+    let kd = CARDDEC.get(kid);
+    if (!kd || now - kd.at > 1500) kd = { on: !!(K && K.ready && K.ready('alter-e0')) };
+    kd.at = now; CARDDEC.set(kid, kd);
+    const kaOk = kd.on && K.draw(g, 'alter-e0', {
+      crop: 'bust', x: 1500, y: 840, h: 640, t, look: [-0.55, -0.55], gaze: [-0.8, -0.7], smile: north ? ease.out(clamp((bt - 6) / 0.4)) : 0, mouth: north ? 0 : 0.15,
+      wind: north ? 1.1 : 0.5, windDir: -1, light: { color: '#fff2dc', dir: [-0.7, -0.7], rim: 0.6, wash: 0.06 },
+    });
+    if (kaOk) { /* 立绘已画 */ } else if (SDON()) adele(g, { x: 1560, y: 1150, h: 600, pose: north ? 'wave' : 'stand', t, flip: true, shadow: false });
+    else adele(g, { x: 1480, y: 1120, h: 620, crop: 'bust', t, pose: 'shade', expr: north ? 'laugh' : 'pout', look: [-0.7, -1], wind: north ? 1 : 0.5, windDir: -1, shadow: false });
     g.restore();
     vig(g, s, 0.3);
   }
@@ -3125,7 +3295,8 @@
     inCam(g, cam, 0.5, (q) => { for (let i = 0; i < 5; i++) { const w = 420 + hash(931, i) * 300; q.drawImage(cloud(s, 930 + i, Math.round(w), Math.round(w * 0.36), 'day'), ((hash(932, i) * 3000 + t * 60) % 3000) - 700, 60 + hash(933, i) * 500, w, w * 0.36); } });
     inCam(g, cam, 1, (q) => {
       q.drawImage(LC(s, 'gallery', VW + 600, 1400, (qq) => { qq.translate(300, 200); galleryArt(qq); }, 0.8), -300, -200, VW + 600, 1400);
-      const ao = { x: 1060, y: 980, h: 480, pose: cork >= 1 ? (bt > 6 ? 'cheer' : 'hold') : 'hold-up', t, expr: cork >= 1 ? 'laugh' : 'determined', look: [0.5, -0.8], wind: 1.0, windDir: -1 };
+      // （官方小人：整段都把瓶子举在手上——Interact）
+      const ao = { x: 1060, y: 980, h: 480, pose: SDON() ? 'wave' : cork >= 1 ? (bt > 6 ? 'cheer' : 'hold') : 'hold-up', t, expr: cork >= 1 ? 'laugh' : 'determined', look: [0.5, -0.8], wind: 1.0, windDir: -1 };
       adele(q, ao);
       const hp = anchor('adele-alter', ao, 'handN', [1100, 560]);
       if (bt < 6) emptyBottle(q, hp[0], hp[1] + 30, 170, 0.1, t, catchK * (cork >= 1 ? 1 : 0.6 + 0.4 * Math.sin(t * 8)), cork);
@@ -3212,12 +3383,13 @@
       additive(q, (qq) => { for (let i = 0; i < 4; i++) { qq.fillStyle = `rgba(255,240,200,${0.08 + 0.03 * Math.sin(t + i)})`; qq.beginPath(); qq.moveTo(300 + i * 360, 200); qq.lineTo(420 + i * 360, 200); qq.lineTo(620 + i * 360, 1100); qq.lineTo(460 + i * 360, 1100); qq.closePath(); qq.fill(); } });
       const give = clamp((bt - 1) / 1.2);
       const ko = { x: 760, y: 1010, h: 440 * KH(), pose: give < 1 ? 'hold' : 'point', aim: 0.1, t, expr: 'smile', flip: false, look: [1, 0], talk: bt < 2 ? 1 : 0 };
-      keller(q, ko);
+      // 凯勒老师：官方立绘剪纸（膝上构图，画面左边），说着话把种子递过来
+      const kc = kellerCard(q, s, { x: 760, y: 1105, h: 600, crop: 'upper', flip: true, expr: [[s.shot.t0, 3], [s.shot.t0 + 2.2, 9]] }, (qq) => keller(qq, ko));
       const ao = { x: 1180, y: 1020, h: 440, pose: give >= 1 ? 'hold-up' : 'stand', t, expr: give >= 1 ? 'laugh' : 'smile', flip: true, look: [-1, give >= 1 ? -0.6 : 0.1] };
       adele(q, ao);
-      const kh = anchor('keller', ko, 'handN', [820, 740]), ah = anchor('adele-alter', ao, 'handN', [1150, 560]);
+      const kh = kc ? [880, 800] : anchor('keller', ko, 'handN', [820, 740]), ah = anchor('adele-alter', ao, 'handN', [1150, 560]);
       // 举过头顶（纸袋的下沿在手上，不挡脸）
-      const px = lerp(kh[0], ah[0], ease.inOut(give)), py = lerp(kh[1], ah[1] - 92, ease.inOut(give)) - Math.sin(PI * give) * 60;
+      const px = lerp(kh[0], ah[0], ease.inOut(give)), py = lerp(kh[1], ah[1] - (SDON() ? 60 : 92), ease.inOut(give)) - Math.sin(PI * give) * 60;
       seedPacket(q, px, py, 1.3, Math.sin(t * 3) * 0.1, 0);
       if (give >= 1) { sparkle(q, px, py - 40, 70, 0.7 + 0.3 * Math.sin(t * 5), t, '255,236,160'); for (let i = 0; i < 3; i++) star4(q, px - 60 + i * 60, py - 110 - (i % 2) * 20, 12, t * 2 + i, '#ffd24a', 0.9); }
     });
@@ -3287,7 +3459,8 @@
           lamb(q, s, lamX, ly, 96, { pose: bt < 0.8 ? 'stand' : 'jump', expr: 'happy', flip: false, glow: 0.5, sq: hop(hf)[1] });
           seedPacket(q, lamX + 44, ly - 50, 0.9, 0.5 + Math.sin(t * 8) * 0.2, 0);
           // 游客：只看见一包种子在空中飞
-          for (let i = 0; i < 3; i++) { const px = 700 + i * 700; person(q, { x: px, y: 1000, h: 330, seed: TOURISTS[(i * 11 + 6) % TOURISTS.length], pose: Math.abs(px - lamX) < 300 ? 'cover' : 'stand', t: t + i, expr: Math.abs(px - lamX) < 300 ? 'surprise' : 'smile', flip: px > lamX, look: [px > lamX ? -1 : 1, -0.5] }); }
+          // （客串干员：种子袋从头顶飞过时吓一跳——Interact）
+          for (let i = 0; i < 3; i++) { const px = 700 + i * 700; townsfolk(q, s, { x: px, y: 1000, h: 330, seed: TOURISTS[(i * 11 + 6) % TOURISTS.length], pose: Math.abs(px - lamX) < 300 ? 'cover' : 'stand', t: t + i, expr: Math.abs(px - lamX) < 300 ? 'surprise' : 'smile', flip: px > lamX, look: [px > lamX ? -1 : 1, -0.5] }, i + 1); }
           // 她：在后面追
           const ax = Math.max(120, lamX - 420);
           adele(q, { x: ax, y: 1040, h: 440, pose: 'run', t, speed: stepRate('adele-alter', 440, hopLen / BEAT, true), expr: 'determined', look: [1, -0.3], wind: 0.5 });
@@ -3309,11 +3482,21 @@
         tiled(q0, s, 'market', cam, 1, -300, 3400, 1100, marketStreet, 1, 500, 620);
         inCam(q0, cam, 1, (q) => {
           // 她扑过去（被花埋住），举起抢回来的种子袋
-          const ao = land ? { x: 1400, y: 1040, h: 440, pose: bt > 3 ? 'hold-up' : 'sit-ground', t, expr: bt > 3 ? 'laugh' : 'surprise', look: [0.4, -0.5], flip: false } : { x: lerp(1100, 1380, dive), y: 1040 - Math.sin(PI * dive) * 120, h: 440, pose: 'jump', t, expr: 'determined', rot: 0.5 * dive, flip: false };
+          // （官方小人：扑进花摊前的一只木花箱，坐在箱子上；第 4 拍花瓣一炸，跳起来把种子袋举在手上）
+          const SDk = SDON();
+          const ao = land ? { x: 1400, y: 1040, h: 440, pose: bt > 3 ? 'hold-up' : 'sit-ground', seat: SDk ? 118 : undefined, t, expr: bt > 3 ? 'laugh' : 'surprise', look: [0.4, -0.5], flip: false } : { x: lerp(1100, 1380, dive), y: 1040 - Math.sin(PI * dive) * 120, h: 440, pose: 'jump', t, expr: 'determined', rot: 0.5 * dive, flip: false };
+          if (SDk) {
+            // 花箱（座）：木板 + 满满的花
+            const cx = 1400, cy = 1040, w = 230, hh = 118;
+            q.fillStyle = '#a06a44'; q.fillRect(cx - w / 2, cy - hh, w, hh); q.fillStyle = '#86542f'; for (let i = 0; i < 3; i++) q.fillRect(cx - w / 2, cy - hh + 8 + i * 38, w, 6);
+            q.strokeStyle = INK_D; q.lineWidth = 3; q.strokeRect(cx - w / 2, cy - hh, w, hh);
+            for (let i = 0; i < 16; i++) { q.fillStyle = pick(['#ff4a7a', '#ffd24a', '#ff8ab8', '#ffffff', '#b890f0'], hash(117, i)); q.beginPath(); q.arc(cx - w / 2 + 10 + hash(118, i) * (w - 20), cy - hh - 4 - hash(119, i) * 16, 11, 0, TAU); q.fill(); }
+          }
           adele(q, ao);
+          if (SDk && bt > 2.8 && bt < 3.6) { const k = clamp((bt - 2.8) / 0.8); for (let i = 0; i < 20; i++) { const an = (i / 20) * TAU, r = 60 + k * 260; q.fillStyle = pick(['#ff4a7a', '#ffd24a', '#ff8ab8', '#ffffff'], hash(114, i)); q.globalAlpha = 1 - k; q.beginPath(); q.arc(1400 + Math.cos(an) * r, 860 + Math.sin(an) * r * 0.7 + 200 * k * k, 9, 0, TAU); q.fill(); } q.globalAlpha = 1; }
           if (land) { for (let i = 0; i < 18; i++) { const a = lt - 0.8, ang = -PI / 2 + (hash(111, i) - 0.5) * 2.4, v = 300 + hash(112, i) * 300; const px = 1420 + Math.cos(ang) * v * a, py = 860 + Math.sin(ang) * v * a + 900 * a * a; if (py < 1100 && a < 1.2) { q.fillStyle = pick(['#ff4a7a', '#ffd24a', '#ff8ab8', '#ffffff'], hash(113, i)); q.beginPath(); q.arc(px, py, 7, 0, TAU); q.fill(); } } }
           const hp = anchor('adele-alter', ao, 'handN', [1440, 700]);
-          if (land && bt > 3) seedPacket(q, hp[0], hp[1] - 96, 1.4, -0.1, 0.5);
+          if (land && bt > 3) seedPacket(q, hp[0] + (SDk ? 80 : 0), hp[1] - (SDk ? 200 : 96), 1.4, SDk ? 0.2 : -0.1, 0.5);
           // 旁边的小羊：打嗝，头上“噗”地长出一棵芽
           const burp = clamp((bt - 5) / 0.3);
           lamb(q, s, 1700, 1000, 120, { pose: 'sit', expr: bt > 5 ? 'closed' : 'happy', flip: true, glow: 0.4, sq: burp > 0 && burp < 1 ? 0.4 : 0 });
@@ -3346,8 +3529,10 @@
       mid: (q) => {
         // 花坛里的新土
         q.fillStyle = '#7a4a2a'; q.fillRect(600, 1080, 400, 14);
-        const ao = { x: 700, y: 1170, h: 440, pose: bt < 2 ? 'dig' : 'kneel', prop: bt < 2 ? 'trowel' : null, t, expr: 'content', look: [1, 0.6], flip: false };
+        // （官方小人：坐在花坛的石沿上，先把种子埋好、再拿起喷壶浇水）
+        const ao = { x: 700, y: 1170, h: 440, pose: bt < 2 ? 'dig' : 'kneel', seat: 90, prop: bt < 2 ? 'trowel' : null, t, expr: 'content', look: [1, 0.6], flip: false };
         adele(q, ao);
+        if (SDON() && bt < 2) { const hp = anchor('adele-alter', ao, 'handN', [760, 900]); q.save(); q.translate(hp[0] + 10, hp[1]); q.rotate(0.9 + Math.sin(t * 8) * 0.15); q.fillStyle = '#8a8f9a'; q.beginPath(); q.moveTo(0, 0); q.lineTo(34, -8); q.lineTo(44, 0); q.lineTo(34, 8); q.closePath(); q.fill(); q.fillStyle = '#7a4a2a'; q.fillRect(-26, -4, 26, 8); q.restore(); }
         if (bt >= 2) { const hp = anchor('adele-alter', ao, 'handN', [760, 900]); wateringCan(q, hp[0] + 30, hp[1] - 10, 1.1, 0.3 + pour * 0.5 * (bt < 4.2 ? 1 : 0)); if (pour > 0 && bt < 4.2) for (let i = 0; i < 14; i++) { const u = fract(t * 2 + i / 14); q.fillStyle = 'rgba(150,210,240,0.9)'; q.beginPath(); q.arc(hp[0] + 130 + u * 30 + (i % 3) * 6, hp[1] - 40 + u * 170, 3.5, 0, TAU); q.fill(); } }
         // 芽：一拍冒出来
         if (grow > 0) {
@@ -3604,7 +3789,8 @@
       q.drawImage(LC(s, 'woolshop', VW + 600, 1300, (qq) => { qq.translate(300, 100); woolShopArt(qq); }, 1), -300, -100, VW + 600, 1300);
       additive(q, (qq) => { qq.fillStyle = 'rgba(255,236,200,0.14)'; qq.beginPath(); qq.moveTo(1320, 160); qq.lineTo(1840, 160); qq.lineTo(1500, 1100); qq.lineTo(900, 1100); qq.closePath(); qq.fill(); });
       // 店主（柜台后；金发、围裙——和银发的凯勒老师区分开）
-      person(q, { x: 520, y: 1000, h: 420, seed: 54, pose: bt > 4 ? 'cover' : 'hold', prop: bt > 4 ? null : 'basket', t, flip: false, expr: bt > 4 ? 'surprise' : 'smile', look: [1, 0] });
+      // 店主：雪雉（她在休闲街上开杂货铺，也卖毛线）；“卖光了”的时候摆摆手（Interact）
+      townsfolk(q, s, { x: 520, y: 1000, h: 400, seed: 54, pose: bt > 4 ? 'cover' : 'hold', prop: bt > 4 ? null : 'basket', t, flip: false, expr: bt > 4 ? 'surprise' : 'smile', look: [1, 0] }, 0);
       q.fillStyle = '#c89a6a'; q.fillRect(-100, 820, 1100, 40); q.fillStyle = '#a0764c'; q.fillRect(-100, 860, 1100, 240);
       // 她：指着毛线问
       adele(q, { x: 1180, y: 1060, h: 440, pose: bt < 4 ? 'point' : 'think', aim: -0.2, t, expr: bt < 4 ? 'talk' : 'pout', talk: bt < 4 ? 1 : 0, flip: true, look: [-1, -0.2] });
@@ -3708,7 +3894,8 @@
         bench(q, 2150, 1040, 380);
         // 正面坐着，头歪向一边睡着了（看得见闭着的眼睛）
         adele(q, { x: 2330, y: 1100, h: 440, pose: 'sit', seat: 112, arms: 'lap', view: 'front', headPose: 'tilt', t, expr: 'closed', flip: false });
-        for (let i = 0; i < 2; i++) lamb(q, s, 2300 + i * 60, 900 + i * 6, 64, { pose: 'sleep', expr: 'closed', flip: i === 1, glow: 0.3 });
+        // 膝上蜷着的两只小羊（官方小羊大一圈：放低一点、小一点，不挡她的脸）
+        for (let i = 0; i < 2; i++) lamb(q, s, 2290 + i * 80, SDON() ? 1004 + i * 6 : 900 + i * 6, SDON() ? 50 : 64, { pose: 'sleep', expr: 'closed', flip: i === 1, glow: 0.3 });
         const fall = clamp((lt - 0.6) / 0.6);
         const cx = lerp(2360, 2480, fall), cy = lerp(930, 1040, ease.in(fall));
         tradeCard(q, s, cx, cy, 0.16, fall * 1.2, 2, t);
@@ -3785,16 +3972,20 @@
           bunting(q, t, 3600, 780, 4160, 780, 40, 14, 11);
           // 梯子上挂灯笼的人
           q.strokeStyle = '#8a6a50'; q.lineWidth = 8; q.beginPath(); q.moveTo(2930, 1000); q.lineTo(3010, 660); q.moveTo(3010, 1000); q.lineTo(3090, 660); q.stroke(); q.lineWidth = 5; for (let i = 1; i < 7; i++) { const u = i / 7; q.beginPath(); q.moveTo(2930 + u * 80, 1000 - u * 340); q.lineTo(3010 + u * 80, 1000 - u * 340); q.stroke(); }
-          person(q, { x: 3050, y: 760, h: 300, seed: 4, pose: 'reach-up', t, flip: false, expr: 'smile' });
+          // 扶着梯子、抬手指挥挂灯笼的苍苔（官方小人爬不了梯子：站在梯子旁边）
+          if (sdOn(s, CAMEOS[2])) townsfolk(q, s, { x: 3120, y: 1010, h: 320, pose: 'reach-up', t, flip: true }, 2);
+          else person(q, { x: 3050, y: 760, h: 300, seed: 4, pose: 'reach-up', t, flip: false, expr: 'smile' });
           lanternString(q, s, t, 2980, 540, 3500, 520, 50, 5, 31, { size: 44 });
           // 凯勒老师拿着单子指挥
-          keller(q, { x: 3700, y: 1000, h: 420 * KH(), pose: 'point', aim: -0.3, prop: 'notebook', t, expr: 'talk', talk: 1, flip: true, look: [-1, -0.2] });
+          kellerCard(q, s, { x: 3760, y: 1085, h: 560, crop: 'upper', expr: [[s.shot.t0, 3], [burst + 0.1, 4]] },
+            (qq) => keller(qq, { x: 3700, y: 1000, h: 420 * KH(), pose: 'point', aim: -0.3, prop: 'notebook', t, expr: 'talk', talk: 1, flip: true, look: [-1, -0.2] }));
           // 她：抱着一箱灯笼走过来；第 5 拍，箱子里“噗”地冒出一群小羊，每只抢一个灯笼
           const ax = lerp(3160, 3380, clamp(lt / 1.7));
           const ao = { x: ax, y: 1030, h: 440, pose: lt < 1.7 ? 'walk' : t < burst ? 'hold' : 'cover', speed: stepRate('adele-alter', 440, 220 / 1.7), arms: lt < 1.7 ? 'hold' : undefined, t, expr: t < burst ? 'smile' : 'surprise', flip: false, look: [1, 0.3] };
           adele(q, ao);
-          const hp = anchor('adele-alter', Object.assign({}, ao, { pose: 'hold' }), 'handN', [ax + 20, 820]);
-          lanternBox(q, hp[0] + 10, hp[1] + 40, 1.3, t > burst ? 1 : 0);
+          // （官方小人：箱子提在手边）
+          const hp = anchor('adele-alter', SDON() ? ao : Object.assign({}, ao, { pose: 'hold' }), 'handN', [ax + 20, 820]);
+          lanternBox(q, hp[0] + 10, hp[1] + (SDON() ? 62 : 40), SDON() ? 1.05 : 1.3, t > burst ? 1 : 0);
           const a = t - burst;
           if (a > 0) {
             poof(q, hp[0] + 10, hp[1] - 40, 140, clamp(a / 0.6), 13);
@@ -3823,10 +4014,11 @@
         inCam(q0, cam, 1, (q) => {
           stage(q, 3620, 940, 520);
           // 围观鼓掌的游客
-          for (let i = 0; i < 5; i++) person(q, { x: 2900 + i * 170 + (i > 2 ? 500 : 0), y: 1010 + (i % 2) * 20, h: 320, seed: TOURISTS[(i * 5 + 8) % TOURISTS.length], pose: bt > 2 ? 'clap' : 'point', aim: -0.8, t: t + i, flip: i > 2, expr: 'laugh', look: [0, -1] });
+          for (const i of [0, 2, 4, 1, 3]) townsfolk(q, s, { x: 2780 + i * 165 + (i > 2 ? 420 : 0), y: 1010 + (i % 2) * 20, h: 300, seed: TOURISTS[(i * 5 + 8) % TOURISTS.length], pose: bt > 2 ? 'clap' : 'stand', aim: -0.8, t: t + i, flip: i > 2, expr: 'laugh', look: [0, -1] }, i + 1);
           // 她：跳起来去够最后一只（没够着）
-          const jump = fract(bt * 0.5) < 0.5 && bt > 1;
-          adele(q, { x: 3380, y: 1030, h: 440, pose: jump ? 'jump' : 'reach-up', air: jump ? Math.sin(PI * fract(bt * 0.5) * 2) : 0, t, expr: jump ? 'determined' : 'surprise', look: [0.3, -1], flip: false });
+          // （官方小人：先抬手去够，第 2 拍起一拍一跳）
+          const jump = SDON() ? bt > 1 : fract(bt * 0.5) < 0.5 && bt > 1;
+          adele(q, { x: 3380, y: 1030, h: 440, pose: jump ? 'jump' : 'reach-up', air: jump ? (SDON() ? Math.abs(Math.sin(PI * bt)) : Math.sin(PI * fract(bt * 0.5) * 2)) : 0, t, expr: jump ? 'determined' : 'surprise', look: [0.3, -1], flip: false });
           // 一串抓着灯笼往上飘的小羊（一拍一颠）
           for (let i = 0; i < 7; i++) {
             const st = i * 0.35, a = Math.max(0, lt - st);
@@ -3871,7 +4063,8 @@
             }
             pop(q, '哗啦', 3660, 620, clamp(a / 0.2) * (1 - clamp((a - 1) / 0.3)), { size: 46, color: '#3a8ad0' });
           }
-          keller(q, { x: 3800, y: 1030, h: 420 * KH(), pose: a > 0.6 ? 'clap' : 'point', aim: -0.5, t, expr: a > 0.6 ? 'laugh' : 'surprise', flip: true, look: [-1, -0.3] });
+          kellerCard(q, s, { x: 3830, y: 1110, h: 580, crop: 'upper', expr: [[s.shot.t0, 1], [snap + 0.1, 4], [snap + 0.7, 9]] },
+            (qq) => keller(qq, { x: 3800, y: 1030, h: 420 * KH(), pose: a > 0.6 ? 'clap' : 'point', aim: -0.5, t, expr: a > 0.6 ? 'laugh' : 'surprise', flip: true, look: [-1, -0.3] }));
         });
       },
     });
@@ -3901,7 +4094,7 @@
       const rv = 185, ax = 1320 - Math.min(lt, 4.4) * rv, dodge = Math.abs(Math.sin(bt * PI)) * 30;
       adele(q, { x: ax, y: stairY(ax) + 2 - dodge, h: 360, pose: 'run', t, flip: true, expr: 'surprise', look: [1, -0.4], speed: stepRate('adele-alter', 360, rv, true) });
       // 台阶下鼓掌的游客（“今天的游行真热闹！”）
-      person(q, { x: 380, y: 1000, h: 300, seed: 44, pose: 'clap', t, expr: 'laugh', flip: false, look: [1, -0.5] });
+      townsfolk(q, s, { x: 380, y: 1000, h: 300, seed: 44, pose: 'clap', t, expr: 'laugh', flip: false, look: [1, -0.5] }, 1);
     });
     vig(g, s, 0.3);
   }
@@ -3958,10 +4151,18 @@
       // 一道浪冲上来（第 6 拍）
       if (wave > 0) { const wy = 760 + Math.sin(PI * wave) * 190; q.fillStyle = 'rgba(120,220,230,0.75)'; q.beginPath(); q.moveTo(-300, 740); for (let x = -300; x <= VW + 300; x += 40) q.lineTo(x, wy + Math.sin(x * 0.02 + t * 4) * 12); q.lineTo(VW + 300, 740); q.closePath(); q.fill(); q.strokeStyle = 'rgba(255,255,255,0.9)'; q.lineWidth = 6; q.beginPath(); for (let x = -300; x <= VW + 300; x += 40) { const yy = wy + Math.sin(x * 0.02 + t * 4) * 12; x === -300 ? q.moveTo(x, yy) : q.lineTo(x, yy); } q.stroke(); }
       sandSheep(q, 1020, 930, 1.3, clamp((bt - 5.4) / 0.8));
-      person(q, { x: 1260, y: 990, h: 240, seed: 49, pose: 'crouch', t, flip: true, expr: 'smile', look: [-1, 0.4] });
-      person(q, { x: 820, y: 1010, h: 230, seed: 3, pose: bt > 5.4 ? 'cover' : 'point', aim: 0.2, t, flip: false, expr: bt > 5.4 ? 'surprise' : 'laugh' });
-      // 她：蹲下来看沙子做的羊（毛是沙子……）
-      adele(q, { x: 620, y: 1070, h: 440, pose: bt < 3 ? 'crouch' : bt > 5.4 ? 'cover' : 'think', t, flip: false, expr: bt > 5.4 ? 'surprise' : 'pout', look: [1, 0.4] });
+      // 堆沙羊的是锡兰（夏装）和琳琅诗怀雅：浪冲上来的时候吓一跳
+      townsfolk(q, s, { x: 1260, y: 990, h: 260, seed: 49, pose: bt > 5.4 ? 'cover' : 'stand', t, flip: true, expr: 'smile', look: [-1, 0.4] }, 3);
+      townsfolk(q, s, { x: 820, y: 1010, h: 250, seed: 3, pose: bt > 5.4 ? 'cover' : 'point', aim: 0.2, t, flip: false, expr: bt > 5.4 ? 'surprise' : 'laugh' }, 1);
+      // 她：蹲下来看沙子做的羊（毛是沙子……）；官方小人：坐在冰桶上看
+      if (SDON()) {
+        const cx = 620, cy = 1070, w = 200, hh = 112;
+        q.fillStyle = 'rgba(120,90,60,0.25)'; q.beginPath(); q.ellipse(cx, cy, w * 0.62, 16, 0, 0, TAU); q.fill();
+        q.fillStyle = '#4ab0d8'; rrect(q, cx - w / 2, cy - hh, w, hh, 12); q.fill(); q.fillStyle = '#fbfaf6'; rrect(q, cx - w / 2 - 6, cy - hh - 6, w + 12, 30, 10); q.fill();
+        q.strokeStyle = INK_D; q.lineWidth = 3; rrect(q, cx - w / 2, cy - hh, w, hh, 12); q.stroke(); rrect(q, cx - w / 2 - 6, cy - hh - 6, w + 12, 30, 10); q.stroke();
+        q.fillStyle = 'rgba(255,255,255,0.35)'; q.fillRect(cx - w / 2 + 14, cy - hh + 34, 12, hh - 44);
+      }
+      adele(q, { x: 620, y: 1070, h: 440, pose: SDON() ? 'sit' : bt < 3 ? 'crouch' : bt > 5.4 ? 'cover' : 'think', seat: 116, t, flip: false, expr: bt > 5.4 ? 'surprise' : 'pout', look: [1, 0.4] });
       // 在沙里打滚的小羊
       for (let i = 0; i < 2; i++) lamb(q, s, 1450 + i * 120, 1000 + i * 30, 80, { pose: 'sleep', expr: 'happy', spin: Math.sin(t * 3 + i) * 0.6, glow: 0.3 });
       if (bt > 1 && bt < 5) pop(q, '羊毛……是沙子', 1060, 680, clamp((bt - 1) / 0.3) * (1 - clamp((bt - 4.6) / 0.3)), { size: 38, color: '#8a6a40' });
@@ -4216,7 +4417,8 @@
     pierW(g, s, cam, {
       mid: (q) => {
         // 她坐在栈桥尽头，双腿悬在水面上（脚在桥面下方）
-        adele(q, sitAdele({ x: 1440, y: PIER_Y + 150, h: 300, t, expr: 'content', look: [-0.2, -0.2], flip: false, view: 'back3', wind: 0.4, windDir: -1, rim: '255,200,160', rimDir: -0.4, shadow: false }));
+        // （官方小人：侧身坐在栈桥边上，面朝落日；手绘版：背影）
+        adele(q, sitAdele({ x: 1440, y: PIER_Y + 150, h: 300, t, expr: 'content', look: [-0.2, -0.2], flip: SDON(), view: 'back3', wind: 0.4, windDir: -1, rim: '255,200,160', rimDir: SDON() ? PI : -0.4, shadow: false }));
         for (let i = 0; i < 3; i++) lamb(q, s, 1320 - i * 70, PIER_Y - 16, 52, { pose: 'sit', expr: 'closed', flip: false, glow: 0.4 });
         gulls(q, t, { n: 4, seed: 283, x0: -300, x1: 2300, y0: 120, y1: 360, s: 0.8, speed: 50, far: true, col: 'rgba(60,30,70,0.8)' });
       },
@@ -4234,7 +4436,7 @@
       base: { x: 1390, y: 700, z: 2.06 }, bk: 'breeze',
       mid: (q) => {
         lamb(q, s, 1300, PIER_Y - 16, 58, { pose: 'sit', expr: 'closed', flip: false, glow: 0.4 });
-        adele(q, sitAdele({ x: 1440, y: PIER_Y + 150, h: 300, t, arms: wrap ? 'hug' : 'lap', expr: wrap ? 'content' : 'neutral', look: [1, -0.1], flip: false, wind: 0.9, windDir: -1, rim: '255,200,160', rimDir: 0.1, shadow: false }));
+        adele(q, sitAdele({ x: 1440, y: PIER_Y + 150, h: 300, t, arms: wrap ? 'hug' : 'lap', expr: wrap ? 'content' : 'neutral', look: [1, -0.1], flip: SDON(), wind: 0.9, windDir: -1, rim: '255,200,160', rimDir: SDON() ? PI : 0.1, shadow: false }));
         lamb(q, s, 1540, PIER_Y - 16, 58, { pose: 'sit', expr: 'closed', flip: true, glow: 0.4 });
         // 风：几缕花瓣
         for (let i = 0; i < 12; i++) { const u = fract(t * 0.5 + i / 12); q.save(); q.translate(1700 - u * 700, 560 + hash(291, i) * 200 + Math.sin(u * 7 + i) * 20); q.rotate(u * 8); q.fillStyle = i % 2 ? 'rgba(255,190,210,0.9)' : 'rgba(255,240,230,0.9)'; q.fillRect(-5, -2, 10, 4); q.restore(); }
@@ -4296,7 +4498,10 @@
     } else {
       // B：她闭上眼睛，风把外套和头发一起吹起来（官方立绘 · 半身，慢慢推近；没有立绘时用角色库的胸像：抱紧外套）
       const u = lt - 2.3;
-      const fallback = (q) => inCam(q, { x: 960, y: 540, z: 1 + u * 0.02 }, 1, (qq) => adele(qq, { x: 980, y: 1090, h: 820, crop: 'bust', pose: 'hug', t, expr: 'content', look: [-0.3, 0.3], headPose: 'tilt', wind: 0.9, windDir: -1, rim: '255,190,150', rimDir: -0.5, shadow: false }));
+      // 没有立绘：官方 Q 版小人侧身坐着（近景）；连官方小人也没有时，用手绘的胸像
+      const fallback = (q) => inCam(q, { x: 960, y: 540, z: 1 + u * 0.02 }, 1, (qq) => SDON()
+        ? adele(qq, { x: 1000, y: 1250, h: 780, pose: 'sit', seat: 330, t, flip: true, rim: '255,190,150', rimDir: PI, shadow: false })
+        : adele(qq, { x: 980, y: 1090, h: 820, crop: 'bust', pose: 'hug', t, expr: 'content', look: [-0.3, 0.3], headPose: 'tilt', wind: 0.9, windDir: -1, rim: '255,190,150', rimDir: -0.5, shadow: false }));
       const K = KA();
       const ok = K && K.shot(g, s, {
         key: 'alter-e0', crop: 'upper',
@@ -4333,7 +4538,7 @@
         });
         for (let i = 0; i < 16; i++) { const u = fract(t * 0.2 + i / 16), x = 560 + hash(351, i) * 300, y = 520 - u * 420; E.glow(q, x, y, 10, '255,240,220', Math.sin(PI * u) * 0.7 * k); }
       },
-      mid: (q) => { adele(q, sitAdele({ x: 1440, y: PIER_Y + 150, h: 300, t, expr: 'content', flip: false, view: 'back3', wind: 1, windDir: -1, sil: '#3a2040', rim: '255,200,160', shadow: false })); },
+      mid: (q) => { adele(q, sitAdele({ x: 1440, y: PIER_Y + 150, h: 300, t, expr: 'content', flip: SDON(), view: 'back3', wind: 1, windDir: -1, sil: '#3a2040', rim: '255,200,160', shadow: false })); },
     });
     lbox(g, s, 1);
     vig(g, s, 0.45);
@@ -4354,7 +4559,9 @@
     // 立绘不可用（没加载完 / 没有 WebGL）时，用角色库的胸像画同一个画面
     const fallback = (q, s2) => {
       const phase = bt < 2 ? 'surprise' : bt < 4.5 ? 'tearful' : 'smile';
-      inCam(q, { x: 960, y: 540, z: 1 + lt * 0.015 }, 1, (qq) => adele(qq, { x: 880, y: 1100, h: 900, crop: 'bust', t: s2.t, expr: phase, look: bt < 2 ? [0.1, 0.1] : [0.3, 0.6], wind: 0.7, windDir: -1, rim: '255,190,150', rimDir: -0.6, shadow: false }));
+      inCam(q, { x: 960, y: 540, z: 1 + lt * 0.015 }, 1, (qq) => SDON()
+        ? adele(qq, { x: 900, y: 1250, h: 800, pose: 'sit', seat: 330, t: s2.t, flip: true, rim: '255,190,150', rimDir: PI, shadow: false })
+        : adele(qq, { x: 880, y: 1100, h: 900, crop: 'bust', t: s2.t, expr: phase, look: bt < 2 ? [0.1, 0.1] : [0.3, 0.6], wind: 0.7, windDir: -1, rim: '255,190,150', rimDir: -0.6, shadow: false }));
     };
     const K = KA();
     const ok = K && K.shot(g, s, {
@@ -4389,12 +4596,14 @@
     pierW(g, s, cam, {
       sunK: 0.7,
       sky: (q) => {
-        dollyD(q, s, 1150, 640, 700, 1, { expr: 'closed', look: [-0.6, 0.6], rgb: '255,190,210', rgb2: '255,226,210', a: 0.7 });
+        dollyD(q, s, 1150, 640, 700, 1, { expr: 'closed', look: [-0.6, 0.6], rgb: '255,190,210', rgb2: '255,226,210', a: 0.7, light: { color: '#ffc4c8', amount: 0.3 } });
         // 从云里飘下来的暖光粒子（落在她身上）
         for (let i = 0; i < 26; i++) { const u = fract(t * 0.18 + i / 26), x = 1000 + hash(311, i) * 500 + Math.sin(u * 6 + i) * 30, y = 200 + u * 560; E.glow(q, x, y, 12, '255,236,200', Math.sin(PI * u) * 0.8); }
       },
       mid: (q) => {
-        adele(q, { x: 1420, y: PIER_Y - 16, h: 300, pose: 'hug', t, expr: 'content', look: [-0.3, -1], flip: true, wind: 0.8, windDir: -1, rim: '255,200,160', rimDir: 0.2 });
+        // （官方小人：逆光里的一个剪影，镶着落日的亮边，面朝多利；手绘版：抱紧外套）
+        if (SDON()) adele(q, { x: 1420, y: PIER_Y - 16, h: 300, pose: 'stand', t, flip: true, sil: '#3a2040', rim: '255,214,176', rimGlow: 0.35, shadow: false });
+        else adele(q, { x: 1420, y: PIER_Y - 16, h: 300, pose: 'hug', t, expr: 'content', look: [-0.3, -1], flip: true, wind: 0.8, windDir: -1, rim: '255,200,160', rimDir: 0.2 });
         E.glow(q, 1420, PIER_Y - 170, 260, '255,220,190', 0.35 + 0.1 * Math.sin(t * 2));
         for (let i = 0; i < 4; i++) lamb(q, s, 1250 + i * 70 + (i > 1 ? 240 : 0), PIER_Y - 16, 52, { pose: 'look-up', expr: 'happy', flip: i > 1, glow: 0.6 });
       },
@@ -4443,7 +4652,9 @@
         if (mk > 0) { E.glow(q, 20, 470, 90, '255,210,150', 0.9 * mk); q.fillStyle = `rgba(255,230,180,${mk})`; q.fillRect(4, 462, 32, 16); sparkle(q, 20, 468, 50 * mk, mk, t, '255,236,180'); }
       },
       mid: (q) => {
-        adele(q, { x: 1180, y: PIER_Y - 16, h: 300, pose: 'turn', turn: clamp((bt - 0.5) / 1.5) * 0.6, t, expr: 'smile', flip: false, wind: 0.5, windDir: -1, rim: '200,180,255' });
+        // （官方小人：转过身，面朝海岸上一盏盏亮起来的灯；手绘版：回头望）
+        if (SDON()) adele(q, { x: 1180, y: PIER_Y - 16, h: 300, pose: 'stand', t, flip: bt > 0.5, rim: '200,180,255', rimDir: PI });
+        else adele(q, { x: 1180, y: PIER_Y - 16, h: 300, pose: 'turn', turn: clamp((bt - 0.5) / 1.5) * 0.6, t, expr: 'smile', flip: false, wind: 0.5, windDir: -1, rim: '200,180,255' });
         for (let i = 0; i < 3; i++) lamb(q, s, 1300 + i * 70, PIER_Y - 16, 52, { pose: 'stand', expr: 'happy', flip: true, glow: 0.9 });
         // 最后一拍：第一支烟花“咻”地升空
         const ra = lt - 3.9;
@@ -4553,9 +4764,14 @@
         // 凯勒老师递来一瓶汽水 → 两人伸手，瓶子在中间“叮”地碰在一起（瓶子始终拿在手里）
         const clinkOn = bt > 3.3 && bt < 5.6, clink = win(bt, 3.9, 4.0, 4.6, 5.2);
         const ko = { x: 760, y: 1060, h: 440 * KH(), pose: clinkOn ? 'reach' : 'hold', aim: -0.15, t, expr: 'laugh', flip: false, look: [1, -0.1] };
-        const ao = { x: 1060, y: 1060, h: 440, pose: clinkOn ? 'reach' : 'hold', aim: -0.15, t, expr: bt > 4 ? 'laugh' : 'smile', flip: true, look: [-1, -0.1], rim: F[1], rimGlow: 0.1 * F[0] };
-        keller(q, ko); adele(q, ao);
-        const kh = anchor('keller', ko, 'handN', [860, 800]), ah = anchor('adele-alter', ao, 'handN', [960, 800]);
+        const SDk = SDON();
+        const ao = { x: SDk ? 990 : 1060, y: 1060, h: 440, pose: SDk ? 'wave' : clinkOn ? 'reach' : 'hold', aim: -0.15, t, expr: bt > 4 ? 'laugh' : 'smile', flip: true, look: [-1, -0.1], rim: F[1], rimGlow: 0.1 * F[0] };
+        // 凯勒老师：官方立绘剪纸（膝上构图）——汽水瓶握在她胸前那只手里；碰杯时两只瓶子往中间一凑
+        const kc = kellerCard(q, s, { x: 700, y: 1170, h: 700, crop: 'upper', flip: true, expr: [[s.shot.t0, 3], [s.shot.t0 + BEAT * 3.8, 9]], light: { color: '#c8b8f0', amount: 0.28 } }, (qq) => keller(qq, ko));
+        adele(q, ao);
+        const kh0 = kc ? [845, 850] : anchor('keller', ko, 'handN', [860, 800]), ah0 = anchor('adele-alter', ao, 'handN', [960, 800]);
+        const ce = kc || SDk ? ease.inOut(clinkOn ? clamp((bt - 3.3) / 0.6) : 0) : 0, m0 = lerp(kh0[0], ah0[0], kc ? 0.38 : 0.5);
+        const kh = [lerp(kh0[0], m0 - 34, ce), lerp(kh0[1], Math.min(kh0[1], ah0[1]) - 10, ce)], ah = [lerp(ah0[0], m0 + 34, ce), lerp(ah0[1], Math.min(kh0[1], ah0[1]) - 10, ce)];
         bottle(q, s, kh[0] + 6, kh[1] + 44, 110, clinkOn ? 0.3 : 0, 1);
         bottle(q, s, ah[0] - 6, ah[1] + 44, 110, clinkOn ? -0.3 : 0, 1);
         const mid = (kh[0] + ah[0]) / 2, my = Math.min(kh[1], ah[1]) - 50;
@@ -4690,9 +4906,10 @@
       pal: 'night', dof: 1, bk: 'release', base: { x: 1000, y: 560, z: 1.4 },
       sky: (q) => { F = fireworkShow(q, t, s.shot.t0 - BEAT * 2, 10, BEAT, 501, { x0: 300, w: 1300, y0: -200, h: 300, r: 110, yb: 700 }); skyLanterns(q, s, t, { t0: 230, spread: 8, x0: 200, w: 1600, y0: 700, rise: 1000, sc: 1, n: 26, seed: 404 }); },
       terrace: (q) => {
-        const ao = { x: 1000, y: 1060, h: 440, pose: rise > 0.05 ? 'look-up' : 'hold-up', t, expr: 'laugh', look: [0, -1], flip: false };
+        // （官方小人：整段抬着手——先托着天灯，放手之后朝它挥手）
+        const ao = { x: 1000, y: 1060, h: 440, pose: SDON() ? 'wave' : rise > 0.05 ? 'look-up' : 'hold-up', t, expr: 'laugh', look: [0, -1], flip: false };
         adele(q, ao);
-        const hp = anchor('adele-alter', Object.assign({}, ao, { pose: 'hold-up' }), 'handN', [1000, 560]);
+        const hp = anchor('adele-alter', SDON() ? ao : Object.assign({}, ao, { pose: 'hold-up' }), 'handN', [1000, 560]);
         const ly = lerp(hp[1] - 60, -400, ease.in(rise)), lx = hp[0] + Math.sin(t * 0.8) * 20 * rise;
         // 天灯（大）
         E.glow(q, lx, ly, 160, '255,180,110', 0.6); q.fillStyle = '#ffd6a0'; q.beginPath(); q.moveTo(lx - 50, ly - 70); q.lineTo(lx + 50, ly - 70); q.lineTo(lx + 40, ly + 60); q.lineTo(lx - 40, ly + 60); q.closePath(); q.fill();
@@ -4714,7 +4931,7 @@
     terraceB(g, s, cam, {
       pal: 'night', fg: [['palm', 'tr', { depth: 1.5 }]],
       sky: (q) => {
-        withAlpha(q, 0.35 + 0.3 * clamp(a / 1), (qq) => dollyD(qq, s, 1500, 520, 520, 1, { expr: a > 1.5 && a < 1.8 ? 'closed' : 'smile', look: [-0.6, 0.5], rgb: '200,150,220', rgb2: '240,200,240', a: 0.5 }));
+        withAlpha(q, 0.35 + 0.3 * clamp(a / 1), (qq) => dollyD(qq, s, 1500, 520, 520, 1, { expr: a > 1.5 && a < 1.8 ? 'closed' : 'smile', look: [-0.6, 0.5], rgb: '200,150,220', rgb2: '240,200,240', a: 0.5, light: { color: '#a898d8', amount: 0.45 } }));
         F = fireworkShow(q, t, t0 - 1, 8, BEAT * 0.5, 511, { x0: 200, w: 1500, y0: 60, h: 300, r: 110, yb: 700 });
         if (a > -0.5) { firework(q, 900, 260, 330, a, 1, true, 0.5, 700); if (a > 0 && a < 1) { F = [Math.exp(-a * 2.5), '255,210,140']; } }
       },
@@ -5093,7 +5310,8 @@
       chairBack(q, RM.chair[0], RM.chair[1]);
       if (o.coat) coatOnChair(q, RM.chair[0], RM.chair[1], t);
       if (o.behind) o.behind(q);
-      if (o.adele) cast(q, 'adele-alter', Object.assign({ x: RM.adele[0], y: RM.adele[1], h: 560, pose: 'write', outfit: 'home', t, expr: 'neutral', desk: RM.adele[1] - RM.desk[2] + 6, seat: RM.seat }, o.adele));
+      // （官方小人：家居服的纯烬坐在书桌后面——Sit；写标签、伸懒腰、趴下都改成坐着，眼睛眯着打盹）
+      if (o.adele) cast(q, 'adele-alter', sdo(Object.assign({ x: RM.adele[0], y: RM.adele[1], h: 560, pose: 'write', outfit: 'home', t, expr: 'neutral', desk: RM.adele[1] - RM.desk[2] + 6, seat: RM.seat }, o.adele)));
     });
     baked(g, s, 'rm-front-n:' + (o.bk || 'w'), base, cam, 1, roomFrontN, 1.1, [778, 476, 1622, 1052]);
     inCam(g, cam, 1, (q) => {
@@ -5129,16 +5347,34 @@
     const u = sst(0.2, 3.9, lt);
     // 路线：从书桌前面推过去，最后推进窗下的角落（书桌右边，不会被桌子挡住）；推得不快（箱子挺沉）
     const cx = lerp(1060, RM.crate[0], u), cy = lerp(1070, RM.crate[1], sst(0.7, 1, u));
-    const cam = { x: lerp(1080, 1300, u), y: 620, z: 1.3, ...hand(s, 125, 2, 0.25) };
+    // 官方小人在箱子前面倒退着拉：镜头往右多带一点，把她和箱子都框进来
+    const sdDrag = sdOn(s, 'char_1016_agoat2/build');
+    const cam = { x: sdDrag ? lerp(1200, 1480, u) : lerp(1080, 1300, u), y: 620, z: 1.3, ...hand(s, 125, 2, 0.25) };
     roomN(g, s, cam, {
-      bk: 'drag', base: { x: 1070, y: 620, z: 1.3 },
+      bk: sdDrag ? 'drag-sd' : 'drag', base: { x: sdDrag ? 1340 : 1070, y: 620, z: 1.3 },
       crate: { x: -2000, y: RM.crate[1] }, // 箱子改在书桌前面画（下面 onDesk）
       adele: false,
       onDesk: (q) => {
         const moving = u > 0.02 && u < 0.98;
         crate(q, s, cx, cy, 0.86, { hum: 1, leak: 0.2 });
-        const v = 670 * 1.5 / 3.7 * Math.sin(PI * u);
-        adele(q, { x: cx - 250, y: cy + 8, h: 470, pose: moving ? 'walk' : 'stand', arms: moving ? 'reach' : undefined, aim: -0.3, rot: moving ? 0.1 : 0, t, speed: stepRate('adele-alter', 470, Math.max(40, v)), expr: moving ? 'determined' : 'smile', flip: false, look: [1, 0.3], shadow: false });
+        const AK = 'char_1016_agoat2/build';
+        if (sdOn(s, AK)) {
+          // 官方小人：站在箱子右边、面朝箱子，拉着绳子倒退着走（Move 倒放）；动画时间 = 箱子走过的路 ÷ 模型的步速（脚底不打滑，速度跟着箱子一起加减）
+          const h = 470, ax = cx + 129 + 150, ay = cy + 8;
+          let G = 0; try { const gg = E.sd.gait(AK, { h }); G = gg && gg.speed > 1 ? gg.speed : 0; } catch (e) { G = 0; }
+          const travel = cx - 1060, o2 = { x: ax, y: ay, h, flip: true, anim: moving && G ? 'Move' : 'Relax', t: moving && G ? -travel / G : t, speed: 1, phase: 0, solo: true };
+          groundShadow(q, ax, ay, h * 0.27, 0.22);
+          E.sd.draw(q, AK, o2);
+          const A = E.sd.anchors(AK, o2), hp = (A && A.handN) || [ax - 60, ay - h * 0.4];
+          // 绳子：手 → 箱子右上角的把手（微微下垂）
+          const ex = cx + 122, ey = cy - 150;
+          q.strokeStyle = '#8a6a4a'; q.lineWidth = 4; q.lineCap = 'round';
+          q.beginPath(); q.moveTo(hp[0], hp[1]); q.quadraticCurveTo((hp[0] + ex) / 2, Math.max(hp[1], ey) + (moving ? 6 : 18), ex, ey); q.stroke(); q.lineCap = 'butt';
+          q.fillStyle = '#6a4a30'; q.fillRect(ex - 6, ey - 8, 12, 16);
+        } else {
+          const v = 670 * 1.5 / 3.7 * Math.sin(PI * u);
+          adele(q, { x: cx - 250, y: cy + 8, h: 470, pose: moving ? 'walk' : 'stand', arms: moving ? 'reach' : undefined, aim: -0.3, rot: moving ? 0.1 : 0, t, speed: stepRate('adele-alter', 470, Math.max(40, v)), expr: moving ? 'determined' : 'smile', flip: false, look: [1, 0.3], shadow: false });
+        }
         if (lt > 3.9) { const bu = fract((lt - 3.9) * 0.5); bubble(q, RM.crate[0] + 20, RM.crate[1] - 210 - bu * 200, 10, Math.sin(PI * bu)); }
       },
     });
@@ -5174,7 +5410,7 @@
         const W = MZ.win, wl = 0.85 + 0.15 * wobble(8, t * 2);
         q.save(); archPath(q, W.x, W.y, W.w, W.h); q.clip();
         q.fillStyle = vg(q, W.y - W.h / 2, W.y + W.h / 2, [[0, '#6a3a2a'], [0.5, '#c07840'], [1, '#e8a860']]); q.fillRect(W.x - 100, W.y - 170, 200, 340);
-        cast(q, 'adele-alter', { x: W.x - 16, y: W.y + 170, h: 190, pose: 'sleep', outfit: 'home', t, sil: '#3a1c12', rim: '255,210,150', expr: 'closed' });
+        cast(q, 'adele-alter', sdo({ x: W.x - 16, y: W.y + 170, h: 190, pose: 'sleep', outfit: 'home', t, sil: '#3a1c12', rim: '255,210,150', expr: 'closed', seat: 70 }));
         E.glow(q, W.x + 55, W.y + 55, 70, '255,230,170', 0.7 * wl);
         E.glow(q, W.x + 78, W.y + 150, 34, '255,140,210', 0.25 + 0.25 * Math.max(0, Math.sin(t * 5.3)) * Math.max(0, Math.sin(t * 1.7)));
         q.restore();
@@ -5199,11 +5435,12 @@
     const ca = win(t, 276.2, 277.2, 282.4, 283.4);
     if (ca > 0) {
       g.save(); g.globalAlpha = ca;
-      g.fillStyle = 'rgba(14,12,40,0.7)'; rrect(g, 380, 780, 1160, 280, 24); g.fill(); g.strokeStyle = 'rgba(200,220,255,0.3)'; g.lineWidth = 2; rrect(g, 392, 792, 1136, 256, 18); g.stroke();
-      E.text(g, '歌曲　Misty Memory (Day Version)', 960, 834, { size: 30, weight: 700, color: '#fff6f0', spacing: 2 });
-      E.text(g, '塞壬唱片-MSR / Erik Castro / Elvin Shen / David Lin / 左乙（《火山旅梦》OST）', 960, 874, { font: 'sans', size: 21, weight: 500, color: '#e6ecff', maxW: 1080 });
-      E.text(g, 'MV：本页原创同人影像，与官方无关　·　角色与世界观 © Hypergryph', 960, 918, { font: 'sans', size: 22, weight: 700, color: '#fff0c8', spacing: 1, maxW: 1080 });
-      E.text(g, '角色立绘 © Hypergryph（官方原画，本页分层绑定）', 960, 956, { font: 'sans', size: 19, weight: 500, color: '#d8def8', spacing: 1, maxW: 1080 });
+      g.fillStyle = 'rgba(14,12,40,0.7)'; rrect(g, 380, 758, 1160, 302, 24); g.fill(); g.strokeStyle = 'rgba(200,220,255,0.3)'; g.lineWidth = 2; rrect(g, 392, 770, 1136, 278, 18); g.stroke();
+      E.text(g, '歌曲　Misty Memory (Day Version)', 960, 812, { size: 30, weight: 700, color: '#fff6f0', spacing: 2 });
+      E.text(g, '塞壬唱片-MSR / Erik Castro / Elvin Shen / David Lin / 左乙（《火山旅梦》OST）', 960, 852, { font: 'sans', size: 21, weight: 500, color: '#e6ecff', maxW: 1080 });
+      E.text(g, 'MV：本页原创同人影像，与官方无关　·　角色与世界观 © Hypergryph', 960, 894, { font: 'sans', size: 22, weight: 700, color: '#fff0c8', spacing: 1, maxW: 1080 });
+      E.text(g, '角色立绘 © Hypergryph（官方原画，本页分层绑定）', 960, 930, { font: 'sans', size: 19, weight: 500, color: '#d8def8', spacing: 1, maxW: 1080 });
+      E.text(g, 'Q版小人 © Hypergryph（官方 Spine 模型）', 960, 962, { font: 'sans', size: 19, weight: 500, color: '#d8def8', spacing: 1, maxW: 1080 });
       E.text(g, '这一夜的梦，见「雾中之忆」', 960, 1004, { font: 'serif', size: 22, weight: 600, color: 'rgba(255,200,230,0.92)', spacing: 4 });
       g.restore();
     }
@@ -5421,8 +5658,13 @@
       accent: '#3fcfbf',
     },
     // 官方立绘（情绪最高的两个特写：黄昏的“原来如此”、烟花映在脸上）；加载失败也照样放行，镜头会自动换成角色库的画面
-    needs: ['keyart', 'finish'],
+    needs: ['keyart', 'finish', 'sd'],
+    // 本片用到的官方 Q 版小人（引擎在 prepare 时预载；≤ 8 个模型控制下载量）：纯烬（基建 / 作战背面）、纯烬家居服、粉色小羊、
+    // 客串的汐斯塔街坊（雪雉、琳琅诗怀雅、苍苔、锡兰·夏装）。多利与凯勒老师用官方剧情立绘（MVE.sd.card），不占模型
+    sd: ['char_1016_agoat2/build', 'char_1016_agoat2/back', 'char_1016_agoat2_epoque_57/build', LAMB_SD, ...CAMEOS],
     prepare: async (ctx) => {
+      // 立绘剪纸（凯勒老师的几种表情、多利）：和模型一起预载，最多等 6 秒
+      const S = E.sd, cards = S && S.card ? Promise.race([Promise.all([S.card.load('keller', KEXPR), S.card.load('dolly', 1)]), new Promise((r) => setTimeout(r, 6000))]).catch(() => null) : null;
       // 后期工具箱的纹理 / 颗粒 / 脏污精灵先生成（免得第一次用时卡一帧）
       const F = FIN();
       if (F && F.warm) try { F.warm(['grain', 'dirt']); } catch (e) { /* 用到时再生成 */ }
@@ -5431,7 +5673,7 @@
       const ka = ctx && ctx.keyart ? Promise.resolve(ctx.keyart('alter-e0')).catch(() => false) : K && K.load ? K.load(['alter-e0'], 6000).catch(() => false) : Promise.resolve(false);
       const fonts = document.fonts ? Promise.race([Promise.all(['900 160px "Noto Serif SC"', '700 40px "Noto Serif SC"', '600 36px "Noto Serif SC"', '700 52px Cinzel', '700 24px "Noto Sans SC"'].map((f) => document.fonts.load(f, '晴日之约阿黛尔汐斯塔的夏天到了博物馆就要开馆来帮帮我吧老火山也在等你凯勒本页原创MISTYDAY'))), new Promise((r) => setTimeout(r, 2500))]).catch(() => null) : null;
       for (const pose of ['stand', 'jump', 'sit', 'walk', 'run', 'eat', 'sleep', 'look-up', 'push', 'float', 'bounce']) castBox('sheep-pink', { pose });
-      await Promise.all([ka, fonts]);
+      await Promise.all([ka, fonts, cards]);
     },
     captions,
     overlay,

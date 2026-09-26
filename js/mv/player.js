@@ -192,8 +192,8 @@ window.MVP = (() => {
       ['深夜', '货箱一歪——那场梦开始了', ['misty-memory-night']],
     ],
     dayNote: '番外可以单独看；按时间线接着看第二部，会发现那只箱子是怎么来的。',
-    tech: '五支 MV 都是本页用代码即时画出来的动画（Canvas 2D），镜头随音乐的拍点与段落切换；几个情绪最浓的特写，用的是本站分层绑定好的官方立绘——她会眨眼、呼吸，头发随风飘。',
-    note: 'MV 为本页原创同人影像，与官方无关；部分特写使用官方立绘（© Hypergryph）；音乐版权归 塞壬唱片-MSR / 鹰角网络',
+    tech: '五支 MV 都是本页用代码即时画出来的动画（Canvas 2D），镜头随音乐的拍点与段落切换；角色用的是游戏里的官方 Q 版小人（Spine 骨骼动画，实时驱动），几个情绪最浓的特写用本站分层绑定好的官方立绘——她会眨眼、呼吸，头发随风飘。',
+    note: 'MV 为本页原创同人影像，与官方无关；Q 版小人与立绘为官方素材（© Hypergryph），在线加载；音乐版权归 塞壬唱片-MSR / 鹰角网络',
   };
 
   /* ---------------------------------------------------- 模块状态 */
@@ -513,6 +513,8 @@ window.MVP = (() => {
   function release(id) {
     const d = data[id];
     if (d && d.own && typeof d.def.release === 'function') { try { d.def.release(); } catch (e) { dlog('release', id, e); } }
+    // 官方 Q 版小人（MVE.sd）的显存：换片时交还（它自己会延迟释放，下一部还要用到的模型不会重新上传）
+    try { if (window.MVE && MVE.sd && MVE.sd.release) MVE.sd.release(); } catch (e) { dlog('sd.release', e); }
   }
 
   /* ---------------------------------------------------- 状态与界面 */
@@ -1333,6 +1335,33 @@ window.MVP = (() => {
       if (!E.cast || !E.cast.draw) return null;
       await idleP();
       const sheep = /sheep|dolly/.test(c.who);
+      // 有官方 Q 版小人（MVE.sd）的角色：画官方小人的全身，再按不透明像素取上半身做成胸像
+      if (!sheep && E.sd && E.sd.decide && E.sd.load && E.sd.draw) {
+        try {
+          const oo = Object.assign({ pose: 'stand', t: 1.3 }, c.o || {});
+          const dd = E.sd.decide(c.who, oo);
+          if (dd && dd.key && (await E.sd.load(dd.key, 12000))) {
+            const W = 440, H = 600, cv = E.mk(W, H), g = cv.getContext('2d', { willReadFrequently: true });
+            if (E.sd.frame) E.sd.frame('figure:' + key);
+            if (E.sd.draw(g, dd.key, { x: W / 2, y: H - 16, h: 520, t: 1.3, anim: dd.anim || 'Relax', solo: true })) {
+              const im = g.getImageData(0, 0, W, H).data;
+              let x0 = W, y0 = H, x1 = -1, y1 = -1;
+              for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (im[(y * W + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+              if (x1 > 0) {
+                // 胸像：从头顶往下取整个人高度的 58%，宽高比 4:5，水平方向以头部附近的不透明像素为中心
+                const bh = (y1 - y0) * 0.58, bw = bh * 0.8;
+                let hx0 = W, hx1 = -1;
+                for (let y = y0; y < y0 + bh * 0.5; y += 2) for (let x = 0; x < W; x += 2) if (im[(y * W + x) * 4 + 3] > 24) { if (x < hx0) hx0 = x; if (x > hx1) hx1 = x; }
+                const cx = hx1 > 0 ? (hx0 + hx1) / 2 : (x0 + x1) / 2, sy = Math.max(0, y0 - bh * 0.04);
+                const out = E.mk(240, 300), q = out.getContext('2d');
+                q.imageSmoothingQuality = 'high';
+                q.drawImage(cv, cx - bw / 2, sy, bw, bh, 0, 0, 240, 300);
+                return toUrl(out, 'image/png');
+              }
+            }
+          }
+        } catch (e) { dlog('figure sd', c.who, e); /* 退回手绘 */ }
+      }
       // 人物：角色库的胸像取景（crop: 'bust'，y = 画面底边，h = 底边到头顶；角 / 呆毛 / 光环在上面留出余量）
       if (!sheep) {
         const PW = 240, PH = 300, pc = E.mk(PW, PH), pg = pc.getContext('2d');
@@ -1494,6 +1523,7 @@ window.MVP = (() => {
         <dl class="mi-cr">
           <div><dt>歌曲</dt><dd>${esc(m.en)}<small>${esc(m.artists)}</small></dd></div>
           <div><dt>影像</dt><dd>本页原创<small>Canvas 2D 实时渲染 · 画面随音乐的拍点与段落生成</small></dd></div>
+          ${data[cur] && data[cur].own && Array.isArray(data[cur].def.needs) && data[cur].def.needs.includes('sd') ? '<div><dt>Q 版小人</dt><dd>官方 Spine 模型<small>© Hypergryph · 从 PRTS 资源站实时加载，按镜头逐帧驱动</small></dd></div>' : ''}
           ${data[cur] && data[cur].own && Array.isArray(data[cur].def.needs) && data[cur].def.needs.includes('keyart') ? '<div><dt>立绘特写</dt><dd>官方原画<small>© Hypergryph · 本页分层绑定，实时驱动</small></dd></div>' : ''}
           <div><dt>角色与世界观</dt><dd>《明日方舟》<small>© Hypergryph · 鹰角网络</small></dd></div>
         </dl>
