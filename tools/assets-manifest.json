@@ -1,0 +1,4267 @@
+{
+ "generated": "2026-09-24T20:04:53+00:00",
+ "project": "D:/claude_projects/Eyjafjalla (index.html)",
+ "method": "Sizes from HTTP HEAD Content-Length, or the total in Content-Range of a GET with Range: bytes=0-0; no bodies downloaded. Requests sent with a Chrome UA, no Referer (page uses referrer=no-referrer), Accept-Encoding: identity and Origin: http://localhost:5173 (so \"cors\" reflects access-control-allow-origin). bytes = uncompressed file size. jsDelivr answers HEAD without Content-Length and its Range totals are compressed cache sizes, so jsDelivr files use the ETag / GitHub raw size.",
+ "firstScreen": "true = fetched automatically at page load in the DEFAULT saved state (form=base, elite=E0, art view), with no scroll or click: the Google Fonts CSS + slices that cover page characters (upper bound, all weights), the loader preloads (base E0, base E2, alter E0 illustrations), the base avatar (non-lazy <img> in the voice bar), and the theater auto-preload ~2.5 s after boot (spine runtime + base chibi meta + 默认 基建 model). If localStorage holds form=alter / elite=E2, the first screen instead pulls alter E2 art and the 5.9 MB dyn e2 model.",
+ "categories": {
+  "art": "hero illustrations E0/E2 for both forms (also shown in the gallery)",
+  "thumbnails-needed": "gallery-only skin illustrations; the 1-in-10 gallery thumbnails load these full 2048-2560 px images",
+  "keyart": "event key visuals in the gallery (raw JPG, 1560x500)",
+  "icons": "avatars + skill icons",
+  "portraits": "people portraits (arknights.wiki.gg)",
+  "photos": "Wikimedia Commons 1280px thumbs",
+  "chibi": "PRTS Spine chibi: 2 meta.json + 2 forms x 3 skins x {基建, 正面} x {skel, atlas, png}; 背面 models are never used",
+  "dyn": "纯烬 dynamic illustrations e2/s34/s57, 3 files each",
+  "runtime": "spine-ts 3.8 webgl",
+  "voice": "38 lines x 2 forms x {voice=JP, voice_cn=CN}",
+  "fonts": "Google Fonts css2 + woff2 unicode-range slices"
+ },
+ "excluded": [
+  {
+   "url": "https://media.prts.wiki/2/2c/Skin_logo_%E7%8F%8A%E7%91%9A%E6%B5%B7%E5%B2%B8.png?image_process=format,webp/quality,Q_90",
+   "why": "outfit.logo defined in data.js but never rendered",
+   "bytes": 22430
+  },
+  {
+   "url": "https://media.prts.wiki/8/88/Skin_logo_%E4%B8%89%E4%B8%BD%E9%B8%A5%E5%AE%B6%E6%97%8F.png?image_process=format,webp/quality,Q_90",
+   "why": "outfit.logo defined in data.js but never rendered",
+   "bytes": 11304
+  },
+  {
+   "url": "https://media.prts.wiki/6/6a/Skin_logo_%E6%97%B6%E4%BB%A3.png?image_process=format,webp/quality,Q_90",
+   "why": "outfit.logo defined in data.js but never rendered",
+   "bytes": 12500
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+   "why": "only lab/doll.html loads js/doll/*; index.html never defines window.DOLL, so the 3D view and three.js are unreachable"
+  },
+  {
+   "url": "(footer / credit links)",
+   "why": "navigation links, not loaded resources; prts.wiki/w/... and arknights.wiki.gg/ answer 403 to scripted requests (bot protection), others 200"
+  }
+ ],
+ "items": [
+  {
+   "url": "https://media.prts.wiki/c/c0/%E7%AB%8B%E7%BB%98_%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_1.png?image_process=format,webp/quality,Q_90",
+   "category": "art",
+   "bytes": 117814,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "px": "1024x1024",
+   "note": "base e0 illustration (hero + gallery + gallery thumb)"
+  },
+  {
+   "url": "https://media.prts.wiki/2/21/%E7%AB%8B%E7%BB%98_%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_2.png?image_process=format,webp/quality,Q_90",
+   "category": "art",
+   "bytes": 807276,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "px": "2048x2048",
+   "note": "base e2 illustration (hero + gallery + gallery thumb)"
+  },
+  {
+   "url": "https://media.prts.wiki/5/50/%E7%AB%8B%E7%BB%98_%E7%BA%AF%E7%83%AC%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_1.png?image_process=format,webp/quality,Q_90",
+   "category": "art",
+   "bytes": 482794,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "px": "2048x2048",
+   "note": "alter e0 illustration (hero + gallery + gallery thumb)"
+  },
+  {
+   "url": "https://media.prts.wiki/0/04/%E7%AB%8B%E7%BB%98_%E7%BA%AF%E7%83%AC%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_2.png?image_process=format,webp/quality,Q_90",
+   "category": "art",
+   "bytes": 1352370,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "2536x2536",
+   "note": "alter e2 illustration (hero + gallery + gallery thumb)"
+  },
+  {
+   "url": "https://media.prts.wiki/e/e8/%E7%AB%8B%E7%BB%98_%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_skin1.png?image_process=format,webp/quality,Q_90",
+   "category": "thumbnails-needed",
+   "bytes": 511644,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "2048x2048",
+   "note": "base skin s1 \"夏卉 FA018\": gallery only; thumbnail <img> loads this full image"
+  },
+  {
+   "url": "https://media.prts.wiki/8/86/%E7%AB%8B%E7%BB%98_%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_skin2.png?image_process=format,webp/quality,Q_90",
+   "category": "thumbnails-needed",
+   "bytes": 689052,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "2376x2376",
+   "note": "base skin s2 \"绵绒小魔女\": gallery only; thumbnail <img> loads this full image"
+  },
+  {
+   "url": "https://media.prts.wiki/e/e8/%E7%AB%8B%E7%BB%98_%E7%BA%AF%E7%83%AC%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_skin1.png?image_process=format,webp/quality,Q_90",
+   "category": "thumbnails-needed",
+   "bytes": 656914,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "2560x2560",
+   "note": "alter skin s1 \"远行前的野餐\": gallery only; thumbnail <img> loads this full image"
+  },
+  {
+   "url": "https://media.prts.wiki/5/52/%E7%AB%8B%E7%BB%98_%E7%BA%AF%E7%83%AC%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89_skin2.png?image_process=format,webp/quality,Q_90",
+   "category": "thumbnails-needed",
+   "bytes": 632700,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "2216x2216",
+   "note": "alter skin s2 \"后来的故事\": gallery only; thumbnail <img> loads this full image"
+  },
+  {
+   "url": "https://media.prts.wiki/1/1c/%E6%B4%BB%E5%8A%A8%E9%A2%84%E5%91%8A_%E5%A4%8F%E6%B4%BB2023_02.jpg",
+   "category": "keyart",
+   "bytes": 212999,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "1560x500",
+   "note": "gallery key art (raw full-size JPG, also used as thumbnail)"
+  },
+  {
+   "url": "https://media.prts.wiki/f/fa/%E6%B4%BB%E5%8A%A8%E9%A2%84%E5%91%8A_%E5%A4%8F%E6%B4%BB2023_05.jpg",
+   "category": "keyart",
+   "bytes": 303883,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "1560x500",
+   "note": "gallery key art (raw full-size JPG, also used as thumbnail)"
+  },
+  {
+   "url": "https://media.prts.wiki/c/cc/%E5%A4%B4%E5%83%8F_%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89.png",
+   "category": "icons",
+   "bytes": 38634,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "px": "180x180",
+   "note": "base avatar (voice bar, non-lazy <img>)"
+  },
+  {
+   "url": "https://media.prts.wiki/f/f0/%E5%A4%B4%E5%83%8F_%E7%BA%AF%E7%83%AC%E8%89%BE%E9%9B%85%E6%B3%95%E6%8B%89.png",
+   "category": "icons",
+   "bytes": 57966,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "px": "180x180",
+   "note": "alter avatar (voice bar, non-lazy <img>)"
+  },
+  {
+   "url": "https://media.prts.wiki/4/4a/%E6%8A%80%E8%83%BD_%E4%BA%8C%E9%87%8D%E5%92%8F%E5%94%B1.png",
+   "category": "icons",
+   "bytes": 7240,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base skill icon (appendix, lazy)"
+  },
+  {
+   "url": "https://media.prts.wiki/0/04/%E6%8A%80%E8%83%BD_%E7%82%B9%E7%87%83.png",
+   "category": "icons",
+   "bytes": 8629,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base skill icon (appendix, lazy)"
+  },
+  {
+   "url": "https://media.prts.wiki/f/fb/%E6%8A%80%E8%83%BD_%E7%81%AB%E5%B1%B1.png",
+   "category": "icons",
+   "bytes": 12811,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base skill icon (appendix, lazy)"
+  },
+  {
+   "url": "https://media.prts.wiki/8/8a/%E6%8A%80%E8%83%BD_%E6%97%A0%E5%A3%B0%E6%B6%A6%E7%89%A9.png",
+   "category": "icons",
+   "bytes": 20640,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter skill icon (appendix, lazy)"
+  },
+  {
+   "url": "https://media.prts.wiki/e/ea/%E6%8A%80%E8%83%BD_%E4%BA%91%E9%9C%AD%E8%8D%AB%E4%BD%91.png",
+   "category": "icons",
+   "bytes": 22543,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter skill icon (appendix, lazy)"
+  },
+  {
+   "url": "https://media.prts.wiki/0/08/%E6%8A%80%E8%83%BD_%E7%81%AB%E5%B1%B1%E5%9B%9E%E5%93%8D.png",
+   "category": "icons",
+   "bytes": 21070,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter skill icon (appendix, lazy)"
+  },
+  {
+   "url": "https://arknights.wiki.gg/images/Adele_Keller.png",
+   "category": "portraits",
+   "bytes": 359178,
+   "firstScreen": false,
+   "cors": false,
+   "status": 200,
+   "note": "story/people portrait (lazy)"
+  },
+  {
+   "url": "https://arknights.wiki.gg/images/Kahn.png",
+   "category": "portraits",
+   "bytes": 230959,
+   "firstScreen": false,
+   "cors": false,
+   "status": 200,
+   "note": "story/people portrait (lazy)"
+  },
+  {
+   "url": "https://arknights.wiki.gg/images/Dolly.png",
+   "category": "portraits",
+   "bytes": 844902,
+   "firstScreen": false,
+   "cors": false,
+   "status": 200,
+   "note": "story/people portrait (lazy)"
+  },
+  {
+   "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Eyjafjallajokull-April-17.JPG/1280px-Eyjafjallajokull-April-17.JPG",
+   "category": "photos",
+   "bytes": 213665,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "volcano photo (lazy)"
+  },
+  {
+   "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Fimmvorduhals_2010_03_27_dawn.jpg/1280px-Fimmvorduhals_2010_03_27_dawn.jpg",
+   "category": "photos",
+   "bytes": 123181,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "volcano photo (lazy)"
+  },
+  {
+   "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Eyjafjallajokull_volcano_plume_2010_04_17.jpg/1280px-Eyjafjallajokull_volcano_plume_2010_04_17.jpg",
+   "category": "photos",
+   "bytes": 157900,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "volcano photo (lazy)"
+  },
+  {
+   "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Eyjafjallajokull_Gigjokull_in_ash.jpg/1280px-Eyjafjallajokull_Gigjokull_in_ash.jpg",
+   "category": "photos",
+   "bytes": 168676,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "volcano photo (lazy)"
+  },
+  {
+   "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/%C3%9E%C3%B3rsm%C3%B6rk_Eyjafjallaj%C3%B6kull_1_Iceland_%28cropped%29.jpg/1280px-%C3%9E%C3%B3rsm%C3%B6rk_Eyjafjallaj%C3%B6kull_1_Iceland_%28cropped%29.jpg",
+   "category": "photos",
+   "bytes": 241012,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "volcano photo (lazy)"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/EsotericSoftware/spine-runtimes@3.8/spine-ts/build/spine-webgl.js",
+   "category": "runtime",
+   "bytes": 420345,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "spine-ts 3.8 webgl runtime; injected ~2.5 s after boot by the theater preload; true size from jsDelivr ETag (its Range total 78907 is the compressed cache object)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/meta.json",
+   "category": "chibi",
+   "bytes": 785,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi meta"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/meta.json",
+   "category": "chibi",
+   "bytes": 825,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi meta"
+  },
+  {
+   "url": "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+Runic&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap",
+   "category": "fonts",
+   "bytes": 686263,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Google Fonts css2 stylesheet (render-blocking); HEAD returns Content-Length 0, size = fetched CSS (Chrome UA, uncompressed; 186209 B gzip on the wire)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/cinzel/v26/8vIJ7ww63mVu7gt7-GT7LEc.woff2",
+   "category": "fonts",
+   "bytes": 14540,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Cinzel wght 500,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/cinzel/v26/8vIJ7ww63mVu7gt79mT7.woff2",
+   "category": "fonts",
+   "bytes": 25904,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Cinzel wght 500,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwhsk.woff2",
+   "category": "fonts",
+   "bytes": 1640,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "JetBrains Mono wght 400,700,800 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwhsk.woff2",
+   "category": "fonts",
+   "bytes": 8872,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "JetBrains Mono wght 400,700,800 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwhsk.woff2",
+   "category": "fonts",
+   "bytes": 6836,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "JetBrains Mono wght 400,700,800 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwhsk.woff2",
+   "category": "fonts",
+   "bytes": 5888,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "JetBrains Mono wght 400,700,800 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwhsk.woff2",
+   "category": "fonts",
+   "bytes": 11624,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "JetBrains Mono wght 400,700,800 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+   "category": "fonts",
+   "bytes": 31432,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "JetBrains Mono wght 400,700,800 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosansrunic/v18/H4c_BXWPl9DZ0Xe_nHUaus7W68WmWBBuLtg.woff2",
+   "category": "fonts",
+   "bytes": 6588,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans Runic wght 400 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosansrunic/v18/H4c_BXWPl9DZ0Xe_nHUaus7W68WmYhBuLtg.woff2",
+   "category": "fonts",
+   "bytes": 10084,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans Runic wght 400 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosansrunic/v18/H4c_BXWPl9DZ0Xe_nHUaus7W68WmbBBu.woff2",
+   "category": "fonts",
+   "bytes": 15248,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans Runic wght 400 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.4.woff2",
+   "category": "fonts",
+   "bytes": 3796,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.5.woff2",
+   "category": "fonts",
+   "bytes": 20176,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.6.woff2",
+   "category": "fonts",
+   "bytes": 11464,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.21.woff2",
+   "category": "fonts",
+   "bytes": 11356,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.22.woff2",
+   "category": "fonts",
+   "bytes": 65384,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.23.woff2",
+   "category": "fonts",
+   "bytes": 56792,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.24.woff2",
+   "category": "fonts",
+   "bytes": 62580,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.25.woff2",
+   "category": "fonts",
+   "bytes": 58320,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.26.woff2",
+   "category": "fonts",
+   "bytes": 50888,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.27.woff2",
+   "category": "fonts",
+   "bytes": 47488,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.28.woff2",
+   "category": "fonts",
+   "bytes": 50200,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.29.woff2",
+   "category": "fonts",
+   "bytes": 54008,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.30.woff2",
+   "category": "fonts",
+   "bytes": 54656,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.31.woff2",
+   "category": "fonts",
+   "bytes": 47220,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.32.woff2",
+   "category": "fonts",
+   "bytes": 52548,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.33.woff2",
+   "category": "fonts",
+   "bytes": 47452,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.34.woff2",
+   "category": "fonts",
+   "bytes": 46888,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.35.woff2",
+   "category": "fonts",
+   "bytes": 50688,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.36.woff2",
+   "category": "fonts",
+   "bytes": 41832,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.37.woff2",
+   "category": "fonts",
+   "bytes": 53528,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.38.woff2",
+   "category": "fonts",
+   "bytes": 54592,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.39.woff2",
+   "category": "fonts",
+   "bytes": 51784,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.40.woff2",
+   "category": "fonts",
+   "bytes": 46628,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.41.woff2",
+   "category": "fonts",
+   "bytes": 36416,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.42.woff2",
+   "category": "fonts",
+   "bytes": 45540,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.43.woff2",
+   "category": "fonts",
+   "bytes": 46624,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.44.woff2",
+   "category": "fonts",
+   "bytes": 54244,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.45.woff2",
+   "category": "fonts",
+   "bytes": 67620,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.46.woff2",
+   "category": "fonts",
+   "bytes": 57668,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.47.woff2",
+   "category": "fonts",
+   "bytes": 56156,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.48.woff2",
+   "category": "fonts",
+   "bytes": 50764,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.49.woff2",
+   "category": "fonts",
+   "bytes": 52844,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.50.woff2",
+   "category": "fonts",
+   "bytes": 45876,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.51.woff2",
+   "category": "fonts",
+   "bytes": 41616,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.52.woff2",
+   "category": "fonts",
+   "bytes": 51840,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.53.woff2",
+   "category": "fonts",
+   "bytes": 43528,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.54.woff2",
+   "category": "fonts",
+   "bytes": 52000,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.55.woff2",
+   "category": "fonts",
+   "bytes": 48132,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.56.woff2",
+   "category": "fonts",
+   "bytes": 53500,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.57.woff2",
+   "category": "fonts",
+   "bytes": 55496,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.58.woff2",
+   "category": "fonts",
+   "bytes": 57648,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.59.woff2",
+   "category": "fonts",
+   "bytes": 47676,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.60.woff2",
+   "category": "fonts",
+   "bytes": 41432,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.61.woff2",
+   "category": "fonts",
+   "bytes": 45276,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.62.woff2",
+   "category": "fonts",
+   "bytes": 59112,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.63.woff2",
+   "category": "fonts",
+   "bytes": 49180,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.64.woff2",
+   "category": "fonts",
+   "bytes": 41540,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.65.woff2",
+   "category": "fonts",
+   "bytes": 41608,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.66.woff2",
+   "category": "fonts",
+   "bytes": 52868,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.67.woff2",
+   "category": "fonts",
+   "bytes": 52584,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.68.woff2",
+   "category": "fonts",
+   "bytes": 41568,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.69.woff2",
+   "category": "fonts",
+   "bytes": 55604,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.70.woff2",
+   "category": "fonts",
+   "bytes": 42236,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.71.woff2",
+   "category": "fonts",
+   "bytes": 47904,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.72.woff2",
+   "category": "fonts",
+   "bytes": 47032,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.73.woff2",
+   "category": "fonts",
+   "bytes": 39312,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.74.woff2",
+   "category": "fonts",
+   "bytes": 56424,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.75.woff2",
+   "category": "fonts",
+   "bytes": 43940,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.76.woff2",
+   "category": "fonts",
+   "bytes": 48420,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.77.woff2",
+   "category": "fonts",
+   "bytes": 36788,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.78.woff2",
+   "category": "fonts",
+   "bytes": 49156,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.79.woff2",
+   "category": "fonts",
+   "bytes": 41232,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.80.woff2",
+   "category": "fonts",
+   "bytes": 32632,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.81.woff2",
+   "category": "fonts",
+   "bytes": 47548,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.82.woff2",
+   "category": "fonts",
+   "bytes": 46176,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.83.woff2",
+   "category": "fonts",
+   "bytes": 43504,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.84.woff2",
+   "category": "fonts",
+   "bytes": 32612,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.85.woff2",
+   "category": "fonts",
+   "bytes": 26900,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.86.woff2",
+   "category": "fonts",
+   "bytes": 33576,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.87.woff2",
+   "category": "fonts",
+   "bytes": 8012,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.88.woff2",
+   "category": "fonts",
+   "bytes": 7336,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.89.woff2",
+   "category": "fonts",
+   "bytes": 10984,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.90.woff2",
+   "category": "fonts",
+   "bytes": 9344,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.91.woff2",
+   "category": "fonts",
+   "bytes": 8704,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.97.woff2",
+   "category": "fonts",
+   "bytes": 2080,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.98.woff2",
+   "category": "fonts",
+   "bytes": 3416,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.99.woff2",
+   "category": "fonts",
+   "bytes": 9704,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.100.woff2",
+   "category": "fonts",
+   "bytes": 64548,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.101.woff2",
+   "category": "fonts",
+   "bytes": 58204,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.102.woff2",
+   "category": "fonts",
+   "bytes": 60708,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.103.woff2",
+   "category": "fonts",
+   "bytes": 63864,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.104.woff2",
+   "category": "fonts",
+   "bytes": 61588,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.105.woff2",
+   "category": "fonts",
+   "bytes": 61828,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.106.woff2",
+   "category": "fonts",
+   "bytes": 62636,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.107.woff2",
+   "category": "fonts",
+   "bytes": 61076,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.108.woff2",
+   "category": "fonts",
+   "bytes": 64552,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.109.woff2",
+   "category": "fonts",
+   "bytes": 60372,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.110.woff2",
+   "category": "fonts",
+   "bytes": 61472,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.111.woff2",
+   "category": "fonts",
+   "bytes": 62664,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.112.woff2",
+   "category": "fonts",
+   "bytes": 57648,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.113.woff2",
+   "category": "fonts",
+   "bytes": 58648,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.114.woff2",
+   "category": "fonts",
+   "bytes": 57964,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.115.woff2",
+   "category": "fonts",
+   "bytes": 56508,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.116.woff2",
+   "category": "fonts",
+   "bytes": 52984,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.117.woff2",
+   "category": "fonts",
+   "bytes": 52464,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.118.woff2",
+   "category": "fonts",
+   "bytes": 46192,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.119.woff2",
+   "category": "fonts",
+   "bytes": 76800,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRKoKIyQ4.woff2",
+   "category": "fonts",
+   "bytes": 10008,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRIYKIyQ4.woff2",
+   "category": "fonts",
+   "bytes": 9096,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRIIKIyQ4.woff2",
+   "category": "fonts",
+   "bytes": 8244,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRLoKI.woff2",
+   "category": "fonts",
+   "bytes": 25240,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Sans SC wght 400,500,700 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.4.woff2",
+   "category": "fonts",
+   "bytes": 4644,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.5.woff2",
+   "category": "fonts",
+   "bytes": 26836,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.6.woff2",
+   "category": "fonts",
+   "bytes": 15672,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.21.woff2",
+   "category": "fonts",
+   "bytes": 26040,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.22.woff2",
+   "category": "fonts",
+   "bytes": 85288,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.23.woff2",
+   "category": "fonts",
+   "bytes": 73872,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.24.woff2",
+   "category": "fonts",
+   "bytes": 82664,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.25.woff2",
+   "category": "fonts",
+   "bytes": 77944,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.26.woff2",
+   "category": "fonts",
+   "bytes": 71356,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.27.woff2",
+   "category": "fonts",
+   "bytes": 64664,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.28.woff2",
+   "category": "fonts",
+   "bytes": 67936,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.29.woff2",
+   "category": "fonts",
+   "bytes": 72784,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.30.woff2",
+   "category": "fonts",
+   "bytes": 76908,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.31.woff2",
+   "category": "fonts",
+   "bytes": 64260,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.32.woff2",
+   "category": "fonts",
+   "bytes": 68000,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.33.woff2",
+   "category": "fonts",
+   "bytes": 66088,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.34.woff2",
+   "category": "fonts",
+   "bytes": 64724,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.35.woff2",
+   "category": "fonts",
+   "bytes": 63760,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.36.woff2",
+   "category": "fonts",
+   "bytes": 57848,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.37.woff2",
+   "category": "fonts",
+   "bytes": 67828,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.38.woff2",
+   "category": "fonts",
+   "bytes": 75304,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.39.woff2",
+   "category": "fonts",
+   "bytes": 72288,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.40.woff2",
+   "category": "fonts",
+   "bytes": 66144,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.41.woff2",
+   "category": "fonts",
+   "bytes": 51516,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.42.woff2",
+   "category": "fonts",
+   "bytes": 62740,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.43.woff2",
+   "category": "fonts",
+   "bytes": 58348,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.44.woff2",
+   "category": "fonts",
+   "bytes": 72500,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.45.woff2",
+   "category": "fonts",
+   "bytes": 91672,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.46.woff2",
+   "category": "fonts",
+   "bytes": 77584,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.47.woff2",
+   "category": "fonts",
+   "bytes": 74000,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.48.woff2",
+   "category": "fonts",
+   "bytes": 64612,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.49.woff2",
+   "category": "fonts",
+   "bytes": 70316,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.50.woff2",
+   "category": "fonts",
+   "bytes": 64520,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.51.woff2",
+   "category": "fonts",
+   "bytes": 57320,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.52.woff2",
+   "category": "fonts",
+   "bytes": 67828,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.53.woff2",
+   "category": "fonts",
+   "bytes": 53856,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.54.woff2",
+   "category": "fonts",
+   "bytes": 69316,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.55.woff2",
+   "category": "fonts",
+   "bytes": 61532,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.56.woff2",
+   "category": "fonts",
+   "bytes": 69656,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.57.woff2",
+   "category": "fonts",
+   "bytes": 74032,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.58.woff2",
+   "category": "fonts",
+   "bytes": 82552,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.59.woff2",
+   "category": "fonts",
+   "bytes": 69524,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.60.woff2",
+   "category": "fonts",
+   "bytes": 61376,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.61.woff2",
+   "category": "fonts",
+   "bytes": 61312,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.62.woff2",
+   "category": "fonts",
+   "bytes": 79496,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.63.woff2",
+   "category": "fonts",
+   "bytes": 63936,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.64.woff2",
+   "category": "fonts",
+   "bytes": 51012,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.65.woff2",
+   "category": "fonts",
+   "bytes": 58572,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.66.woff2",
+   "category": "fonts",
+   "bytes": 69204,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.67.woff2",
+   "category": "fonts",
+   "bytes": 71680,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.68.woff2",
+   "category": "fonts",
+   "bytes": 54196,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.69.woff2",
+   "category": "fonts",
+   "bytes": 73588,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.70.woff2",
+   "category": "fonts",
+   "bytes": 53064,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.71.woff2",
+   "category": "fonts",
+   "bytes": 62884,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.72.woff2",
+   "category": "fonts",
+   "bytes": 65720,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.73.woff2",
+   "category": "fonts",
+   "bytes": 56040,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.74.woff2",
+   "category": "fonts",
+   "bytes": 74576,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.75.woff2",
+   "category": "fonts",
+   "bytes": 57824,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.76.woff2",
+   "category": "fonts",
+   "bytes": 65740,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.77.woff2",
+   "category": "fonts",
+   "bytes": 51780,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.78.woff2",
+   "category": "fonts",
+   "bytes": 71048,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.79.woff2",
+   "category": "fonts",
+   "bytes": 58804,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.80.woff2",
+   "category": "fonts",
+   "bytes": 45184,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.81.woff2",
+   "category": "fonts",
+   "bytes": 60576,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.82.woff2",
+   "category": "fonts",
+   "bytes": 62128,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.83.woff2",
+   "category": "fonts",
+   "bytes": 58812,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.84.woff2",
+   "category": "fonts",
+   "bytes": 42656,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.85.woff2",
+   "category": "fonts",
+   "bytes": 40440,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.86.woff2",
+   "category": "fonts",
+   "bytes": 47336,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.87.woff2",
+   "category": "fonts",
+   "bytes": 7400,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.88.woff2",
+   "category": "fonts",
+   "bytes": 6892,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.89.woff2",
+   "category": "fonts",
+   "bytes": 12280,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.90.woff2",
+   "category": "fonts",
+   "bytes": 9736,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.91.woff2",
+   "category": "fonts",
+   "bytes": 10568,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.97.woff2",
+   "category": "fonts",
+   "bytes": 2416,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.98.woff2",
+   "category": "fonts",
+   "bytes": 4376,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.99.woff2",
+   "category": "fonts",
+   "bytes": 12324,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.100.woff2",
+   "category": "fonts",
+   "bytes": 84728,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.101.woff2",
+   "category": "fonts",
+   "bytes": 77708,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.102.woff2",
+   "category": "fonts",
+   "bytes": 79564,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.103.woff2",
+   "category": "fonts",
+   "bytes": 84032,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.104.woff2",
+   "category": "fonts",
+   "bytes": 80996,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.105.woff2",
+   "category": "fonts",
+   "bytes": 81516,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.106.woff2",
+   "category": "fonts",
+   "bytes": 81600,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.107.woff2",
+   "category": "fonts",
+   "bytes": 79852,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.108.woff2",
+   "category": "fonts",
+   "bytes": 83484,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.109.woff2",
+   "category": "fonts",
+   "bytes": 79000,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.110.woff2",
+   "category": "fonts",
+   "bytes": 79492,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.111.woff2",
+   "category": "fonts",
+   "bytes": 81144,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.112.woff2",
+   "category": "fonts",
+   "bytes": 75996,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.113.woff2",
+   "category": "fonts",
+   "bytes": 75872,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.114.woff2",
+   "category": "fonts",
+   "bytes": 74744,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.115.woff2",
+   "category": "fonts",
+   "bytes": 72536,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.116.woff2",
+   "category": "fonts",
+   "bytes": 67284,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.117.woff2",
+   "category": "fonts",
+   "bytes": 66576,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.118.woff2",
+   "category": "fonts",
+   "bytes": 58148,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7oqP0dTpxZbB9E9gjjmzKvaeKHUTtJDWv3z-us4bxD8F5og.119.woff2",
+   "category": "fonts",
+   "bytes": 103768,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7kqWWbghq.woff2",
+   "category": "fonts",
+   "bytes": 14476,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7kq6Wbghq.woff2",
+   "category": "fonts",
+   "bytes": 10920,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7kq-Wbghq.woff2",
+   "category": "fonts",
+   "bytes": 10332,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; no page character in its unicode-range (never requested)"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/notoserifsc/v35/H4chBXePl9DZ0Xe7gG9cyOj7kqGWbg.woff2",
+   "category": "fonts",
+   "bytes": 32972,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "Noto Serif SC wght 600,700,900 slice; covers characters used by the page"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/defaultskin/build/build_char_180_amgoat.skel",
+   "category": "chibi",
+   "bytes": 112633,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 默认 · 基建 build · auto-preloaded ~2.5 s after boot (theater)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/defaultskin/build/build_char_180_amgoat.atlas",
+   "category": "chibi",
+   "bytes": 8169,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 默认 · 基建 build · auto-preloaded ~2.5 s after boot (theater)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/defaultskin/build/build_char_180_amgoat.png",
+   "category": "chibi",
+   "bytes": 123026,
+   "firstScreen": true,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 默认 · 基建 build · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists) · auto-preloaded ~2.5 s after boot (theater)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/defaultskin/front/char_180_amgoat.skel",
+   "category": "chibi",
+   "bytes": 190563,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 默认 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/defaultskin/front/char_180_amgoat.atlas",
+   "category": "chibi",
+   "bytes": 6925,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 默认 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/defaultskin/front/char_180_amgoat.png",
+   "category": "chibi",
+   "bytes": 67487,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 默认 · 正面 front (作战) · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_summer_5/build/build_char_180_amgoat_summer_5.skel",
+   "category": "chibi",
+   "bytes": 419723,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 夏卉 FA018 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_summer_5/build/build_char_180_amgoat_summer_5.atlas",
+   "category": "chibi",
+   "bytes": 11416,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 夏卉 FA018 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_summer_5/build/build_char_180_amgoat_summer_5.png",
+   "category": "chibi",
+   "bytes": 181678,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 夏卉 FA018 · 基建 build · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_summer_5/front/char_180_amgoat_summer_5.skel",
+   "category": "chibi",
+   "bytes": 278436,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 夏卉 FA018 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_summer_5/front/char_180_amgoat_summer_5.atlas",
+   "category": "chibi",
+   "bytes": 9653,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 夏卉 FA018 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_summer_5/front/char_180_amgoat_summer_5.png",
+   "category": "chibi",
+   "bytes": 90450,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 夏卉 FA018 · 正面 front (作战) · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_sanrio_2/build/build_char_180_amgoat_sanrio_2.skel",
+   "category": "chibi",
+   "bytes": 685017,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 绵绒小魔女 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_sanrio_2/build/build_char_180_amgoat_sanrio_2.atlas",
+   "category": "chibi",
+   "bytes": 15999,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 绵绒小魔女 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_sanrio_2/build/build_char_180_amgoat_sanrio_2.png",
+   "category": "chibi",
+   "bytes": 317264,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 绵绒小魔女 · 基建 build · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_sanrio_2/front/char_180_amgoat_sanrio_2.skel",
+   "category": "chibi",
+   "bytes": 415333,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 绵绒小魔女 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_sanrio_2/front/char_180_amgoat_sanrio_2.atlas",
+   "category": "chibi",
+   "bytes": 12519,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 绵绒小魔女 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_180_amgoat/char_180_amgoat_sanrio_2/front/char_180_amgoat_sanrio_2.png",
+   "category": "chibi",
+   "bytes": 159254,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base chibi · skin 绵绒小魔女 · 正面 front (作战) · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/defaultskin/build/build_char_1016_agoat2.skel",
+   "category": "chibi",
+   "bytes": 159510,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 默认 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/defaultskin/build/build_char_1016_agoat2.atlas",
+   "category": "chibi",
+   "bytes": 10668,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 默认 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/defaultskin/build/build_char_1016_agoat2.png",
+   "category": "chibi",
+   "bytes": 193626,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 默认 · 基建 build · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/defaultskin/front/char_1016_agoat2.skel",
+   "category": "chibi",
+   "bytes": 384453,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 默认 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/defaultskin/front/char_1016_agoat2.atlas",
+   "category": "chibi",
+   "bytes": 11593,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 默认 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/defaultskin/front/char_1016_agoat2.png",
+   "category": "chibi",
+   "bytes": 119306,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 默认 · 正面 front (作战) · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_34/build/build_char_1016_agoat2_epoque_34.skel",
+   "category": "chibi",
+   "bytes": 1186888,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 远行前的野餐 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_34/build/build_char_1016_agoat2_epoque_34.atlas",
+   "category": "chibi",
+   "bytes": 21627,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 远行前的野餐 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_34/build/build_char_1016_agoat2_epoque_34.png",
+   "category": "chibi",
+   "bytes": 386970,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 远行前的野餐 · 基建 build · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_34/front/char_1016_agoat2_epoque_34.skel",
+   "category": "chibi",
+   "bytes": 1132963,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 远行前的野餐 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_34/front/char_1016_agoat2_epoque_34.atlas",
+   "category": "chibi",
+   "bytes": 15982,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 远行前的野餐 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_34/front/char_1016_agoat2_epoque_34.png",
+   "category": "chibi",
+   "bytes": 156263,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 远行前的野餐 · 正面 front (作战) · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_57/build/build_char_1016_agoat2_epoque_57.skel",
+   "category": "chibi",
+   "bytes": 469539,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 后来的故事 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_57/build/build_char_1016_agoat2_epoque_57.atlas",
+   "category": "chibi",
+   "bytes": 16925,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 后来的故事 · 基建 build"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_57/build/build_char_1016_agoat2_epoque_57.png",
+   "category": "chibi",
+   "bytes": 340036,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 后来的故事 · 基建 build · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_57/front/char_1016_agoat2_epoque_57.skel",
+   "category": "chibi",
+   "bytes": 469818,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 后来的故事 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_57/front/char_1016_agoat2_epoque_57.atlas",
+   "category": "chibi",
+   "bytes": 15341,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 后来的故事 · 正面 front (作战)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/char_spine/char_1016_agoat2/char_1016_agoat2_epoque_57/front/char_1016_agoat2_epoque_57.png",
+   "category": "chibi",
+   "bytes": 182833,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter chibi · skin 后来的故事 · 正面 front (作战) · page name inferred from atlas base name (HEAD 200; no <name>2.png / <name>_2.png page exists)"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2/dyn_illust_char_1016_agoat2.skel",
+   "category": "dyn",
+   "bytes": 1139578,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2/dyn_illust_char_1016_agoat2.skel",
+   "note": "纯烬 dynamic illustration 'e2' 精英二 (dyn.js says ~5.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); hero loads e2 on first screen only if the saved state is alter + E2"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2/dyn_illust_char_1016_agoat2.atlas",
+   "category": "dyn",
+   "bytes": 27778,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2/dyn_illust_char_1016_agoat2.atlas",
+   "note": "纯烬 dynamic illustration 'e2' 精英二 (dyn.js says ~5.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); hero loads e2 on first screen only if the saved state is alter + E2"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2/dyn_illust_char_1016_agoat2.png",
+   "category": "dyn",
+   "bytes": 4756414,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2/dyn_illust_char_1016_agoat2.png",
+   "note": "纯烬 dynamic illustration 'e2' 精英二 (dyn.js says ~5.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); hero loads e2 on first screen only if the saved state is alter + E2"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2334/dyn_illust_char_1016_agoat2_epoque%2334",
+   "category": "dyn",
+   "bytes": 5038254,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2334/dyn_illust_char_1016_agoat2_epoque%2334",
+   "note": "纯烬 dynamic illustration 's34' 远行前的野餐 (dyn.js says ~8.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); gallery tab, on click"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2334/dyn_illust_char_1016_agoat2_epoque%2334.atlas",
+   "category": "dyn",
+   "bytes": 45174,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2334/dyn_illust_char_1016_agoat2_epoque%2334.atlas",
+   "note": "纯烬 dynamic illustration 's34' 远行前的野餐 (dyn.js says ~8.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); gallery tab, on click"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2334/dyn_illust_char_1016_agoat2_epoque%2334.png",
+   "category": "dyn",
+   "bytes": 3765364,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2334/dyn_illust_char_1016_agoat2_epoque%2334.png",
+   "note": "纯烬 dynamic illustration 's34' 远行前的野餐 (dyn.js says ~8.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); gallery tab, on click"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2357/dyn_illust_char_1016_agoat2_epoque%2357.skel",
+   "category": "dyn",
+   "bytes": 1863874,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2357/dyn_illust_char_1016_agoat2_epoque%2357.skel",
+   "note": "纯烬 dynamic illustration 's57' 后来的故事 (dyn.js says ~6.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); gallery tab, on click"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2357/dyn_illust_char_1016_agoat2_epoque%2357.atlas",
+   "category": "dyn",
+   "bytes": 60076,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2357/dyn_illust_char_1016_agoat2_epoque%2357.atlas",
+   "note": "纯烬 dynamic illustration 's57' 后来的故事 (dyn.js says ~6.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); gallery tab, on click"
+  },
+  {
+   "url": "https://cdn.jsdelivr.net/gh/isHarryh/Ark-Models@3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2357/dyn_illust_char_1016_agoat2_epoque%2357.png",
+   "category": "dyn",
+   "bytes": 4967324,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "fallback": "https://raw.githubusercontent.com/isHarryh/Ark-Models/3745e5c6e10b5252b2a5e1f1841ebef62b7ef15b/models_illust/dyn_illust_1016_agoat2_epoque%2357/dyn_illust_char_1016_agoat2_epoque%2357.png",
+   "note": "纯烬 dynamic illustration 's57' 后来的故事 (dyn.js says ~6.9 MB); size = GitHub raw Content-Length (= jsDelivr ETag); gallery tab, on click"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_001.wav",
+   "category": "voice",
+   "bytes": 887394,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base voice 001 JP (voice) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_002.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 002 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_003.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 003 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_004.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 004 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_005.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 005 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_006.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 006 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_007.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 007 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_008.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 008 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_009.wav",
+   "category": "voice",
+   "bytes": 1869398,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base voice 009 JP (voice) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_010.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 010 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_011.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 011 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_012.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 012 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_013.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 013 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_014.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 014 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_017.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 017 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_018.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 018 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_019.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 019 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_020.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 020 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_021.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 021 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_022.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 022 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_023.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 023 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_024.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 024 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_025.wav",
+   "category": "voice",
+   "bytes": 169028,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base voice 025 JP (voice) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_026.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 026 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_027.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 027 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_028.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 028 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_029.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 029 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_030.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 030 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_031.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 031 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_032.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 032 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_033.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 033 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_034.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 034 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_036.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 036 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_037.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 037 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_038.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 038 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_042.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 042 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_043.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 043 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_180_amgoat/cn_044.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 044 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_001.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 001 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_002.wav",
+   "category": "voice",
+   "bytes": 1095928,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base voice 002 CN (voice_cn) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_003.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 003 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_004.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 004 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_005.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 005 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_006.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 006 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_007.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 007 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_008.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 008 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_009.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 009 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_010.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 010 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_011.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 011 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_012.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 012 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_013.wav",
+   "category": "voice",
+   "bytes": 440162,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base voice 013 CN (voice_cn) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_014.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 014 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_017.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 017 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_018.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 018 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_019.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 019 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_020.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 020 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_021.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 021 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_022.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 022 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_023.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 023 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_024.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 024 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_025.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 025 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_026.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 026 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_027.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 027 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_028.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 028 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_029.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 029 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_030.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 030 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_031.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 031 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_032.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 032 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_033.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 033 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_034.wav",
+   "category": "voice",
+   "bytes": 266408,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "base voice 034 CN (voice_cn) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_036.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 036 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_037.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 037 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_038.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 038 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_042.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 042 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_043.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 043 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_180_amgoat/cn_044.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "base voice 044 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_001.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 001 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_002.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 002 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_003.wav",
+   "category": "voice",
+   "bytes": 2241068,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter voice 003 JP (voice) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_004.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 004 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_005.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 005 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_006.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 006 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_007.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 007 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_008.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 008 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_009.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 009 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_010.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 010 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_011.wav",
+   "category": "voice",
+   "bytes": 1598570,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter voice 011 JP (voice) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_012.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 012 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_013.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 013 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_014.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 014 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_017.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 017 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_018.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 018 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_019.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 019 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_020.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 020 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_021.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 021 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_022.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 022 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_023.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 023 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_024.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 024 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_025.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 025 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_026.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 026 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_027.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 027 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_028.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 028 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_029.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 029 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_030.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 030 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_031.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 031 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_032.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 032 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_033.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 033 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_034.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 034 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_036.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 036 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_037.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 037 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_038.wav",
+   "category": "voice",
+   "bytes": 2437348,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter voice 038 JP (voice) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_042.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 042 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_043.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 043 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice/char_1016_agoat2/cn_044.wav",
+   "category": "voice",
+   "bytes": 1533801,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 044 JP (voice) · not probed: bytes = mean of 6 sampled JP files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_001.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 001 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_002.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 002 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_003.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 003 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_004.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 004 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_005.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 005 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_006.wav",
+   "category": "voice",
+   "bytes": 1360336,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter voice 006 CN (voice_cn) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_007.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 007 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_008.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 008 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_009.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 009 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_010.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 010 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_011.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 011 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_012.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 012 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_013.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 013 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_014.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 014 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_017.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 017 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_018.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 018 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_019.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 019 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_020.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 020 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_021.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 021 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_022.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 022 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_023.wav",
+   "category": "voice",
+   "bytes": 325132,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter voice 023 CN (voice_cn) · sampled (HEAD)"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_024.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 024 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_025.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 025 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_026.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 026 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_027.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 027 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_028.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 028 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_029.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 029 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_030.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 030 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_031.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 031 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_032.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 032 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_033.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 033 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_034.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 034 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_036.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 036 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_037.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 037 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_038.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 038 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_042.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 042 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_043.wav",
+   "category": "voice",
+   "bytes": 883083,
+   "firstScreen": false,
+   "cors": true,
+   "status": null,
+   "estimated": true,
+   "note": "alter voice 043 CN (voice_cn) · not probed: bytes = mean of 6 sampled CN files; cors inferred from sampled files on the same host"
+  },
+  {
+   "url": "https://torappu.prts.wiki/assets/audio/voice_cn/char_1016_agoat2/cn_044.wav",
+   "category": "voice",
+   "bytes": 1810532,
+   "firstScreen": false,
+   "cors": true,
+   "status": 200,
+   "note": "alter voice 044 CN (voice_cn) · sampled (HEAD)"
+  }
+ ],
+ "totals": {
+  "byCategory": {
+   "fonts": {
+    "files": 214,
+    "bytes": 11369419,
+    "MB": 11.37,
+    "firstScreenFiles": 100,
+    "firstScreenBytes": 6139603,
+    "estimated": false,
+    "note": "all 213 unique woff2 slices + the CSS; only 99 slices (5453340 B) intersect characters the page uses"
+   },
+   "art": {
+    "files": 4,
+    "bytes": 2760254,
+    "MB": 2.76,
+    "firstScreenFiles": 3,
+    "firstScreenBytes": 1407884,
+    "estimated": false
+   },
+   "thumbnails-needed": {
+    "files": 4,
+    "bytes": 2490310,
+    "MB": 2.49,
+    "firstScreenFiles": 0,
+    "firstScreenBytes": 0,
+    "estimated": false
+   },
+   "keyart": {
+    "files": 2,
+    "bytes": 516882,
+    "MB": 0.52,
+    "firstScreenFiles": 0,
+    "firstScreenBytes": 0,
+    "estimated": false
+   },
+   "icons": {
+    "files": 8,
+    "bytes": 189533,
+    "MB": 0.19,
+    "firstScreenFiles": 1,
+    "firstScreenBytes": 38634,
+    "estimated": false
+   },
+   "portraits": {
+    "files": 3,
+    "bytes": 1435039,
+    "MB": 1.44,
+    "firstScreenFiles": 0,
+    "firstScreenBytes": 0,
+    "estimated": false
+   },
+   "photos": {
+    "files": 5,
+    "bytes": 904434,
+    "MB": 0.9,
+    "firstScreenFiles": 0,
+    "firstScreenBytes": 0,
+    "estimated": false
+   },
+   "chibi": {
+    "files": 38,
+    "bytes": 8381496,
+    "MB": 8.38,
+    "firstScreenFiles": 4,
+    "firstScreenBytes": 244613,
+    "estimated": false
+   },
+   "dyn": {
+    "files": 9,
+    "bytes": 21663836,
+    "MB": 21.66,
+    "firstScreenFiles": 0,
+    "firstScreenBytes": 0,
+    "estimated": false
+   },
+   "runtime": {
+    "files": 1,
+    "bytes": 420345,
+    "MB": 0.42,
+    "firstScreenFiles": 1,
+    "firstScreenBytes": 420345,
+    "estimated": false
+   },
+   "voice": {
+    "files": 152,
+    "bytes": 183683184,
+    "MB": 183.68,
+    "firstScreenFiles": 0,
+    "firstScreenBytes": 0,
+    "estimated": true,
+    "note": "12 sampled, 140 estimated (mean JP 1533801 B, CN 883083 B); uncompressed WAV"
+   }
+  },
+  "all": 233814732,
+  "allMB": 233.81,
+  "files": 440,
+  "firstScreenBytes": 8251079,
+  "firstScreenFiles": 109,
+  "allExcludingVoice": 50131548
+ }
+}

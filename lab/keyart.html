@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>keyart lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 "JetBrains Mono", monospace; }
+  #wrap { padding: 12px; }
+  canvas { display: block; }
+  .strip { display: grid; gap: 6px; }
+  .cell { position: relative; }
+  .cell b { position: absolute; left: 4px; top: 2px; font-size: 11px; color: #fff; background: rgba(0,0,0,.55); padding: 0 4px; font-weight: 400; }
+  table { border-collapse: collapse; margin-top: 10px; }
+  td, th { border: 1px solid #333; padding: 2px 8px; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<!--
+  立绘关键画面实验页（开发用）—— js/mv/keyart.js
+    ?key=alter-e0&crop=face&t=3.2                  单帧：draw() 把这块铺满画面（默认 1280 宽；&w=1920）
+        &look=0.4,0 &gaze=0.5,0 &eyes=closed|smile|winkL|0.5 &blink=0 &smile=1 &mouth=0.6 &blush=0.8 &tilt=0.8 &nod=0.5 &lean=0.5
+        &wind=0.8 &windDir=-1 &glow=1.5 &cast=1 &tint=%23ffe0c0,0.4 &rim=0.8 &wash=0.1 &ldir=0.7,-0.7 &lcol=%23ffd8a8 &sat=0.8 &flip=1 &sharpen=0
+        &bg=%23203040（背景色） &fit=contain
+        &anchors=1（在 anchors() 的位置画标记）&roll=0.12（整体旋转，测旋转 / 镜像的绘制路径）&crop=x,y,w,h（原画像素）
+    &shot=1&grade=warm&particles=petals&to=face&z=1.1&dur=8   用 shot() 画完整镜头（t 是一个 dur 秒镜头里的时间；&from=bust）
+    ?sheet=all                                     联系表：五张图 × 全身 / 半身 / 脸 / 闭眼 / 笑 / 大风（&cw=400）
+    ?sheet=shots                                   五张图 × 成片镜头（shot() 的各种调色）
+    ?sheet=wind&wind=1                             五张图 × 风（左 / 无 / 右），看有没有露缝
+    ?sheet=alter-e0                                一张图的全部变化（构图、转头、歪头、表情、风、补光、成片；&cols=3 &cw=640）
+    ?key=alter-e0&times=2,2.4,2.8&diff=1           同一组参数在多个时刻（看运动）；&lookpath=1:-1,2:1 用关键帧转头（看头发惯性）
+    ?perf=1&key=alter-e0&crop=face&n=300           性能：每个 rAF 画一帧（时间按 1/60 秒快进、相机慢推），
+                                                   统计 draw() 的 CPU（含 drawImage）、整帧 render() 的 CPU 与帧间隔（&shot=1 用成片镜头；&w=960 手机档）
+    调试：&sw=1 允许软件 WebGL（无头截图用 SwiftShader 时）· &only=face,hair_head 只画这些图层 · &repair=0 不修补图集
+          · &nobitmap=1 走 <img> 上传 · &windk=2 风的弯曲倍数 · &keyart=off / &keyart=webgl1（keyart.js 自己的开关）
+  结束后 document.title = DONE（或 ERR ...），结果在 window.__out
+-->
+<div id="wrap"></div>
+<script src="../js/mv/engine.js"></script>
+<script src="../js/mv/keyart.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const wrap = document.getElementById('wrap');
+  const out = (window.__out = {});
+  const K = MVE.keyart;
+  if (q.get('sw') === '1') K.opts.software = true;
+  if (q.has('windk')) K.opts.windK = +q.get('windk');
+  if (q.get('nobitmap') === '1') K.opts.noBitmap = true;
+  if (q.has('only')) K.opts.only = q.get('only').split(',');
+  if (q.get('repair') === '0') K.opts.repair = false;
+  K.opts.debug = true;
+  const num = (k, d) => (q.has(k) ? +q.get(k) : d);
+  const pair = (k) => (q.has(k) ? q.get(k).split(',').map(Number) : undefined);
+  /** URL → draw() 参数 */
+  function params(base = {}) {
+    const p = Object.assign({}, base);
+    if (typeof p.crop === 'string' && p.crop.includes(',')) p.crop = p.crop.split(',').map(Number);
+    for (const k of ['mouth', 'blush', 'tilt', 'nod', 'lean', 'wind', 'glow', 'cast', 'smile', 'sat', 'sharpen', 'saccade', 'breath', 'sway']) if (q.has(k)) p[k] = +q.get(k);
+    if (q.has('look')) p.look = pair('look');
+    if (q.has('gaze')) p.gaze = pair('gaze');
+    if (q.has('eyes')) p.eyes = isNaN(+q.get('eyes')) ? q.get('eyes') : +q.get('eyes');
+    if (q.has('blink')) p.blink = q.get('blink') === 'auto' ? 'auto' : +q.get('blink');
+    if (q.has('windDir')) { const v = pair('windDir'); p.windDir = v.length > 1 ? v : v[0]; }
+    if (q.has('tint')) { const [c, a] = q.get('tint').split(','); p.tint = [c, a == null ? 0.4 : +a]; }
+    if (q.has('rim') || q.has('wash') || q.has('lcol') || q.has('ldir')) p.light = { color: q.get('lcol') || '#ffe2bc', rim: num('rim', 0.6), wash: num('wash', 0.1), dir: pair('ldir') || [0.7, -0.7] };
+    if (q.get('flip') === '1') p.flip = true;
+    return p;
+  }
+  try {
+    const an = await MVE.analysis('../assets/music/miss-you.json');
+    const W = +(q.get('w') || 1280), H = Math.round((W * 9) / 16);
+    let CELL = () => {};
+    const film = MVE.film({ id: '_ka_lab', fadeIn: 0, fadeOut: 0, shots: [{ id: 'cell', t0: 0, t1: 1e9, draw(g, s) { CELL(g, s); } }] });
+    const bgFill = (g, col) => { g.fillStyle = col || '#1c2029'; g.fillRect(0, 0, 1920, 1080); };
+    /** 在镜头时间 lt 处画：shot 模式时伪造一个 dur 秒的镜头 */
+    const makeRenderer = (cv) => { const R = MVE.renderer(cv, film, an, { reduced: false }); R.captions = false; return R; };
+    const shotState = (s, lt, dur) => Object.assign({}, s, { lt, dur, p: MVE.clamp(lt / dur), shot: { t0: s.t - lt, t1: s.t - lt + dur } });
+    /** 一格：o = { key, mode: 'draw' | 'shot', p: draw 参数, shot: shot 参数, lt, dur, bg } */
+    const paintCell = (o) => (g, s) => {
+      if (o.mode === 'shot') {
+        const ss = shotState(s, o.lt ?? 2, o.dur ?? 8);
+        const ok = K.shot(g, ss, Object.assign({ key: o.key }, o.shot));
+        if (!ok) MVE.text(g, 'fallback', 960, 540, { size: 60, color: '#fff', alpha: 0.4 });
+      } else {
+        bgFill(g, o.bg);
+        // &roll=0.12：整体转一下（测旋转时的绘制路径）；&flip=1 镜像
+        const roll = num('roll', 0);
+        g.save();
+        if (roll) { g.translate(960, 540); g.rotate(roll); g.translate(-960, -540); }
+        const p = Object.assign({ t: s.t }, o.p);
+        const ok = K.draw(g, o.key, p);
+        if (!ok) MVE.text(g, 'draw() = false', 960, 540, { size: 60, color: '#f88' });
+        // &anchors=1：在锚点上画标记（验证 anchors() 与画面对齐）
+        if (q.get('anchors') === '1') {
+          const A = K.anchors(o.key, p) || {};
+          for (const [name, v] of Object.entries(A)) {
+            if (!Array.isArray(v)) continue;
+            g.strokeStyle = '#00ffc8'; g.lineWidth = 3; g.beginPath(); g.arc(v[0], v[1], 10, 0, Math.PI * 2); g.stroke();
+            MVE.text(g, name, v[0] + 14, v[1] - 10, { size: 22, align: 'left', font: 'mono', color: '#00ffc8' });
+          }
+        }
+        g.restore();
+      }
+    };
+    const t = num('t', 3);
+    if (q.has('perf')) {
+      /* ---------------- 性能 ---------------- */
+      const key = q.get('key') || 'alter-e0', crop = q.get('crop') || 'face', n = num('n', 300);
+      if (!(await K.load(key, 60000))) throw new Error('load failed ' + key);
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      wrap.appendChild(cv); cv.style.width = '640px';
+      const R = makeRenderer(cv);
+      await R.prepare();
+      const drawMs = [], gaps = [], rend = [];
+      const useShot = q.get('shot') === '1';
+      const base = params({ crop });
+      CELL = (g, s) => {
+        if (useShot) {
+          const ss = shotState(s, s.t % 8, 8);
+          const c0 = performance.now();
+          K.shot(g, ss, { key, crop: q.get('from') || 'bust', to: { crop: q.get('to') || crop, z: 1.05 }, grade: q.get('grade') || 'warm', particles: q.get('particles') || 'petals', look: [0.15, 0] });
+          drawMs.push(performance.now() - c0);
+        } else {
+          bgFill(g);
+          // 相机慢推：每帧可见区域都在变（最坏情况：离屏尺寸每帧不同）
+          const z = 1 + ((s.t % 6) / 6) * 0.25;
+          const c0 = performance.now();
+          K.draw(g, key, Object.assign({ t: s.t, fit: 'cover', box: [960 - 960 * z, 540 - 540 * z, 1920 * z, 1080 * z] }, base));
+          drawMs.push(performance.now() - c0);
+        }
+      };
+      // 预热：前 20 帧照常逐帧画（首次用到的着色器编译、缓存都在这里），不计入统计
+      const warm = [];
+      await new Promise((done) => {
+        let i = 0, last = 0;
+        const tick = (ts) => { if (last) warm.push(+(ts - last).toFixed(1)); last = ts; if (i >= 20) { done(); return; } R.render(i / 60); i++; requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
+      });
+      drawMs.length = 0;
+      let maxAt = -1, maxGap = 0;
+      await new Promise((done) => {
+        let i = 0, last = 0;
+        const tick = (ts) => {
+          if (last) { const gp = ts - last; gaps.push(gp); if (gp > maxGap) { maxGap = gp; maxAt = i; } }
+          last = ts;
+          if (i >= n) { done(); return; }
+          const c0 = performance.now(); R.render(1 + i / 60); rend.push(performance.now() - c0);
+          i++; requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      out.warm = warm; out.maxGapAt = maxAt;
+      const stat = (a) => { const s2 = a.slice().sort((x, y) => x - y); return { n: a.length, avg: +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(3), p50: +s2[Math.floor(s2.length * 0.5)].toFixed(3), p95: +s2[Math.floor(s2.length * 0.95)].toFixed(3), max: +s2[s2.length - 1].toFixed(3) }; };
+      out.perf = { key, crop, W, H, mode: useShot ? 'shot' : 'draw', draw: stat(drawMs), render: stat(rend), frame: stat(gaps), canvas: K.stats.canvas.slice(), gpuMB: K.stats.gpuMB, webgl2: !!document.createElement('canvas').getContext('webgl2') };
+      wrap.insertAdjacentHTML('beforeend', `<pre>${JSON.stringify(out.perf, null, 1)}</pre>`);
+    } else if (q.has('times')) {
+      /* ---------------- 同一组参数在多个时刻（看运动：风、眨眼、转头惯性）；&lookpath=t0:x,t1:x 用关键帧转头 ---------------- */
+      const key = q.get('key') || 'alter-e0';
+      if (!(await K.load(key, 60000))) throw new Error('load failed ' + key);
+      const times = q.get('times').split(',').map(Number);
+      const cols = +(q.get('cols') || 4), cw = +(q.get('cw') || 480), ch = Math.round((cw * 9) / 16);
+      const grid = document.createElement('div'); grid.className = 'strip'; grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+      wrap.appendChild(grid);
+      const p = params({ crop: q.get('crop') || 'bust' });
+      p.fit = p.crop === 'full' ? 'contain' : 'cover';
+      if (q.has('lookpath')) p.look = K.path(q.get('lookpath').split(',').map((s) => { const [a, b] = s.split(':').map(Number); return [a, [b, 0]]; }), 'inOut');
+      const cvs = [];
+      for (const tt of times) {
+        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+        const R = makeRenderer(cv);
+        CELL = paintCell({ key, mode: 'draw', p, bg: q.get('bg') || undefined });
+        R.render(tt);
+        const cell = document.createElement('div'); cell.className = 'cell';
+        cell.innerHTML = `<b>t=${tt}</b>`; cell.prepend(cv); grid.appendChild(cell);
+        cvs.push(cv);
+      }
+      // 相邻两帧的差（可选 &diff=1）：亮的地方就是在动的地方
+      if (q.get('diff') === '1' && cvs.length > 1) {
+        for (let i = 1; i < cvs.length; i++) {
+          const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+          const g = c.getContext('2d');
+          g.drawImage(cvs[i - 1], 0, 0); g.globalCompositeOperation = 'difference'; g.drawImage(cvs[i], 0, 0);
+          g.globalCompositeOperation = 'source-over';
+          const im = g.getImageData(0, 0, cw, ch); for (let j = 0; j < im.data.length; j += 4) { const v = Math.min(255, (im.data[j] + im.data[j + 1] + im.data[j + 2]) * 3); im.data[j] = im.data[j + 1] = im.data[j + 2] = v; } g.putImageData(im, 0, 0);
+          const cell = document.createElement('div'); cell.className = 'cell'; cell.innerHTML = `<b>diff ${times[i - 1]}→${times[i]}</b>`; cell.prepend(c); grid.appendChild(cell);
+        }
+      }
+    } else if (q.has('sheet')) {
+      /* ---------------- 联系表 ---------------- */
+      const sheet = q.get('sheet');
+      const all = K.keys;
+      const keys = sheet === 'all' || sheet === '1' || sheet === 'wind' || sheet === 'shots' ? all : [sheet];
+      // 逐个加载并计时（下载 + 解码 + 上传 + 修补 + 预模糊），以及加载时主线程最长的一次阻塞
+      out.loadMs = {};
+      for (const k of keys) { const l0 = performance.now(); await K.load(k, 90000); out.loadMs[k] = Math.round(performance.now() - l0); }
+      out.loaded = keys.map((k) => [k, K.ready(k)]);
+      const cells = [];
+      if (sheet === 'shots') {
+        // 五张图 × 成片镜头（shot()：背景、柔光、粒子、调色）：半身 + 脸部特写
+        const looks = {
+          'alter-e0': [{ crop: 'upper', to: { crop: 'bust' }, grade: 'warm', particles: 'petals', look: [0.12, 0], sweep: 0.42 }, { crop: 'face', grade: 'dream', particles: 'sparkle', blush: 0.6, eyes: 'smile' }],
+          'base-e0': [{ crop: 'full', grade: 'cool', particles: 'ash', wind: 0.7, windDir: -1 }, { crop: 'bust', grade: 'memory', particles: 'dust', eyes: 'closed' }],
+          'base-e2': [{ crop: 'upper', grade: 'ember', particles: [{ type: 'embers', n: 70 }], wind: 0.9, windDir: -1, glow: 1.8 }, { crop: 'face', grade: 'ember', particles: 'ash', look: [-0.3, 0] }],
+          'base-s1': [{ crop: 'scene', grade: { base: 'warm', light: { color: '#ffcaa0', dir: [-0.9, -0.25], rim: 0.9, wash: 0.1 } }, particles: 'petals', wind: 0.6 }, { crop: 'face', grade: 'dream', particles: 'petals', smile: 1, blush: 0.5 }],
+          'base-s2': [{ crop: 'full', grade: 'night', particles: 'sparkle' }, { crop: 'bust', grade: 'night', particles: 'dust', look: [0.25, 0.1] }],
+        };
+        for (const key of all) for (const [i, sh] of looks[key].entries()) cells.push({ key, mode: 'shot', label: `${key} · shot ${i + 1} · ${typeof sh.grade === 'string' ? sh.grade : 'custom'} · ${sh.crop}`, shot: sh });
+      } else if (sheet === 'wind') {
+        // 五张图 × 风（左 / 无 / 右），看发梢、飘带、衣摆有没有露缝
+        for (const key of all) {
+          cells.push({ key, label: `${key} · wind ← ${num('wind', 1)}`, p: { crop: q.get('crop') || 'upper', fit: 'cover', wind: num('wind', 1), windDir: -1 } });
+          cells.push({ key, label: `${key} · wind 0`, p: { crop: q.get('crop') || 'upper', fit: 'cover', wind: 0 } });
+          cells.push({ key, label: `${key} · wind → ${num('wind', 1)}`, p: { crop: q.get('crop') || 'upper', fit: 'cover', wind: num('wind', 1), windDir: 1 } });
+        }
+      } else if (sheet === 'all' || sheet === '1') {
+        for (const key of keys) {
+          cells.push({ key, label: `${key} · full`, p: { crop: 'full', fit: 'contain' } });
+          cells.push({ key, label: `${key} · bust`, p: { crop: 'bust', fit: 'cover' } });
+          cells.push({ key, label: `${key} · face`, p: { crop: 'face', fit: 'cover' } });
+          cells.push({ key, label: `${key} · face · eyes closed`, p: { crop: 'face', fit: 'cover', eyes: 'closed', blush: 0.6 } });
+          cells.push({ key, label: `${key} · face · smile + blush`, p: { crop: 'face', fit: 'cover', eyes: 'smile', blush: 1, mouth: 0.4 } });
+          cells.push({ key, label: `${key} · bust · wind 1 ←`, p: { crop: 'bust', fit: 'cover', wind: 1, windDir: -1 } });
+        }
+      } else {
+        const key = keys[0];
+        const cr = K.crops(key) || {};
+        for (const c of Object.keys(cr)) cells.push({ key, label: `${key} · ${c}`, p: { crop: c, fit: c === 'full' ? 'contain' : 'cover' } });
+        cells.push({ key, label: 'face · look ←', p: { crop: 'face', fit: 'cover', look: [-1, 0] } });
+        cells.push({ key, label: 'face · look → down', p: { crop: 'face', fit: 'cover', look: [1, 0.6] } });
+        cells.push({ key, label: 'face · tilt', p: { crop: 'face', fit: 'cover', tilt: 1 } });
+        cells.push({ key, label: 'face · eyes closed', p: { crop: 'face', fit: 'cover', eyes: 'closed' } });
+        cells.push({ key, label: 'face · smile blush', p: { crop: 'face', fit: 'cover', eyes: 'smile', blush: 1 } });
+        cells.push({ key, label: 'face · talk', p: { crop: 'face', fit: 'cover', mouth: 0.8 } });
+        cells.push({ key, label: 'bust · wind 1 →', p: { crop: 'bust', fit: 'cover', wind: 1, windDir: 1 } });
+        cells.push({ key, label: 'bust · wind 1 ←', p: { crop: 'bust', fit: 'cover', wind: 1, windDir: -1 } });
+        cells.push({ key, label: 'bust · rim light', p: { crop: 'bust', fit: 'cover', light: { color: '#ffd29a', rim: 0.9, wash: 0.12, dir: [0.8, -0.6] }, tint: ['#ffeede', 0.3] } });
+        cells.push({ key, label: 'bust · night grade', p: { crop: 'bust', fit: 'cover', tint: ['#b6c4ff', 0.45], sat: 0.85, light: { color: '#a9c2ff', rim: 0.8, wash: 0.04, dir: [0.6, -0.8] } } });
+        cells.push({ key, mode: 'shot', label: 'shot · warm · petals', shot: { crop: 'bust', to: { crop: 'bust', z: 1.08 }, grade: 'warm', particles: 'petals', look: [0.15, 0] } });
+        cells.push({ key, mode: 'shot', label: 'shot · dream · face', shot: { crop: 'face', grade: 'dream', particles: 'sparkle', blush: 0.5 } });
+        cells.push({ key, mode: 'shot', label: 'shot · ember', shot: { crop: 'upper', grade: 'ember', particles: 'embers', wind: 0.7, windDir: -1, glow: 1.6 } });
+        cells.push({ key, mode: 'shot', label: 'shot · night', shot: { crop: 'full', grade: 'night', particles: 'dust' } });
+        cells.push({ key, mode: 'shot', label: 'shot · memory', shot: { crop: 'bust', grade: 'memory', particles: 'dust', eyes: 'closed' } });
+      }
+      const cols = +(q.get('cols') || (sheet === 'all' || sheet === '1' ? 6 : sheet === 'shots' ? 2 : 3)), cw = +(q.get('cw') || (sheet === 'all' || sheet === '1' ? 400 : sheet === 'wind' ? 560 : 640)), ch = Math.round((cw * 9) / 16);
+      const grid = document.createElement('div'); grid.className = 'strip'; grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+      wrap.appendChild(grid);
+      const lat = num('lt', 2.5);
+      for (const c of cells) {
+        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+        const R = makeRenderer(cv);
+        CELL = paintCell(Object.assign({ lt: lat, dur: 8 }, c));
+        R.render(t);
+        const cell = document.createElement('div'); cell.className = 'cell';
+        cell.innerHTML = `<b>${c.label}</b>`; cell.prepend(cv); grid.appendChild(cell);
+      }
+      out.cells = cells.length;
+    } else {
+      /* ---------------- 单帧 ---------------- */
+      const key = q.get('key') || 'alter-e0';
+      if (!(await K.load(key, 60000))) throw new Error('load failed ' + key);
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const R = makeRenderer(cv);
+      await R.prepare();
+      if (q.get('shot') === '1') {
+        const sh = params({ crop: q.get('from') || q.get('crop') || 'bust', grade: q.get('grade') || 'warm' });
+        if (q.has('particles')) sh.particles = q.get('particles');
+        if (q.has('to') || q.has('z')) sh.to = { crop: q.get('to') || undefined, z: num('z', 1) };
+        CELL = paintCell({ key, mode: 'shot', shot: sh, lt: num('lt', t % num('dur', 8)), dur: num('dur', 8) });
+      } else {
+        const p = params({ crop: q.get('crop') || 'full' });
+        p.fit = q.get('fit') || (p.crop === 'full' ? 'contain' : 'cover');
+        CELL = paintCell({ key, mode: 'draw', p, bg: q.get('bg') || undefined });
+      }
+      R.render(t);
+      wrap.appendChild(cv);
+      out.ms = R.lastMs; out.draw = K.stats.lastMs; out.canvas = K.stats.canvas.slice();
+      out.anchors = K.anchors(key, params({ crop: q.get('crop') || 'full', fit: 'cover', t }));
+    }
+    out.stats = { gpuMB: K.stats.gpuMB, keys: K.stats.keys, canvas: K.stats.canvas.slice(), supported: K.supported() };
+    document.title = 'DONE';
+  } catch (e) {
+    wrap.textContent = 'ERR ' + (e.stack || e);
+    document.title = 'ERR ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

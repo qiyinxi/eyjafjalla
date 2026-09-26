@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN" data-form="base">
+<head>
+<meta charset="utf-8">
+<title>story scenes</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/story.css">
+<style>
+  /* 故事区分层插画一览（开发用）：?form=base|alter&names=study,letter&x=x-off（给每一格加状态类）&w=480 */
+  body { margin: 0; padding: 24px; cursor: auto; }
+  #cursor, #bg { display: none; }
+  .grid { display: flex; flex-wrap: wrap; gap: 24px; }
+  .cell { position: relative; border: 1px dashed var(--c-line2); }
+  .cell .ch-art { mask-image: none !important; -webkit-mask-image: none !important; animation: none !important; }
+  .cell b.lab { position: absolute; left: 6px; top: 4px; font: 12px monospace; color: var(--c-muted); z-index: 9; }
+  .cell.cine { width: 100% !important; }
+</style>
+</head>
+<body>
+<div class="grid" id="g"></div>
+<script src="../js/data.js"></script>
+<script src="../js/art.js"></script>
+<script src="../js/scenes.js"></script>
+<script src="../js/story-art.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.documentElement.dataset.form = q.get('form') || 'base';
+  const w = +(q.get('w') || 480);
+  const names = (q.get('names') || 'study,trophy,letter,sound,cake,field,camp,invite,pumice,cassette,letters,flower,night,portrait').split(',');
+  const g = document.getElementById('g');
+  const errs = [];
+  for (const n of names) {
+    const d = document.createElement('div');
+    const cine = n === 'eruption' || n === 'summit';
+    d.className = 'cell st-ch in ' + (q.get('x') || '').split(',').join(' ') + (cine ? ' cine' : '');
+    d.style.width = w + 'px';
+    try {
+      const html = n === 'portrait' ? STORY_ART.portrait(EYJA.forms.alter.art.e0) : STORY_ART[n](document.documentElement.dataset.form);
+      d.innerHTML = `<b class="lab">${n}</b><div class="ch-art art-${n}">${html}</div>`;
+      // 整屏场景的底图：实验页里直接放 SVG
+      d.querySelectorAll('.bk-host').forEach((h) => { h.innerHTML = STORY_ART.takeBase(h.dataset.bk); h.classList.add('live'); });
+    } catch (e) { errs.push(n + ': ' + e.message); d.textContent = n + ' ERR ' + e.message; }
+    g.appendChild(d);
+  }
+  setTimeout(() => { document.title = errs.length ? 'ERR ' + errs.join(' | ') : 'DONE'; }, +(q.get('t') || 1500));
+</script>
+</body>
+</html>

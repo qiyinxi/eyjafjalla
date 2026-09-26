@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>cast lab</title>
+<style>
+  body { margin: 0; background: #16131a; color: #ddd; font: 12px/1.4 Consolas, monospace; }
+  canvas { display: block; }
+  #log { position: fixed; right: 6px; bottom: 6px; background: rgba(0,0,0,.7); padding: 6px 10px; white-space: pre; max-width: 60vw; }
+</style>
+</head>
+<body>
+<!--
+  角色库实验页（开发用）
+    ?sheet=turn        全体人物的正面 / 3/4 / 侧面 / 3/4 背 / 背面（&who=adele-alter 只看一个）
+    ?sheet=outfits     每个人物的每套服装
+    ?sheet=poses&who=  一个人物的全部动作（&view=front 等）
+    ?sheet=expr&who=   胸像特写：全部表情
+    ?sheet=walk&who=   走 / 跑循环的逐帧（3/4 与侧面）
+    ?sheet=sil         剪影 + 逆光轮廓
+    ?sheet=sizes&who=  不同尺寸（细节等级）
+    ?sheet=props&who=  道具
+    ?sheet=sheep       小羊 / 多利 / 路人
+    ?sheet=sheepbig    大尺寸的小羊（走路帧、爸爸羊 / 妈妈羊、发烫、发光）
+    ?sheet=group       合影（身高对比）
+    ?sheet=busts&who=  胸像：视角 × 表情（&views=front,three,side,back3 &exprs=neutral,smile）
+    ?sheet=yaw&who=    连续转身（yaw 0 → 2π，检查正背面切换有没有跳变）
+    ?sheet=poses&list=wave,cheer&whos=adele-child,katia&views=three,front   多个角色 / 视角对比同一组动作
+                       （&prop=cello 或 &prop=backpack+hammer、&expr=、&wind=、&ph= 身高、&cols= &cw= &ch=）
+    ?sheet=one&who=&o={"pose":"wave"}&anchors=1   单个角色，任意参数（JSON），anchors=1 标出 anchors() 的关键点
+    ?sheet=perf        每个角色 draw() 的 CPU 耗时（每帧 6 个，按 rAF 逐帧测）
+    ?sheet=bench&who=&pose=&o={}   给性能分析器用：只画一种角色
+    ?src=dev           用 lab/cast-dev.js（改角色时先在这份副本上改，满意了再复制到 js/mv/cast.js；默认直接用 js/mv/cast.js）
+    &t=1.3             时间；&w= &h= 画布尺寸
+  结束后 document.title = DONE，结果在 window.__out
+-->
+<canvas id="cv"></canvas>
+<div id="log"></div>
+<script src="../js/mv/engine.js"></script>
+<script>
+window.__warns = [];
+{ const w0 = console.warn.bind(console); console.warn = (...a) => { window.__warns.push(a.map((x) => (x && x.stack) || String(x)).join(' ')); w0(...a); }; }
+window.addEventListener('error', (e) => window.__warns.push('ERROR ' + e.message));
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const src = q.get('src') === 'dev' ? 'cast-dev.js' : '../js/mv/cast.js';
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = src + '?v=' + Date.now(); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  const C = MVE.cast;
+  const out = (window.__out = {});
+  const W = +(q.get('w') || 2000), H = +(q.get('h') || 1400);
+  const cv = document.getElementById('cv');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const T = +(q.get('t') || 1.3);
+  const sheet = q.get('sheet') || 'turn';
+  const who0 = q.get('who') || 'adele-alter';
+  const HUMANS = ['adele-child', 'adele-caster', 'adele-alter', 'magna', 'katia', 'fontaine', 'liese', 'keller', 'doctor'];
+  const BG = {
+    light: (g, x, y, w, h) => { g.fillStyle = '#f4efe6'; g.fillRect(x, y, w, h); },
+    dark: (g, x, y, w, h) => { g.fillStyle = '#231d28'; g.fillRect(x, y, w, h); },
+    sunset: (g, x, y, w, h) => { const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#f6a15a'); gr.addColorStop(0.6, '#f7cf8a'); gr.addColorStop(1, '#ffe6b8'); g.fillStyle = gr; g.fillRect(x, y, w, h); },
+    night: (g, x, y, w, h) => { const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#141a3a'); gr.addColorStop(1, '#3a2248'); g.fillStyle = gr; g.fillRect(x, y, w, h); },
+    pink: (g, x, y, w, h) => { const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#f7b8d0'); gr.addColorStop(1, '#8a6ab8'); g.fillStyle = gr; g.fillRect(x, y, w, h); },
+    sky: (g, x, y, w, h) => { const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#9cc8f0'); gr.addColorStop(1, '#eaf4fb'); g.fillStyle = gr; g.fillRect(x, y, w, h); },
+  };
+  function label(str, x, y, color) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.font = '12px Consolas, monospace'; g.fillStyle = color || '#6a6070'; g.fillText(str, x, y); g.restore(); }
+  /** 网格：cells = [{ label, bg, draw(g, cx, gy, cw, ch) }] */
+  function grid(cells, cols, cw, ch, x0 = 0, y0 = 0) {
+    cells.forEach((c, i) => {
+      const x = x0 + (i % cols) * cw, y = y0 + Math.floor(i / cols) * ch;
+      (BG[c.bg || 'light'])(g, x, y, cw, ch);
+      g.strokeStyle = 'rgba(0,0,0,.15)'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
+      const gy = y + ch - 26;
+      if (!c.noGround) { g.strokeStyle = c.bg === 'dark' || c.bg === 'night' ? 'rgba(255,255,255,.15)' : 'rgba(0,0,0,.12)'; g.beginPath(); g.moveTo(x + 8, gy + 0.5); g.lineTo(x + cw - 8, gy + 0.5); g.stroke(); }
+      g.save(); g.beginPath(); g.rect(x, y, cw, ch); g.clip();
+      try { c.draw(g, x + cw / 2, gy, cw, ch, x, y); } catch (e) { console.error(e); label('ERR ' + e.message, x + 4, y + 30, '#f44'); }
+      g.restore();
+      label(c.label || '', x + 5, y + ch - 8, c.bg === 'dark' || c.bg === 'night' || c.bg === 'pink' ? '#bbb' : '#6a6070');
+    });
+  }
+  const H0 = { 'adele-child': 0.62, 'adele-caster': 0.8, 'adele-alter': 0.84, magna: 0.94, katia: 1, fontaine: 0.76, liese: 0.72, keller: 0.97, doctor: 1 };
+  const t0 = performance.now();
+
+  if (sheet === 'turn') {
+    const list = q.get('who') ? [who0] : HUMANS;
+    const views = ['front', 'three', 'side', 'back3', 'back'];
+    const cw = q.get('who') ? 380 : 210, ch = q.get('who') ? 560 : 300, hh = q.get('who') ? 440 : 230;
+    const cells = [];
+    for (const w of list) for (const v of views) cells.push({ label: `${w} · ${v}`, bg: 'light', draw: (g, cx, gy) => C.draw(g, w, { x: cx, y: gy, h: hh * (q.get('who') ? 1 : H0[w]), t: T, view: v, pose: q.get('pose') || 'stand', expr: q.get('expr') || undefined, outfit: q.get('outfit') || undefined, prop: q.get('prop') || undefined }) });
+    grid(cells, 5, cw, ch);
+  } else if (sheet === 'outfits') {
+    const cells = [];
+    for (const w of HUMANS) for (const of of C.outfits[w]) {
+      cells.push({ label: `${w} · ${of}`, bg: 'light', draw: (g, cx, gy) => C.draw(g, w, { x: cx - 40, y: gy, h: 250 * H0[w], t: T, outfit: of }) });
+    }
+    grid(cells, 6, 330, 330);
+    // 每套服装右侧再画一个走路的背影小图
+    let i = 0;
+    for (const w of HUMANS) for (const of of C.outfits[w]) { const x = (i % 6) * 330 + 260, y = Math.floor(i / 6) * 330 + 304; C.draw(g, w, { x, y, h: 150 * H0[w], t: T + 0.3, outfit: of, pose: 'walk-away' }); i++; }
+  } else if (sheet === 'poses') {
+    const list = q.get('list') ? q.get('list').split(',') : C.poses;
+    const whos = q.get('whos') ? q.get('whos').split(',') : null;
+    const views = q.get('views') ? q.get('views').split(',') : null;
+    const combos = [];
+    for (const p of list) for (const w of whos || [who0]) for (const v of views || [q.get('view') || undefined]) combos.push([p, w, v]);
+    const cells = combos.map(([p, who1, view1]) => ({ label: p + (whos ? ' · ' + who1 : '') + (views ? ' · ' + view1 : ''), bg: q.get('bg') || 'light', draw: (g, cx, gy) => {
+      const o = { x: cx, y: gy, h: +(q.get('ph') || 230) * (whos ? H0[who1] / 0.84 : 1), t: T, pose: p, view: view1, outfit: q.get('outfit') || undefined, seat: undefined, expr: q.get('expr') || undefined, wind: q.get('wind') ? +q.get('wind') : undefined, turn: q.get('turn') ? +q.get('turn') : undefined, talk: q.get('talk') ? +q.get('talk') : undefined };
+      if (q.get('prop')) { o.prop = q.get('prop').split('+'); if (o.prop.length === 1) o.prop = o.prop[0]; }
+      const who0 = who1;
+      if (p === 'sit' || p === 'write' || p === 'sleep' || p === 'play') { g.fillStyle = '#b89a7a'; const seatPx = 230 * 0.2; g.fillRect(cx - 40, gy - seatPx, 70, 6); }
+      if (p === 'write' || p === 'sleep') { g.fillStyle = '#9a7a5a'; g.fillRect(cx + 10, gy - 95, 120, 6); }
+      if (o.prop) { /* 由参数给定 */ }
+      else if (p === 'record') o.prop = 'recorder';
+      else if (p === 'read' || p === 'write') o.prop = p === 'read' ? 'book' : 'notebook';
+      else if (p === 'dig') o.prop = 'trowel';
+      else if (p === 'hold') o.prop = 'cassette';
+      else if (p === 'hold-up') o.prop = 'stone';
+      else if (p === 'carry') o.prop = 'suitcase';
+      else if (p === 'conduct') o.prop = 'tie';
+      else if (p === 'play') o.prop = 'cello';
+      else if (p === 'hug') o.prop = 'lamb';
+      C.draw(g, who0, o);
+    } }));
+    grid(cells, +(q.get('cols') || 9), +(q.get('cw') || 222), +(q.get('ch') || 300));
+  } else if (sheet === 'expr') {
+    const cells = C.exprs.map((e) => ({ label: e, bg: 'light', noGround: true, draw: (g, cx, gy, cw, ch, x, y) => C.draw(g, who0, { x: cx, y: y + ch, h: ch - 20, t: T, expr: e, crop: 'bust', view: q.get('view') || undefined, outfit: q.get('outfit') || undefined }) }));
+    grid(cells, 5, 400, 460);
+  } else if (sheet === 'walk') {
+    const cells = [];
+    const pose = q.get('pose') || 'walk';
+    const N = 8, per = pose === 'run' ? 1 / 1.38 : 1 / 0.92;
+    for (const v of ['three', 'side', 'front', 'back']) for (let k = 0; k < N; k++) cells.push({ label: `${pose} ${v} ${k}/${N}`, bg: v === 'back' ? 'sky' : 'light', draw: (g, cx, gy) => C.draw(g, who0, { x: cx, y: gy, h: 250, t: (k / N) * per, pose, view: v, outfit: q.get('outfit') || undefined, wind: +(q.get('wind') || 0) }) });
+    grid(cells, 8, 250, 330);
+  } else if (sheet === 'sil') {
+    const cells = [];
+    for (const w of HUMANS) cells.push({ label: `${w} sil+rim`, bg: 'sunset', draw: (g, cx, gy) => C.draw(g, w, { x: cx, y: gy, h: 250 * H0[w], t: T, sil: '#2a1a24', rim: '255,236,200', pose: 'stand' }) });
+    for (const w of ['adele-alter', 'magna', 'katia', 'adele-child']) cells.push({ label: `${w} walk-away sil`, bg: 'sunset', draw: (g, cx, gy) => C.draw(g, w, { x: cx, y: gy, h: 250 * H0[w], t: T, sil: '#2a1a24', rim: '255,220,170', pose: 'walk-away', wind: 0.4 }) });
+    for (const w of ['adele-alter', 'katia', 'magna']) cells.push({ label: `${w} rim only (night)`, bg: 'night', draw: (g, cx, gy) => C.draw(g, w, { x: cx, y: gy, h: 250 * H0[w], t: T, rim: '255,170,210', rimDir: -2.4, pose: 'wave' }) });
+    cells.push({ label: 'alpha 0.5 ghost', bg: 'night', draw: (g, cx, gy) => { C.draw(g, 'magna', { x: cx - 40, y: gy, h: 230, t: T, alpha: 0.5, pose: 'wave', sil: '#ffffff', rim: '255,200,230' }); C.draw(g, 'katia', { x: cx + 40, y: gy, h: 245, t: T, alpha: 0.5, pose: 'wave', flip: true }); } });
+    cells.push({ label: 'sheep sil+rim', bg: 'sunset', draw: (g, cx, gy) => { C.draw(g, 'sheep-black', { x: cx - 50, y: gy, h: 110, t: T, sil: '#2a1a24', rim: '255,236,200', tie: true }); C.draw(g, 'sheep-black', { x: cx + 50, y: gy, h: 110, t: T, sil: '#2a1a24', rim: '255,236,200', scarf: true, flip: true }); } });
+    cells.push({ label: 'dolly sil', bg: 'night', draw: (g, cx, gy) => C.draw(g, 'dolly', { x: cx, y: gy, h: 220, t: T, sil: '#1a1020', rim: '255,170,210' }) });
+    grid(cells, 6, 330, 330);
+  } else if (sheet === 'sizes') {
+    const sizes = [50, 80, 120, 180, 260, 380];
+    let x = 20;
+    BG.light(g, 0, 0, W, H);
+    for (const s of sizes) { C.draw(g, who0, { x: x + s * 0.3, y: 560, h: s, t: T, pose: q.get('pose') || 'walk', outfit: q.get('outfit') || undefined }); label('h=' + s, x, 590); x += s * 0.6 + 60; }
+    C.draw(g, who0, { x: 1450, y: 1400, h: 1300, t: T, crop: 'bust', expr: q.get('expr') || 'smile', outfit: q.get('outfit') || undefined });
+    C.draw(g, who0, { x: 420, y: 1060, h: 440, t: T, crop: 'face', expr: q.get('expr') || 'neutral', outfit: q.get('outfit') || undefined });
+    label('crop:bust h=1300', 1100, 30); label('crop:face h=440', 200, 640);
+  } else if (sheet === 'props') {
+    const cells = C.props.map((p) => ({ label: p, bg: 'light', draw: (g, cx, gy) => {
+      const arms = { cassette: 'hold', letter: 'hold', stone: 'hold', wreath: 'hold', wreaths: 'hold', book: 'read', map: 'hold', box: 'hold', camera: 'hold', recorder: 'record', lamb: 'hug', 'lamb-pink': 'hug', suitcase: 'carry', tie: 'conduct', trowel: 'dig', notebook: 'write' }[p];
+      const o = { x: cx, y: gy, h: 230, t: T, prop: p, arms, outfit: q.get('outfit') || undefined, glow: 0.8 };
+      if (p === 'trowel') o.pose = 'dig';
+      if (p === 'notebook') o.pose = 'write';
+      if (p === 'cello') o.pose = 'stand';
+      C.draw(g, who0, o);
+    } }));
+    grid(cells, 8, 250, 330);
+  } else if (sheet === 'sheep') {
+    const cells = [];
+    const sp = ['stand', 'walk', 'run', 'sit', 'sleep', 'jump', 'push', 'look-up', 'eat', 'float'];
+    for (const p of sp) cells.push({ label: 'black ' + p, bg: 'light', draw: (g, cx, gy) => C.draw(g, 'sheep-black', { x: cx, y: gy, h: 140, t: T, pose: p }) });
+    for (const [lab, o] of [['dad (tie+glasses)', { tie: true, glasses: true }], ['mom (scarf+glasses)', { scarf: true, glasses: true }], ['happy+heat', { expr: 'happy', heat: 1 }], ['bell+bow', { bell: true, bow: true }], ['surprise', { expr: 'surprise' }]]) cells.push({ label: lab, bg: 'light', draw: (g, cx, gy) => C.draw(g, 'sheep-black', Object.assign({ x: cx, y: gy, h: 140, t: T }, o)) });
+    for (const p of ['stand', 'walk', 'sit', 'jump', 'float']) cells.push({ label: 'pink ' + p + ' glow', bg: 'night', draw: (g, cx, gy) => C.draw(g, 'sheep-pink', { x: cx, y: gy, h: 140, t: T, pose: p, glow: 1 }) });
+    cells.push({ label: 'dolly', bg: 'night', draw: (g, cx, gy) => C.draw(g, 'dolly', { x: cx, y: gy, h: 260, t: T }) });
+    cells.push({ label: 'dolly cloud fade .5', bg: 'pink', draw: (g, cx, gy) => C.draw(g, 'dolly', { x: cx, y: gy, h: 260, t: T, form: 'cloud', fade: 0.5 }) });
+    cells.push({ label: 'dolly stand', bg: 'light', draw: (g, cx, gy) => C.draw(g, 'dolly', { x: cx, y: gy, h: 240, t: T, pose: 'stand', glow: 0.4 }) });
+    cells.push({ label: 'crowd', bg: 'light', draw: (g, cx, gy) => { for (let k = 0; k < 6; k++) C.draw(g, 'crowd', { x: cx - 120 + k * 48, y: gy, h: 200, t: T + k * 0.3, seed: k + 1, pose: k % 2 ? 'walk' : 'stand', flip: k % 3 === 0 }); } });
+    cells.push({ label: 'crowd sil', bg: 'sunset', draw: (g, cx, gy) => { for (let k = 0; k < 6; k++) C.draw(g, 'crowd', { x: cx - 120 + k * 48, y: gy, h: 200, t: T + k * 0.3, seed: k + 7, pose: 'walk', sil: '#3a2a30' }); } });
+    grid(cells, 6, 330, 300);
+  } else if (sheet === 'sheepbig') {
+    const cells = [];
+    const list = [['walk 0', 'sheep-black', { pose: 'walk', t: 0 }], ['walk .15', 'sheep-black', { pose: 'walk', t: 0.15 }], ['walk .3', 'sheep-black', { pose: 'walk', t: 0.3 }], ['run', 'sheep-black', { pose: 'run', t: 0.1 }],
+      ['dad', 'sheep-black', { tie: true, glasses: true }], ['mom', 'sheep-black', { scarf: true, glasses: true, flip: true }], ['sleep', 'sheep-black', { pose: 'sleep' }], ['jump', 'sheep-black', { pose: 'jump', t: 0.35 }],
+      ['pink glow', 'sheep-pink', { glow: 1, bow: true }], ['pink sit', 'sheep-pink', { pose: 'sit', expr: 'happy' }], ['pink eat', 'sheep-pink', { pose: 'eat' }], ['black heat happy', 'sheep-black', { heat: 1, expr: 'happy', pose: 'sit' }]];
+    for (const [lab, w, o] of list) cells.push({ label: lab, bg: w === 'sheep-pink' && o.glow ? 'night' : 'light', draw: (g, cx, gy) => C.draw(g, w, Object.assign({ x: cx, y: gy - 10, h: 300, t: T, shadow: true }, o)) });
+    grid(cells, 4, 490, 400);
+  } else if (sheet === 'group') {
+    BG.sky(g, 0, 0, W, H);
+    const gy = 900;
+    g.fillStyle = '#8fb47a'; g.fillRect(0, gy, W, H - gy);
+    let x = 120;
+    for (const w of HUMANS) { const hh = 600 * H0[w]; C.draw(g, w, { x, y: gy, h: hh, t: T, shadow: true, pose: w === 'katia' ? 'wave' : 'stand', expr: 'smile' }); label(w + ' ' + Math.round(hh), x - 40, gy + 30, '#223'); x += 205; }
+    C.draw(g, 'sheep-black', { x: 300, y: gy + 120, h: 150, t: T, tie: true, glasses: true, shadow: true });
+    C.draw(g, 'sheep-black', { x: 470, y: gy + 120, h: 150, t: T + 0.5, scarf: true, glasses: true, flip: true });
+    C.draw(g, 'sheep-pink', { x: 640, y: gy + 120, h: 140, t: T, glow: 0.5, bow: true });
+    C.draw(g, 'dolly', { x: 1650, y: gy - 80, h: 380, t: T });
+  } else if (sheet === 'yaw') {
+    // 连续转身：yaw 从 0 到 2π（检查正面 ↔ 背面切换时有没有跳变）
+    const N = +(q.get('n') || 16), cells = [];
+    for (let k = 0; k < N; k++) { const yaw = (k / N) * Math.PI * 2; cells.push({ label: 'yaw ' + yaw.toFixed(2), bg: 'light', draw: (g, cx, gy) => C.draw(g, who0, { x: cx, y: gy, h: +(q.get('ph') || 240), t: T, yaw, pose: q.get('pose') || 'stand', outfit: q.get('outfit') || undefined, crop: q.get('crop') || undefined }) }); }
+    grid(cells, 8, 245, 330);
+  } else if (sheet === 'busts') {
+    // 胸像：不同视角 × 表情（&views=front,three,side,back3 &exprs=neutral,smile）
+    const views = (q.get('views') || 'front,three,side,back3').split(',');
+    const exprs = (q.get('exprs') || 'neutral').split(',');
+    const cells = [];
+    for (const e of exprs) for (const v of views) cells.push({ label: `${who0} · ${v} · ${e}`, bg: q.get('bg') || 'light', noGround: true, draw: (g, cx, gy, cw, ch, x, y) => C.draw(g, who0, { x: cx, y: y + ch, h: ch - 30, t: T, expr: e, crop: 'bust', view: v, outfit: q.get('outfit') || undefined, look: q.get('look') ? q.get('look').split(',').map(Number) : undefined }) });
+    grid(cells, views.length, +(q.get('cw') || 480), +(q.get('ch') || 520));
+  } else if (sheet === 'one') {
+    // 单个角色，任意参数：&o={"pose":"wave","sil":"#300"}（JSON）
+    const bgk = q.get('bg') || 'light';
+    BG[bgk](g, 0, 0, W, H);
+    const o = Object.assign({ x: W / 2, y: H - 60, h: H * 0.8, t: T }, JSON.parse(q.get('o') || '{}'));
+    C.draw(g, who0, o);
+    out.anchors = C.anchors ? C.anchors(who0, o) : null;
+    if (out.anchors && q.get('anchors')) { for (const [k, v] of Object.entries(out.anchors)) { if (!Array.isArray(v) || v.length !== 2) continue; g.fillStyle = '#f0f'; g.fillRect(v[0] - 4, v[1] - 4, 8, 8); label(k, v[0] + 6, v[1] - 6, '#a0a'); } }
+  } else if (sheet === 'bench') {
+    // 给性能分析器用：只画一种角色，n 帧 × 每帧 6 个
+    const n = +(q.get('n') || 300), raf = () => new Promise((r) => requestAnimationFrame(r));
+    const o0 = JSON.parse(q.get('o') || '{}');
+    const hh = +(q.get('ph') || 300);
+    let acc = 0;
+    for (let f = 0; f < n; f++) {
+      g.fillStyle = '#f4efe6'; g.fillRect(0, 0, W, H);
+      const a = performance.now();
+      for (let k = 0; k < 6; k++) C.draw(g, who0, Object.assign({ x: 150 + k * 240, y: 700, h: hh, t: f / 30 + k * 0.37, pose: q.get('pose') || 'walk' }, o0));
+      acc += performance.now() - a;
+      await raf();
+    }
+    out.perDraw = acc / n / 6;
+    label('per draw ' + out.perDraw.toFixed(3) + ' ms', 20, 30, '#200');
+  } else if (sheet === 'perf') {
+    // CPU 耗时：每个角色在典型尺寸下 draw() 的平均毫秒数
+    BG.light(g, 0, 0, W, H);
+    const rows = [];
+    const cases = [];
+    for (const w of HUMANS) {
+      cases.push([w + ' h=300 walk', w, { h: 300, pose: 'walk' }]);
+      cases.push([w + ' h=120 walk', w, { h: 120, pose: 'walk' }]);
+    }
+    cases.push(['adele-alter bust h=900', 'adele-alter', { h: 900, crop: 'bust' }]);
+    cases.push(['adele-alter sil+rim h=300', 'adele-alter', { h: 300, sil: '#201820', rim: '255,230,200' }]);
+    cases.push(['adele-alter alpha .5 h=300', 'adele-alter', { h: 300, alpha: 0.5 }]);
+    cases.push(['adele-caster staff h=300', 'adele-caster', { h: 300, prop: 'staff', pose: 'walk' }]);
+    cases.push(['sheep-black h=110 walk', 'sheep-black', { h: 110, pose: 'walk', tie: true }]);
+    cases.push(['sheep-pink glow h=110', 'sheep-pink', { h: 110, pose: 'walk', glow: 1 }]);
+    cases.push(['dolly h=300', 'dolly', { h: 300 }]);
+    cases.push(['crowd h=200', 'crowd', { h: 200, pose: 'walk', seed: 3 }]);
+    // 按真实播放的方式测：每个 rAF 画一帧（K 个角色），只计 draw() 的 JS 耗时
+    const F = +(q.get('n') || 60), K = 6;
+    const raf = () => new Promise((r) => requestAnimationFrame(r));
+    for (const [, w, o] of cases) for (let k = 0; k < 6; k++) C.draw(g, w, Object.assign({ x: 500, y: 600, t: k * 0.05 }, o));
+    await raf();
+    let y = 30;
+    const res = [];
+    for (const [lab, w, o] of cases) {
+      const per = [];
+      for (let f = 0; f < F; f++) {
+        g.fillStyle = '#f4efe6'; g.fillRect(0, 0, W, H);
+        const a = performance.now();
+        for (let k = 0; k < K; k++) C.draw(g, w, Object.assign({ x: 150 + k * 240, y: 700, t: f / 30 + k * 0.37 }, o));
+        per.push((performance.now() - a) / K);
+        await raf();
+      }
+      per.sort((a, b) => a - b);
+      const avg = per.reduce((a, b) => a + b, 0) / per.length;
+      res.push([lab, +avg.toFixed(3), +per[Math.floor(per.length * 0.95)].toFixed(3), +per[Math.floor(per.length * 0.5)].toFixed(3)]);
+    }
+    g.clearRect(0, 0, W, H); BG.light(g, 0, 0, W, H);
+    g.font = '16px Consolas, monospace';
+    g.fillText('case'.padEnd(34) + ' avg     p95     median (ms per draw)', 30, y); y += 26;
+    for (const [lab, ms, p95, med] of res) { g.fillStyle = ms > 0.25 ? '#c02020' : '#205020'; g.fillText(`${lab.padEnd(34)} ${ms.toFixed(3)}  ${p95.toFixed(3)}  ${med.toFixed(3)}`, 30, y); y += 22; }
+    out.perf = res;
+  }
+  out.ms = performance.now() - t0;
+  out.warns = window.__warns;
+  document.getElementById('log').textContent = `${sheet} · ${src} · ${out.ms.toFixed(0)}ms` + (C.placeholder ? ' · PLACEHOLDER' : '') + (window.__warns.length ? '\n' + window.__warns.slice(0, 6).join('\n') : '');
+  document.title = 'DONE';
+})().catch((e) => { document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f66">' + (e.stack || e) + '</pre>'); document.title = 'ERR ' + e.message; });
+</script>
+</body>
+</html>

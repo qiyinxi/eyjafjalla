@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN" data-form="base">
+<head>
+<meta charset="utf-8">
+<title>scenes</title>
+<link rel="stylesheet" href="../css/main.css">
+<style>
+  /* 章节插画一览（开发用）：?form=base|alter&names=study,fieldwork&t=毫秒（截图前等待） */
+  body { margin: 0; padding: 24px; cursor: auto; }
+  #cursor, #bg { display: none; }
+  .grid { display: grid; grid-template-columns: repeat(3, 480px); gap: 24px; }
+  .cell { position: relative; width: 480px; aspect-ratio: 3 / 2; border: 1px dashed var(--c-line2); display: grid; place-items: center; }
+  .cell > svg { width: 100%; height: 100%; overflow: visible; }
+  .cell.card { width: 300px; height: 220px; aspect-ratio: auto; overflow: hidden; }
+  .cell.card > svg { width: 100%; height: 100%; }
+  .cell.wide { grid-column: span 2; width: 984px; aspect-ratio: 800 / 360; overflow: hidden; }
+  .cell b { position: absolute; left: 6px; top: 4px; font: 12px monospace; color: var(--c-muted); z-index: 3; }
+</style>
+</head>
+<body>
+<div class="grid" id="g"></div>
+<script src="../js/art.js"></script>
+<script src="../js/scenes.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.documentElement.dataset.form = q.get('form') || 'base';
+  const all = ['study', 'trophy', 'eruption', 'letter', 'sound', 'lavaCake', 'fieldwork', 'nightCamp', 'sheepParade', 'pumice', 'cassette', 'twoLetters', 'flowerPot', 'nightPlanting', 'summit', 'farewell'];
+  const names = (q.get('names') || all.join(',')).split(',');
+  const g = document.getElementById('g');
+  let errs = [];
+  for (const n of names) {
+    // stage:build / stage:front → 剧场布景（按 800×360 的比例画）
+    const [key, arg] = n.split(':');
+    const f = SCENES[key] || ART[key];
+    const d = document.createElement('div');
+    d.className = 'cell' + (key === 'farewell' ? ' card' : '') + (key === 'stage' ? ' wide' : '');
+    try { d.innerHTML = `<b>${n}</b>` + (f ? f(document.documentElement.dataset.form, arg) : `missing ${n}`); } catch (e) { errs.push(n + ': ' + e.message); d.textContent = n + ' ERR ' + e.message; }
+    g.appendChild(d);
+  }
+  setTimeout(() => { document.title = errs.length ? 'ERR ' + errs.join(' | ') : 'DONE'; }, +(q.get('t') || 1500));
+</script>
+</body>
+</html>

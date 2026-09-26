@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN" data-form="base">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="艾雅法拉 / 纯烬艾雅法拉 双形态非官方同人展示页">
+  <meta name="theme-color" content="#0c0609">
+  <title>艾雅法拉 · Eyjafjalla</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,3 57,17.5 57,46.5 32,61 7,46.5 7,17.5' fill='%230c0609' stroke='%23ff4f8f' stroke-width='4'/%3E%3Cpath d='M32 16 C 36 25, 42 30, 42 38 A 10 10 0 0 1 22 38 C 22 31, 27 28, 29 22 C 30 26, 31 27, 32 29 C 33 25, 33 20, 32 16 Z' fill='%23ffb0c8'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://media.prts.wiki">
+  <!-- 字体样式表不阻塞渲染：放在 <head> 里的外链样式会让页面末尾的脚本一直等它下载完，
+       Google Fonts 慢的时候整页（包括加载页）都会卡住。先按 print 加载，下载完再切成 all -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+Runic&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+Runic&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/mv.css">
+  <link rel="stylesheet" href="css/journey.css">
+  <link rel="stylesheet" href="css/combat.css">
+  <link rel="stylesheet" href="css/archive.css">
+  <link rel="stylesheet" href="css/gallery.css">
+  <link rel="stylesheet" href="css/theater.css">
+  <link rel="stylesheet" href="css/tail.css">
+  <link rel="stylesheet" href="css/hero.css">
+  <link rel="stylesheet" href="css/sound.css">
+  <link rel="stylesheet" href="css/story.css">
+  <!-- 首帧之前就按上次的形态上色（加载页、导航的主题跟随形态），避免先闪一下术师配色 -->
+  <script>try { if (JSON.parse(localStorage.getItem('eyja.form')) === 'alter') document.documentElement.dataset.form = 'alter'; } catch (e) {}</script>
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <!-- 终端式加载页 -->
+  <div id="loader" role="status" aria-live="polite">
+    <div class="ld-inner">
+      <div class="ld-emblem"><span class="ld-mark"></span><h1>EYJAFJALLA<small>PRTS · OPERATOR ARCHIVE</small></h1></div>
+      <div class="ld-lines"></div>
+      <div class="ld-bar"><i></i></div>
+      <div class="ld-foot">
+        <span class="ld-pct">0%</span>
+        <button class="ld-enter" disabled>进入档案</button>
+      </div>
+      <p class="ld-hint">建议佩戴耳机 · 按 T 可随时切换形态</p>
+    </div>
+  </div>
+
+  <header id="nav">
+    <a class="nav-brand" href="#hero" aria-label="回到顶部"><span class="nav-emblem"></span><span><b>EYJAFJALLA</b><small>OPERATOR ARCHIVE</small></span></a>
+    <nav class="nav-links" aria-label="页面导航">
+      <a href="#theater">剧场</a>
+      <a href="#combat">职业</a>
+      <a href="#story">故事</a>
+      <a href="#journey">足迹</a>
+      <a href="#mv">影像</a>
+      <a href="#gallery">画廊</a>
+      <a href="#profile">档案</a>
+      <a href="#files">资料</a>
+      <a href="#voice">语音</a>
+      <a href="#sheep">小羊</a>
+      <a href="#volcano">火山</a>
+      <a href="#trivia">冷知识</a>
+      <a href="#appendix">附录</a>
+    </nav>
+    <div class="nav-tools">
+      <button class="form-switch" type="button" aria-label="切换形态（T）" title="切换形态（T）">
+        <span class="fs-knob"></span>
+        <span class="fs-opt" data-f="base"></span>
+        <span class="fs-opt" data-f="alter"></span>
+      </button>
+      <button class="icon-btn hear-btn" type="button" data-act="hear" aria-label="助听器" aria-pressed="false" title="助听器：让声音清晰起来" hidden></button>
+      <button class="icon-btn snd-btn" type="button" aria-label="环境音" title="环境音（M）"></button>
+      <button class="icon-btn menu-btn" type="button" aria-label="菜单">≡</button>
+    </div>
+    <div class="nav-progress"><i></i></div>
+  </header>
+
+  <main id="app">
+    <section id="hero" class="hero" aria-label="首屏"></section>
+    <section id="theater" class="sec"></section>
+    <section id="combat" class="sec"></section>
+    <section id="story" class="sec"></section>
+    <section id="journey" class="sec"></section>
+    <section id="mv" class="sec" aria-label="影像：原创 MV 三部曲与番外"></section>
+    <section id="gallery" class="sec"></section>
+    <section id="profile" class="sec"></section>
+    <section id="files" class="sec"></section>
+    <section id="voice" class="sec"></section>
+    <section id="sheep" class="sec"></section>
+    <section id="volcano" class="sec"></section>
+    <section id="trivia" class="sec"></section>
+    <section id="appendix" class="sec"></section>
+    <footer id="footer"></footer>
+  </main>
+
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div id="cutin" aria-hidden="true"></div>
+  <div id="walker" aria-hidden="true"></div>
+  <div id="subtitle" aria-live="polite"></div>
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="时装预览" hidden></div>
+  <div id="toast" role="status"></div>
+  <div id="cursor" aria-hidden="true"><i class="c-ring"></i><i class="c-dot"></i></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/scenes.js" onerror="window.SCENES = window.SCENES || {}"></script>
+  <script src="js/bg.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/puppet.js"></script>
+  <script src="js/chibi.js"></script>
+  <script src="js/pet.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/dyn.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/soundscape.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/archive.js"></script>
+  <script src="js/voice.js"></script>
+  <script src="js/sheep.js"></script>
+  <script src="js/volcano.js"></script>
+  <script src="js/journey.js"></script>
+  <script src="js/hero.js"></script>
+  <script src="js/theater.js"></script>
+  <script src="js/story-art.js"></script>
+  <script src="js/story.js"></script>
+  <!-- 影像区（原创 MV）：这里只有放映厅本身，引擎 / 角色 / 影片脚本在区块靠近视野时才按需加载 -->
+  <script src="js/mv/player.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+/* =========================================================
+ * 小剧场（布景、道具、幕布）与桌宠的补充样式
+ * 布景里会动的东西都是独立的小块，只用 transform / opacity 做动画（交给合成器）；
+ * 离屏时 main.js 给区块加 .anim-off，全部暂停
+ * ========================================================= */
+
+/* ---------------------------------------------------- 舞台 */
+.th-stage { min-height: clamp(360px, 56vh, 560px); isolation: isolate; }
+.th-stage .chibi-canvas { pointer-events: none; cursor: auto; }
+.th-stage .chibi-shadow { z-index: 2; }
+.th-stage .chibi-canvas { z-index: 3; }
+.chibi-hit { position: absolute; left: 0; bottom: 0; z-index: 5; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+/* 换装 / 换形态时模型还没到：旧模型先藏起来（幕布一般已经合上） */
+.th-stage .chibi-canvas, .th-stage .chibi-shadow { transition: opacity 0.35s; }
+.th-stage.loading .chibi-canvas, .th-stage.loading .chibi-shadow { opacity: 0; }
+.th-stage.loading .th-loading { display: none; }
+
+/* 两层“世界”：800×360 的世界坐标铺满墙面（等同 SVG 的 xMidYMax slice），地板在它下面 */
+.th-scene { position: absolute; inset: 0; z-index: 1; container-type: size; overflow: hidden; pointer-events: none; }
+.th-fore { z-index: 4; }
+:where(.th-stage) .tw { --ww: max(100cqw, 186.667cqh); position: absolute; left: 50%; bottom: 16cqh; width: var(--ww); margin-left: calc(var(--ww) / -2); aspect-ratio: 800 / 360; }
+:where(.th-stage) .tl, :where(.th-stage) .tp { position: absolute; left: calc(var(--x) * 100% / 800); top: calc(var(--y) * 100% / 360); width: calc(var(--w) * 100% / 800); height: calc(var(--h) * 100% / 360); }
+:where(.th-stage) .tl { display: block; }
+:where(.th-stage) .ts { position: absolute; display: block; }
+:where(.th-stage) .tl > svg, :where(.th-stage) .tp svg, :where(.th-stage) .ts > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+:where(.th-stage) .tg { background: radial-gradient(closest-side, var(--g), transparent); }
+
+/* ---------- 道具：可以点的按钮 ---------- */
+:where(.th-stage) .tp { padding: 0; margin: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+:where(.th-stage) .tp-in, :where(.th-stage) .tp-b { position: absolute; inset: 0; display: block; }
+:where(.th-stage) .tp-in { transition: transform 0.28s cubic-bezier(0.3, 1.5, 0.5, 1); transform-origin: 50% 100%; }
+:where(.th-stage) .tp::after { content: ''; position: absolute; inset: -14%; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, var(--halo, rgba(255, 214, 160, 0.34)), transparent); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+[data-form='alter'] .tp { --halo: rgba(170, 205, 255, 0.45); }
+@media (hover: hover) {
+  :where(.th-stage) .tp:hover .tp-in { transform: translateY(-3%) scale(1.03); }
+  :where(.th-stage) .tp:hover::after { opacity: 1; }
+}
+:where(.th-stage) .tp:focus-visible { outline: 2px dashed var(--c-acc); outline-offset: 3px; }
+:where(.th-stage) .tp-area::after { inset: 0; border-radius: 30%; }
+/* 提示：还没点过任何道具时，几个道具上有一圈呼吸的光点 */
+:where(.th-stage) .tp.hint::before { content: ''; position: absolute; left: var(--hx, 50%); top: var(--hy, 20%); width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid rgba(255, 236, 200, 0.9); opacity: 0; pointer-events: none; animation: tpHint 2.6s ease-out infinite; }
+[data-form='alter'] .tp.hint::before { border-color: rgba(120, 170, 255, 0.95); }
+:where(.th-stage) .tp.hint:nth-of-type(2n)::before { animation-delay: -1.3s; }
+.th-stage.poked .tp.hint::before { display: none; }
+@keyframes tpHint { 0% { transform: scale(0.4); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(1.9); opacity: 0; } }
+/* 被点到：弹一下 */
+:where(.th-stage) .tp.go .tp-in { animation: tpBounce 0.62s cubic-bezier(0.3, 1.4, 0.5, 1); }
+@keyframes tpBounce { 0% { transform: none; } 28% { transform: translateY(-9%) scale(1.05, 0.96); } 55% { transform: translateY(0) scale(1.06, 0.93); } 78% { transform: translateY(-2%) scale(0.99, 1.02); } 100% { transform: none; } }
+:where(.th-stage) .tp.breathe .tp-b { transform-origin: 50% 100%; animation: aBreathe 3.6s ease-in-out infinite; }
+@keyframes aBreathe { 50% { transform: scale(1.025, 1.05); } }
+
+/* ---------- 通用动画（参数用 CSS 变量） ---------- */
+.a-tw { animation: aTw var(--d, 3s) ease-in-out var(--dl, 0s) infinite; }
+@keyframes aTw { 0%, 100% { opacity: var(--o0, 0.2); transform: scale(0.6); } 50% { opacity: 1; transform: scale(1); } }
+.a-pulse { animation: aPulse var(--d, 4s) ease-in-out var(--dl, 0s) infinite alternate; }
+@keyframes aPulse { from { opacity: var(--o0, 0.4); } to { opacity: var(--o1, 1); } }
+.a-flick { animation: aFlick var(--d, 5s) linear var(--dl, 0s) infinite; }
+@keyframes aFlick { 0%, 100% { opacity: 0.92; } 12% { opacity: 1; } 40% { opacity: 0.95; } 43% { opacity: 0.8; } 46% { opacity: 1; } 70% { opacity: 0.9; } 84% { opacity: 1; } }
+.a-drift { animation: aDrift var(--d, 40s) ease-in-out var(--dl, 0s) infinite alternate; }
+@keyframes aDrift { from { transform: translateX(var(--dx0, 0%)); } to { transform: translateX(var(--dx, 30%)); } }
+.a-bob { animation: aBob var(--d, 3s) ease-in-out var(--dl, 0s) infinite alternate; }
+@keyframes aBob { from { transform: translateY(var(--dy0, 0%)) rotate(var(--r0, 0deg)); } to { transform: translateY(var(--dy, -8%)) rotate(var(--r1, 0deg)); } }
+.a-sway { transform-origin: var(--ox, 50%) var(--oy, 0%); animation: aSway var(--d, 6s) ease-in-out var(--dl, 0s) infinite alternate; }
+@keyframes aSway { from { transform: rotate(var(--r0, -1deg)); } to { transform: rotate(var(--r1, 1deg)); } }
+.a-spin { animation: aSpin var(--d, 20s) linear var(--dl, 0s) infinite; }
+@keyframes aSpin { to { transform: rotate(360deg); } }
+.a-rise, .a-mote { animation: aRise var(--d, 6s) ease-in-out var(--dl, 0s) infinite; }
+@keyframes aRise { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 20% { opacity: var(--o1, 0.9); } 80% { opacity: var(--o1, 0.9); } 100% { transform: translate(var(--dx, 0%), var(--dy, -200%)) scale(1); opacity: 0; } }
+.a-fall { animation: aFall var(--d, 8s) linear var(--dl, 0s) infinite; }
+@keyframes aFall { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 10% { opacity: var(--o1, 0.9); } 85% { opacity: var(--o1, 0.9); } 100% { transform: translate(var(--dx, 60%), var(--dy, 800%)) rotate(var(--r, 540deg)); opacity: 0; } }
+.a-smoke { animation: aSmoke var(--d, 8s) ease-out var(--dl, 0s) infinite; }
+@keyframes aSmoke { 0% { transform: translate(0, 0) scale(0.55); opacity: 0; } 18% { opacity: var(--o1, 0.6); } 100% { transform: translate(var(--dx, 30%), var(--dy, -80%)) scale(1.5); opacity: 0; } }
+.a-steam { transform-origin: 50% 100%; animation: aSteam var(--d, 3s) ease-out var(--dl, 0s) infinite; }
+@keyframes aSteam { 0% { transform: translateY(20%) scaleY(0.6); opacity: 0; } 30% { opacity: 0.9; } 100% { transform: translateY(-40%) scaleY(1.1); opacity: 0; } }
+.a-shoot { opacity: 0; animation: aShoot var(--d, 12s) linear var(--dl, 0s) infinite; }
+@keyframes aShoot { 0%, 90% { transform: translate(0, 0); opacity: 0; } 91% { opacity: 1; } 97% { opacity: 1; } 100% { transform: translate(var(--dx, -150%), var(--dy, 100%)); opacity: 0; } }
+.a-z { animation: aZ var(--d, 3.6s) ease-out var(--dl, 0s) infinite; opacity: 0; }
+@keyframes aZ { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(-60%, -140%) scale(1.1); opacity: 0; } }
+.a-wave { animation: aWave var(--d, 12s) linear var(--dl, 0s) infinite; }
+@keyframes aWave { from { transform: translateX(0); } to { transform: translateX(var(--dx, -50%)); } }
+.a-blink { animation: aBlink var(--d, 6s) steps(1) var(--dl, 0s) infinite; }
+@keyframes aBlink { 0%, 100% { opacity: 1; } 50% { opacity: var(--o0, 0.25); } }
+.a-flap { animation: aFlap var(--d, 0.5s) ease-in-out var(--dl, 0s) infinite alternate; transform-origin: 50% 50%; }
+@keyframes aFlap { from { transform: scaleX(1); } to { transform: scaleX(0.25); } }
+.a-glide { animation: aGlide var(--d, 24s) linear var(--dl, 0s) infinite; }
+@keyframes aGlide { 0% { transform: translate(0, 0); opacity: 0; } 6% { opacity: 1; } 50% { transform: translate(calc(var(--dx, -600%) / 2), var(--dy, -40%)); } 94% { opacity: 1; } 100% { transform: translate(var(--dx, -600%), 0); opacity: 0; } }
+
+/* 状态切换用的淡入淡出 */
+:where(.th-stage) .tl.fade, :where(.th-stage) .ts.fade { transition: opacity 0.6s ease; }
+
+/* ---------------------------------------------------- 场景：夜 · 宿舍书房（术师） */
+.sc-study .lamp-on, .sc-study .dim, .sc-study .moonlit { transition: opacity 0.7s ease; }
+.sc-study .dim { opacity: 0; }
+.sc-study .moonlit { opacity: 0; }
+.sc-study.lamp-off .lamp-on { opacity: 0; }
+.sc-study.lamp-off .dim { opacity: 1; }
+.sc-study.lamp-off .moonlit { opacity: 1; }
+.sc-study.dozing:not(.lamp-off) .dim { opacity: 0.45; }
+.sc-study .lamp-bulb { transition: opacity 0.4s; }
+.sc-study.lamp-off .lamp-bulb { opacity: 0.2; }
+.sc-study .heat { opacity: 0; transition: opacity 0.5s; }
+.sc-study.hot [data-prop='sheep'] .heat, .sc-study.jar-hot [data-prop='jar'] .heat { opacity: 1; }
+.sc-study.hot [data-prop='sheep'] .tp-b { animation: aShiver 0.12s linear 12; }
+@keyframes aShiver { 50% { transform: translateX(1.5%); } }
+.sc-study .zz { transition: opacity 0.4s; }
+.sc-study.hot .zz { opacity: 0 !important; }
+.sc-study [data-prop='book'].pull .tp-in { animation: bookPull 2.4s ease-in-out; }
+@keyframes bookPull { 0% { transform: none; } 25%, 70% { transform: translate(-8%, -18%) rotate(-8deg); } 100% { transform: none; } }
+
+/* ---------------------------------------------------- 场景：午后 · 汐斯塔火山博物馆（医疗） */
+.glint { opacity: 0; }
+.th-stage.glint .glint { animation: glintA 1.1s ease-out; }
+@keyframes glintA { 0% { opacity: 0; transform: scale(0.2) rotate(0deg); } 30% { opacity: 1; transform: scale(1.1) rotate(45deg); } 100% { opacity: 0; transform: scale(0.6) rotate(90deg); } }
+.nibbler { opacity: 0; }
+.th-stage.nibble .nibbler { opacity: 0.85; animation: nibble 0.5s ease-in-out 5 alternate; }
+@keyframes nibble { to { transform: translate(-6%, 4%) rotate(-5deg); } }
+.a-peek { opacity: 0; animation: aPeek var(--d, 16s) ease-in-out var(--dl, 0s) infinite; }
+@keyframes aPeek { 0%, 62%, 86%, 100% { opacity: 0; transform: translateX(-30%); } 68%, 80% { opacity: 0.55; transform: translateX(0); } }
+.wx-cloud, .wx-rain, .wx-bow { opacity: 0; }
+.w-cloud .wx-cloud, .w-rain .wx-cloud { opacity: 1; }
+.w-rain .wx-rain { opacity: 1; }
+.w-bow .wx-bow { opacity: 1; }
+.sc-museum .beam { transition: opacity 1s; }
+.sc-museum.w-cloud .beam, .sc-museum.w-rain .beam { opacity: 0.12; }
+.sc-museum.fizz .bub { animation-duration: 0.7s !important; }
+.sc-museum.fizz .pumice { animation-duration: 0.5s !important; }
+
+/* ---------------------------------------------------- 场景：晴空 · 草坡（医疗 · 作战） */
+.sk-rain, .sk-shield, .sk-bow { opacity: 0; }
+.th-stage.raining .sk-rain { opacity: 1; }
+.th-stage.shielded .sk-shield { opacity: 0.85; }
+.th-stage.shielded .sk-shield > svg { animation: shieldIn 3.4s ease-out; }
+@keyframes shieldIn { 0% { transform: scale(0.9); } 30% { transform: scale(1.02); } 100% { transform: scale(1); } }
+.th-stage.echo .sk-bow { opacity: 0.9; }
+
+/* ---------------------------------------------------- 场景：珊瑚海岸（夏卉 FA018） */
+:where(.th-stage) .tp.roll .tp-in { animation: ballRoll 1.8s cubic-bezier(0.3, 0.7, 0.4, 1); }
+@keyframes ballRoll { 0% { transform: none; } 20% { transform: translate(-40%, -90%) rotate(-160deg); } 40% { transform: translate(-80%, 0) rotate(-320deg); } 55% { transform: translate(-100%, -30%) rotate(-400deg); } 70% { transform: translate(-115%, 0) rotate(-460deg); } 100% { transform: translate(0, 0) rotate(-720deg); } }
+:where(.th-stage) .tp.splash .tp-in { animation: splash 0.9s cubic-bezier(0.3, 1.3, 0.5, 1); }
+@keyframes splash { 0% { transform: none; } 30% { transform: translateY(-38%) rotate(-10deg); } 60% { transform: translateY(4%) rotate(6deg); } 100% { transform: none; } }
+:where(.th-stage) .tp.spin .tp-in { transform-origin: 50% 70%; animation: umbSpin 1.2s ease-in-out; }
+@keyframes umbSpin { 0% { transform: none; } 30% { transform: rotate(-12deg) translateY(-6%); } 60% { transform: rotate(9deg); } 100% { transform: none; } }
+.a-glide.crab { animation-timing-function: steps(90, end); }
+
+/* ---------------------------------------------------- 场景：夜色城市与钟面（绵绒小魔女） */
+.hand-h, .hand-m { transform-origin: 50% 50%; }
+.th-stage.chime .hand-m { animation: aSpin 0.45s linear 5; }
+.th-stage.chime .hand-h { animation: aSpin 2.25s linear 1; }
+.th-stage.chime .clockglow { animation: chimeGlow 2.6s ease-out; }
+@keyframes chimeGlow { 0% { opacity: 0.4; transform: scale(0.9); } 20% { opacity: 1; transform: scale(1.25); } 100% { opacity: 0.6; transform: scale(1); } }
+:where(.th-stage) .tp.fly .tp-in { animation: fly 3.4s cubic-bezier(0.4, 0, 0.3, 1); }
+@keyframes fly { 0% { transform: none; } 45% { transform: translate(40%, -260%) rotate(12deg); opacity: 0.2; } 55% { transform: translate(30%, -260%); opacity: 0; } 70% { transform: translate(-10%, -80%); opacity: 0.6; } 100% { transform: none; opacity: 1; } }
+:where(.th-stage) .tp.hop .tp-in { animation: thHop 0.8s cubic-bezier(0.3, 1.5, 0.5, 1) 2; }
+@keyframes thHop { 0%, 100% { transform: none; } 40% { transform: translateY(-22%) scale(0.96, 1.05); } 70% { transform: translateY(0) scale(1.06, 0.94); } }
+.lamp-head { transition: transform 0.3s; transform-origin: 50% 100%; }
+.th-stage.lamp-pop .lamp-head { animation: thHop 0.6s ease-out; }
+.meteor { opacity: 0; }
+.th-stage.shower .meteor { animation: meteor 1.1s ease-in var(--dl, 0s) 2 both; }
+@keyframes meteor { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-260%, 260%); } }
+
+/* ---------------------------------------------------- 场景：甜点舞台（远行前的野餐） */
+.th-stage.puff .a-steam { animation-duration: 0.9s !important; }
+.th-stage.wake [data-prop='sheep'] .tp-in { animation: thHop 0.8s cubic-bezier(0.3, 1.5, 0.5, 1) 2; }
+.sc-picnic .eyelid { transition: opacity 0.3s; }
+.th-stage.chase .sun-disk { animation: sunChase 3.6s ease-in-out; }
+@keyframes sunChase { 0% { transform: none; } 45% { transform: translate(8%, 60%); } 60% { transform: translate(8%, 60%); } 100% { transform: none; } }
+
+/* ---------------------------------------------------- 场景：家（后来的故事） */
+.cl-c { opacity: 0; transition: opacity 1.2s; }
+.th-stage.hug .cl-c { opacity: 1; animation: thHop 1.4s ease-in-out 3; }
+.th-stage .note { opacity: 0; } /* 只是舞台里的音符道具——不能写成全局的 .note，页面上很多说明段落也叫 note */
+.th-stage.play .note { animation: thNoteUp 1.8s ease-out var(--dl, 0s) both; }
+@keyframes thNoteUp { 0% { opacity: 0; transform: translate(0, 0) scale(0.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(40%, -260%) scale(1.1) rotate(12deg); } }
+.th-stage.reading [data-prop='book'] .tp-in { animation: thHop 0.9s ease-out; }
+
+/* ---------------------------------------------------- 作战：法阵、喷发 */
+.a-bolt { opacity: 0; animation: aBolt var(--d, 10s) steps(1) var(--dl, 0s) infinite; }
+@keyframes aBolt { 0%, 94% { opacity: 0; } 95% { opacity: 1; } 96% { opacity: 0.1; } 97% { opacity: 0.9; } 98%, 100% { opacity: 0; } }
+.rune { opacity: 0.32; transition: opacity 0.5s; }
+.rune .rune-glow { opacity: 0; transition: opacity 0.4s; }
+.th-stage.atk .rune, .th-stage.cast .rune { opacity: 1; }
+.th-stage.atk .rune .rune-glow, .th-stage.cast .rune .rune-glow { opacity: 1; }
+.th-stage.atk .rune > svg { animation: runeHit 0.9s ease-out; }
+.th-stage.cast .rune > svg { animation: runeCast 2.6s ease-in-out; }
+@keyframes runeHit { 0% { transform: scale(0.9); } 35% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes runeCast { 0% { transform: scale(0.8) rotate(0deg); } 30% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.boom { opacity: 0; }
+.th-stage.erupt .boom { animation: boom 2.4s ease-out; }
+@keyframes boom { 0% { opacity: 0; transform: scale(0.4); } 12% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.4); } }
+.bomb { opacity: 0; }
+.th-stage.erupt .bomb { animation: bomb 1.7s linear var(--dl, 0s) both; }
+@keyframes bomb {
+  0% { opacity: 0; transform: translate(0, 0); animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1); }
+  8% { opacity: 1; }
+  45% { transform: translate(calc(var(--bx) * 0.45), var(--by)); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--bx), var(--bz)); }
+}
+.sc-dusk [data-prop='crystal']::after { --halo: rgba(255, 150, 80, 0.45); }
+
+/* ---------------------------------------------------- 幕布与台口 */
+.th-curtain { position: absolute; top: 0; bottom: 0; width: 51%; z-index: 7; pointer-events: none; transition: transform 1s cubic-bezier(0.65, 0, 0.3, 1); will-change: transform;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.25), transparent 16%, transparent 80%, rgba(0, 0, 0, 0.45)),
+    repeating-linear-gradient(90deg, #4a0c1c 0, #7a1830 2.2%, #a0283f 3.6%, #6a1228 5.4%, #3e0816 7%);
+  box-shadow: inset 0 -6px 0 #c99a4a; }
+.th-curtain.l { left: 0; transform-origin: 0 50%; transform: scaleX(0.001); border-right: 3px solid #c99a4a; }
+.th-curtain.r { right: 0; transform-origin: 100% 50%; transform: scaleX(0.001); border-left: 3px solid #c99a4a; }
+.th-stage.closed .th-curtain { transform: scaleX(1); }
+/* 打开时：两侧束起来的幕布（静态 SVG）；合上时先淡出，换整幅幕布拉过来 */
+.th-drape { position: absolute; top: 0; bottom: 0; width: clamp(22px, 6.2%, 60px); z-index: 7; pointer-events: none; transition: opacity 0.35s 0.75s; will-change: opacity; }
+.th-drape.l { left: 0; }
+.th-drape.r { right: 0; }
+.th-drape svg { width: 100%; height: 100%; display: block; }
+.th-stage.closed .th-drape { opacity: 0; transition-delay: 0s; transition-duration: 0.2s; }
+[data-form='alter'] .th-curtain {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 20%, transparent 85%, rgba(160, 180, 220, 0.35)),
+    repeating-linear-gradient(90deg, #dfe8f7 0, #f8fbff 2.4%, #ffffff 3.4%, #d6e1f3 5.6%, #c8d6ee 7%);
+  box-shadow: inset 0 -5px 0 #e6b8c8; border-color: #f0c8d6; }
+.th-valance { position: absolute; left: 0; right: 0; top: 0; height: clamp(20px, 6.5%, 40px); z-index: 8; pointer-events: none; }
+.th-valance svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.th-cnote { position: absolute; left: 50%; top: 50%; z-index: 9; transform: translate(-50%, -50%); padding: 8px 18px; font-size: 12.5px; letter-spacing: 0.22em; color: #f7e3c0; background: rgba(40, 6, 16, 0.55); border: 1px solid rgba(201, 154, 74, 0.6); opacity: 0; transition: opacity 0.4s; pointer-events: none; white-space: nowrap; }
+[data-form='alter'] .th-cnote { color: #5a6488; background: rgba(255, 255, 255, 0.75); border-color: #e6b8c8; }
+.th-stage.closed .th-cnote { opacity: 1; transition-delay: 0.6s; }
+/* 省略号：三个点各自一明一暗（只动 opacity，交给合成器；不要逐帧改 content） */
+.th-cnote i { display: inline-block; margin-left: 2px; font-style: normal; opacity: 0.2; }
+.th-stage.closed .th-cnote i { animation: cnoteDot 1.2s ease-in-out infinite; }
+.th-stage.closed .th-cnote i:nth-child(2) { animation-delay: 0.2s; }
+.th-stage.closed .th-cnote i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes cnoteDot { 0%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+/* ---------------------------------------------------- HUD、字幕牌、道具台词 */
+.th-stage .th-hud { top: calc(clamp(20px, 6.5%, 40px) + 8px); left: clamp(28px, 7%, 70px); z-index: 9; }
+.th-hud .th-place { color: var(--c-text); opacity: 0.8; }
+.th-cap { position: absolute; left: clamp(28px, 7%, 70px); bottom: 10px; z-index: 9; max-width: min(62%, 440px); display: grid; gap: 2px; pointer-events: none; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); color: #f6e7da; }
+.th-cap::before { content: ''; position: absolute; z-index: -1; left: -40px; right: -60px; top: -26px; bottom: -14px; background: radial-gradient(farthest-side at 30% 70%, rgba(24, 6, 16, 0.5), rgba(24, 6, 16, 0.22) 55%, transparent); pointer-events: none; }
+[data-form='alter'] .th-cap::before { background: radial-gradient(farthest-side at 30% 70%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.3) 55%, transparent); }
+.th-cap b { font-family: var(--f-serif); font-size: clamp(14px, 1.3vw, 17px); letter-spacing: 0.12em; }
+.th-cap span { font-size: 12px; opacity: 0.86; }
+.th-cap small { font-size: 11px; opacity: 0.62; letter-spacing: 0.06em; }
+.th-cap small::before { content: '☞ '; }
+.th-stage.poked .th-cap small { opacity: 0; transition: opacity 0.6s 1s; }
+/* 开始摆弄道具以后，说明文字也淡出（只留场景名），别压在她脚下 */
+.th-cap span { transition: opacity 0.8s; }
+.th-stage.poked .th-cap span { opacity: 0; transition-delay: 8s; }
+[data-form='alter'] .th-cap { color: #3c4466; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8); }
+.th-say { position: absolute; left: var(--sx, 50%); top: var(--sy, 30%); z-index: 10; max-width: 230px; width: max-content; padding: 8px 12px; font-size: 13px; line-height: 1.55; color: #3a2230; background: #fff8ee; border: 1px solid rgba(90, 40, 60, 0.25); border-radius: 10px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); pointer-events: none; opacity: 0; transform: translate(-50%, calc(-100% - 12px)) scale(0.85); transform-origin: 50% 100%; transition: opacity 0.25s, transform 0.3s cubic-bezier(0.3, 1.5, 0.5, 1); }
+.th-say::after { content: ''; position: absolute; left: calc(50% + var(--tx, 0px)); bottom: -6px; width: 10px; height: 10px; margin-left: -5px; background: inherit; border: inherit; border-width: 0 1px 1px 0; transform: rotate(45deg); }
+.th-say.on { opacity: 1; transform: translate(-50%, calc(-100% - 12px)) scale(1); }
+[data-form='alter'] .th-say { color: #33405e; background: #ffffff; border-color: rgba(90, 110, 170, 0.25); }
+
+/* ---------------------------------------------------- 作战：脚下的法阵（攻击 / 技能时亮起） */
+.th-rune { position: absolute; left: 0; bottom: 0; z-index: 2; pointer-events: none; }
+
+/* 动作 / 桌宠按钮：切换选中状态时颜色直接换（颜色、边框的过渡不能交给合成器，会逐帧重绘），只保留位移的过渡 */
+.th-act { transition: transform 0.25s var(--ease); }
+.th-pet { transition: none; }
+.th-panel .seg button { transition: none; }
+.th-panel .btn { transition: transform 0.3s var(--ease); }
+
+/* ---------------------------------------------------- 桌宠名单：小头像 */
+.th-petlist { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.th-pet { position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 40px; padding: 4px 6px 4px 4px; text-align: left; line-height: 1.2; font-size: 12px; }
+.th-pet span { min-width: 0; overflow-wrap: normal; word-break: normal; }
+.th-pet img { flex: none; width: 30px; height: 30px; object-fit: cover; border-radius: 50%; background: var(--c-panel); border: 1px solid var(--c-line2); transition: transform 0.25s; }
+.th-pet:hover img { transform: scale(1.08) rotate(-4deg); }
+.th-pet.on img { border-color: var(--c-ink); }
+.th-pet:not(.has-av) { padding: 6px 10px; }
+
+/* ---------------------------------------------------- 桌宠：挂进页面、睡着冒 z、被吓到的感叹号、手机上滚动时让开 */
+.pet-stage { transition: opacity 0.35s; }
+.pet-stage.on-page { position: absolute; }
+.pet-deco { position: absolute; width: 20px; height: 20px; pointer-events: none; }
+.pet-deco i { position: absolute; left: 0; top: 0; font-style: normal; font-family: Georgia, 'Times New Roman', serif; font-weight: 700; color: var(--c-acc); opacity: 0; }
+.pet-deco .pz { font-size: 14px; }
+.pet-deco .pz:nth-child(2) { font-size: 17px; }
+.pet-deco .pz:nth-child(3) { font-size: 21px; }
+.pet-stage.sleeping .pz { animation: petZ 3.2s ease-out infinite; }
+.pet-stage.sleeping .pz:nth-child(2) { animation-delay: 1.07s; }
+.pet-stage.sleeping .pz:nth-child(3) { animation-delay: 2.13s; }
+@keyframes petZ { 0% { opacity: 0; transform: translate(0, 0) scale(0.6); } 20% { opacity: 0.95; } 100% { opacity: 0; transform: translate(26px, -44px) scale(1.1); } }
+.pet-deco .pex { left: 2px; top: -8px; font-size: 28px; font-family: var(--f-display, Georgia, serif); color: #ffd35a; text-shadow: 0 0 0 transparent, 1px 1px 0 rgba(0, 0, 0, 0.35); }
+.pet-stage.startle .pex { animation: petEx 1s cubic-bezier(0.3, 1.8, 0.5, 1); }
+@keyframes petEx { 0% { opacity: 0; transform: translateY(8px) scale(0.3); } 25% { opacity: 1; transform: translateY(-6px) scale(1.15); } 70% { opacity: 1; transform: translateY(-4px) scale(1); } 100% { opacity: 0; transform: translateY(-10px) scale(0.9); } }
+body.pets-scrolling .pet-stage { opacity: 0.22; }
+body.pets-scrolling .pet-hit { pointer-events: none; }
+body.pets-scrolling .pet-bubble { opacity: 0 !important; }
+
+/* ---------------------------------------------------- 手机 */
+@media (max-width: 640px) {
+  .pet-stage { width: 112px; height: 130px; }
+  /* 手机：舞台里只留场景名（说明与提示改由道具旁的气泡给出），HUD 不重复地名 */
+  .th-cap small { display: none; }
+  .th-cap b { font-size: 13px; }
+  .th-hud .th-place { display: none; }
+}
+@media (max-width: 860px) {
+  .th-stage { min-height: 0; aspect-ratio: 1.12; }
+  .th-cap span { display: none; }
+  .th-cap { bottom: 8px; left: 12px; }
+  .th-say { max-width: 190px; font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .th-scene .tl, .th-scene .ts, .th-scene .tp-b { animation: none !important; }
+}

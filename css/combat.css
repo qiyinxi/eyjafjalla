@@ -1,0 +1,248 @@
+/* =========================================================
+ * 02 职业：战术地图演示（js/sim.js）+ 职业特性 + 技能数学
+ * 画框里的浮层（切入、连击、战报、解说、查看卡）只动 transform / opacity
+ * ========================================================= */
+.sim-wrap { padding: 16px; }
+.sim-top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sim-skills { display: flex; flex-wrap: wrap; gap: 8px; }
+.sim-sk { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--c-line2); background: var(--c-panel2); color: var(--c-text); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: border-color 0.25s, background 0.25s; }
+.sim-ic { position: relative; width: 34px; height: 34px; flex: none; color: var(--c-acc); }
+.sim-ic > svg, .sim-ic > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 技能图标（PRTS）没载入时，露出底下的矢量徽记 */
+.sim-ic .sk-emblem { opacity: 1; transform: none; padding: 3px; transition: none; }
+.sim-sk span { display: grid; text-align: left; line-height: 1.3; }
+.sim-sk small { font-family: var(--f-mono); font-size: 10px; font-weight: 400; letter-spacing: 0.14em; color: var(--c-muted); }
+.sim-sk:hover { border-color: var(--c-acc); }
+.sim-sk.on { border-color: var(--c-acc); background: color-mix(in srgb, var(--c-acc) 18%, var(--c-panel2)); box-shadow: inset 0 -2px 0 var(--c-acc); }
+.sim-ctrl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sim-cast { min-width: 132px; }
+.sim-cast:disabled { opacity: 0.55; cursor: default; }
+.sim-auto { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--c-muted); cursor: pointer; }
+
+/* 演示设置：关卡 / 模组 / 潜能 / 解说 */
+.sim-cfg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 8px 0 10px; margin-bottom: 2px; border-top: 1px dashed var(--c-line); }
+.cfg-g { display: flex; align-items: center; gap: 8px; }
+.cfg-g > span { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--c-muted); white-space: nowrap; }
+.sim-cfg .seg { flex-wrap: nowrap; }
+.sim-cfg .seg button { padding: 4px 10px; font-size: 12px; white-space: nowrap; }
+.cfg-g { flex: none; }
+.cfg-tips { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12.5px; color: var(--c-muted); cursor: pointer; }
+.sim-cfgsay { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: -4px 0 0; font-size: 12px; line-height: 1.6; color: var(--c-muted); }
+.sim-cfgsay b { margin-right: 6px; color: var(--c-acc); font-weight: 700; }
+.sim-cfgsay span { padding-left: 12px; border-left: 1px solid var(--c-line2); }
+
+.sim-desc { display: grid; gap: 5px; margin: 12px 0 10px; padding: 10px 14px; border-left: 3px solid var(--c-acc); background: color-mix(in srgb, var(--c-acc) 7%, var(--c-panel2)); font-size: 13.5px; }
+.sim-desc p { margin: 0; line-height: 1.75; }
+.sim-desc p b { color: var(--c-acc); }
+.sim-desc .sd-now { font-size: 12.5px; color: var(--c-muted); }
+.sim-desc .sd-now b { font-family: var(--f-mono); color: var(--c-text); }
+.sim-desc s, .mr-kv s, .sim-card s, .sim-tip s { opacity: 0.75; }
+.sim-desc small { color: var(--c-muted); font-size: 12px; }
+.sd-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.sd-tags i { padding: 1px 8px; border: 1px solid var(--c-line2); font-style: normal; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.1em; color: var(--c-muted); }
+.sd-tags i:first-child { border-color: var(--c-acc); color: var(--c-acc); }
+
+/* 地图画框：火山期间四周泛起红光（只切换一层伪元素的 opacity） */
+.sim-scroll { position: relative; }
+.sim-scroll::before { content: ''; position: absolute; inset: -28px -20px; z-index: 0; pointer-events: none; opacity: 0; will-change: opacity; transition: opacity 0.9s ease;
+  background: radial-gradient(closest-side, rgba(255, 70, 20, 0.34), rgba(255, 40, 10, 0.12) 70%, transparent); }
+.sim-wrap.erupting .sim-scroll::before { opacity: 1; }
+.sim-host { position: relative; z-index: 1; width: 100%; aspect-ratio: 10 / 4.66; min-height: 290px; overflow: hidden; border: 1px solid var(--c-line); background: var(--c-panel2); touch-action: pan-x pan-y; }
+.sim-wrap.erupting .sim-host { border-color: rgba(255, 110, 60, 0.7); }
+/* 模拟还没初始化（刚跳到这一节）：画框里先放一行载入提示，初始化后第一帧画出来就撤掉 */
+.sim-host:not(.ready)::after { content: 'PRTS · 战术模拟部署中……'; position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.24em; color: var(--c-muted);
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--c-line) calc(10% - 1px) 10%), repeating-linear-gradient(0deg, transparent 0 calc(20% - 1px), var(--c-line) calc(20% - 1px) 20%); }
+.sim-cam { position: absolute; inset: 0; will-change: transform; }
+.sim-canvas { position: absolute; left: 0; top: 0; }
+.sim-host.peek .sim-canvas { cursor: help; }
+.sim-op { position: absolute; z-index: 2; pointer-events: none; }
+.sim-op .chibi-canvas { cursor: default; pointer-events: none; }
+.sim-op .chibi-shadow { bottom: calc(12% - 7px); }
+
+/* 左上角的标签 · HUD：关卡、击破、漏过 */
+.sim-tag { position: absolute; left: 12px; top: 10px; z-index: 3; display: flex; align-items: center; gap: 7px; pointer-events: none; font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.2em; color: var(--c-muted); opacity: 0.85; }
+.sim-tag i { width: 7px; height: 7px; border-radius: 50%; background: #ff4d6a; box-shadow: 0 0 8px #ff4d6a; animation: simRec 1.6s steps(2) infinite; }
+@keyframes simRec { 50% { opacity: 0.25; } }
+.sim-hud { position: absolute; left: 50%; top: 7px; z-index: 4; display: flex; gap: 6px; transform: translateX(-50%); pointer-events: none; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.06em; white-space: nowrap; }
+.sim-hud span { padding: 2px 10px; border: 1px solid var(--c-line2); background: color-mix(in srgb, var(--c-bg) 80%, transparent); color: var(--c-muted); }
+.sim-hud b { color: var(--c-text); }
+.sim-hud i { margin: 0 2px; font-style: normal; opacity: 0.5; }
+.sim-hud .hud-scen { color: var(--c-ink); background: var(--c-acc); border-color: var(--c-acc); font-weight: 700; font-family: var(--f-sans); letter-spacing: 0.12em; }
+.sim-hud .hud-mod { color: var(--c-acc2); border-color: var(--c-acc2); }
+.sim-hud .bad b { color: #ff5d6c; }
+
+/* 技能切入：从右边滑进来（左边站着她本人，不挡住小人） */
+.sim-cutin { position: absolute; right: 0; top: 36px; z-index: 4; display: flex; flex-direction: row-reverse; align-items: center; gap: 14px; max-width: 62%; padding: 10px 16px 10px 40px; pointer-events: none; text-align: right;
+  background: linear-gradient(270deg, color-mix(in srgb, var(--c-bg) 94%, transparent) 60%, transparent); border-right: 3px solid var(--c-acc); opacity: 0; transform: translateX(104%); }
+.sim-cutin::before { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 72%; background: repeating-linear-gradient(115deg, transparent 0 14px, color-mix(in srgb, var(--c-acc) 9%, transparent) 14px 16px); pointer-events: none; }
+.sim-cutin.on { animation: simCut 2.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+@keyframes simCut { 0% { opacity: 0; transform: translateX(104%); } 12% { opacity: 1; transform: translateX(0); } 80% { opacity: 1; transform: translateX(-1.5%); } 100% { opacity: 0; transform: translateX(-6%); } }
+.sim-cutin i { position: relative; width: 56px; height: 56px; flex: none; border: 1px solid var(--c-acc); background: var(--c-panel2); box-shadow: 0 0 18px -4px var(--c-glow); }
+.sim-cutin i img { width: 100%; height: 100%; display: block; }
+.sim-cutin > div { position: relative; }
+.sim-cutin small { display: block; font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.24em; color: var(--c-acc); }
+.sim-cutin b { display: block; font-family: var(--f-serif); font-size: clamp(20px, 2.4vw, 32px); font-weight: 900; line-height: 1.2; }
+.sim-cutin span { display: block; font-size: 12.5px; color: var(--c-muted); }
+.sim-cutin span b { display: inline; font: inherit; font-weight: 800; color: var(--c-acc); }
+.sim-cutin q { display: block; margin-top: 3px; font-size: 12px; font-style: italic; color: var(--c-acc2); quotes: '「' '」'; }
+
+/* 同时命中 / 连击 */
+.sim-hit { position: absolute; left: 12px; top: 36px; z-index: 4; display: grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; padding: 6px 14px 6px 12px; pointer-events: none;
+  border: 1px solid var(--c-line2); border-left: 3px solid var(--c-acc); background: color-mix(in srgb, var(--c-bg) 84%, transparent); opacity: 0; transition: opacity 0.4s; }
+.sim-hit.on { opacity: 1; }
+.sim-hit b { grid-row: span 2; font-family: var(--f-display); font-size: 40px; line-height: 1; color: var(--c-acc2); transform-origin: 60% 60%; }
+.sim-hit span { font-size: 11px; letter-spacing: 0.2em; color: var(--c-muted); }
+.sim-hit em { font-style: normal; font-family: var(--f-mono); font-weight: 800; font-size: 15px; color: var(--c-acc); }
+.sim-hit i { grid-column: 1 / -1; margin-top: 3px; font-style: normal; font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--c-muted); }
+.sim-hit.pop b { animation: simPop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes simPop { from { transform: scale(1.8); } to { transform: none; } }
+
+/* 战报 */
+.sim-log { position: absolute; left: 10px; bottom: 8px; z-index: 3; display: flex; flex-direction: column-reverse; gap: 3px; max-width: 46%; pointer-events: none; }
+.sim-log p { margin: 0; padding: 2px 9px; font-size: 11.5px; line-height: 1.55; background: color-mix(in srgb, var(--c-bg) 80%, transparent); border-left: 2px solid var(--c-line2); animation: simLog 7s ease forwards; }
+.sim-log p b { color: var(--c-acc); }
+.sim-log p.f { border-color: #ff8a3d; } .sim-log p.s { border-color: #6cc3ff; } .sim-log p.w { border-color: #ff5d6c; } .sim-log p.k { border-color: var(--c-acc2); }
+.sim-log p.v { border-color: var(--c-acc2); color: var(--c-muted); }
+.sim-log p.v i { font-style: italic; }
+@keyframes simLog { 0% { opacity: 0; transform: translateX(-8px); } 5% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
+
+/* 解说气泡：第一次发生某件事时指着它 */
+.sim-tip { position: absolute; left: 0; top: 0; z-index: 5; max-width: min(320px, 70%); padding: 8px 12px 9px; pointer-events: none; font-size: 12.5px; line-height: 1.6;
+  color: var(--c-text); background: color-mix(in srgb, var(--c-bg) 93%, transparent); border: 1px solid var(--c-acc); box-shadow: 0 10px 30px -12px var(--c-shadow); opacity: 0; transition: opacity 0.25s; }
+.sim-tip.on { opacity: 1; }
+.sim-tip::before { content: 'TIP'; position: absolute; right: 8px; top: -9px; padding: 0 5px; font-family: var(--f-mono); font-size: 9.5px; letter-spacing: 0.2em; color: var(--c-ink); background: var(--c-acc); }
+.sim-tip::after { content: ''; position: absolute; left: var(--ax, 50%); bottom: -7px; width: 12px; height: 12px; margin-left: -6px; background: inherit; border: 1px solid var(--c-acc); border-top: 0; border-left: 0; transform: rotate(45deg); }
+.sim-tip.below::after { bottom: auto; top: -7px; transform: rotate(225deg); }
+.sim-tip b { color: var(--c-acc); }
+
+/* 技能结算卡：技能结束时在画框中间弹出几秒 */
+.sim-result { position: absolute; left: 50%; top: 46%; z-index: 5; min-width: 280px; padding: 12px 22px 12px; pointer-events: none; text-align: center; opacity: 0; transform: translate(-50%, -50%) scale(0.9);
+  background: color-mix(in srgb, var(--c-bg) 93%, transparent); border: 1px solid var(--c-acc); border-top-width: 3px; box-shadow: 0 24px 60px -24px var(--c-shadow), 0 0 50px -16px var(--c-glow); }
+.sim-result.on { animation: simRes 3.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+@keyframes simRes { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); } 9% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); } 15% { transform: translate(-50%, -50%) scale(1); } 84% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -56%) scale(0.98); } }
+.sim-result small { display: block; font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.26em; color: var(--c-acc); }
+.sim-result > b { display: block; margin: 2px 0 6px; font-family: var(--f-serif); font-size: 24px; font-weight: 900; }
+.sim-result dl { display: grid; grid-template-columns: repeat(4, auto); gap: 4px 20px; margin: 0; justify-content: center; }
+.sim-result dt { font-size: 11px; color: var(--c-muted); }
+.sim-result dd { margin: 0; font-family: var(--f-mono); font-size: 18px; font-weight: 800; color: var(--c-text); }
+.sim-result div:first-child dd { color: var(--c-acc); }
+
+/* 悬停查看卡 */
+.sim-card { position: absolute; left: 0; top: 0; z-index: 6; width: 212px; padding: 9px 12px 8px; pointer-events: none; font-size: 12px; color: var(--c-text);
+  background: color-mix(in srgb, var(--c-bg) 95%, transparent); border: 1px solid var(--c-line2); border-top: 2px solid var(--c-acc); box-shadow: 0 12px 30px -12px var(--c-shadow); opacity: 0; transition: opacity 0.15s; }
+.sim-card.on { opacity: 1; }
+.sim-card > b { font-family: var(--f-serif); font-size: 15px; }
+.sim-card > i { display: block; font-style: normal; font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.12em; color: var(--c-muted); }
+.sim-card em { display: block; height: 4px; margin: 6px 0 4px; background: color-mix(in srgb, var(--c-text) 14%, transparent); position: relative; overflow: hidden; }
+.sim-card em::after { content: ''; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--v, 1)); background: #ff4d6a; }
+.sim-card em.ok::after { background: #34c878; }
+.sim-card dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 4px 0 0; }
+.sim-card dt { color: var(--c-muted); }
+.sim-card dd { margin: 0; text-align: right; font-family: var(--f-mono); }
+.sim-card dd.hi { color: var(--c-acc); font-weight: 800; }
+
+/* 曲线 + 统计 */
+.sim-under { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 10px; margin-top: 12px; align-items: start; }
+.sim-graph-box { display: flex; flex-direction: column; min-width: 0; padding: 8px 10px 6px; border: 1px solid var(--c-line); background: var(--c-panel2); }
+.sg-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.sg-h b { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.16em; color: var(--c-acc); }
+.sg-h span { font-size: 11px; color: var(--c-muted); }
+.sim-graph { display: block; width: 100%; height: 112px; margin-top: 2px; }
+.sim-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sim-stats div { padding: 8px 10px; border: 1px solid var(--c-line); background: var(--c-panel2); min-width: 0; }
+.sim-stats span { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.1em; color: var(--c-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sim-stats b { display: block; font-family: var(--f-mono); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.sim-note { margin: 10px 0 0; font-size: 12px; color: var(--c-muted); }
+.sim-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 12px; font-size: 12.5px; }
+.sim-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); vertical-align: -1px; }
+.sim-legend em { flex-basis: 100%; font-style: normal; font-size: 12px; color: var(--c-muted); }
+
+/* 职业特性 */
+/* 小剧场的音符用了全局的 .note（theater.css 里 .note { opacity: 0 }）：本区块的说明文字不受它影响 */
+#combat p.note { opacity: 1; animation: none; }
+.cls-grid { display: grid; grid-template-columns: 1.3fr 0.9fr 1.2fr; gap: 16px; margin-top: 16px; }
+.cls-badge { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.cls-badge .cls-icon { width: 46px; height: 46px; flex: none; color: var(--c-acc2); }
+.cls-badge b { display: block; font-family: var(--f-serif); font-size: 21px; }
+.cls-badge span { font-size: 13px; color: var(--c-muted); }
+.cls-roles ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.cls-roles li { font-size: 13.5px; line-height: 1.7; }
+.cls-roles li b { margin-right: 8px; color: var(--c-acc); }
+.range-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
+.range-duo figure { margin: 0; display: grid; justify-items: center; gap: 6px; }
+.range-duo .range-wrap { min-height: 150px; padding: 4px 0; }
+.range-duo .rg { grid-template-columns: repeat(var(--cols), 17px); gap: 3px; }
+.range-duo .rg i { width: 17px; height: 17px; }
+.range-duo .rg i.me::after { inset: 4px; border-width: 1.5px; }
+.range-duo figcaption { font-size: 12px; color: var(--c-muted); text-align: center; }
+.range-duo .sk .rg i.on { border-color: var(--c-acc3); background: color-mix(in srgb, var(--c-acc3) 26%, transparent); box-shadow: inset 0 0 8px color-mix(in srgb, var(--c-acc3) 45%, transparent); }
+.range-duo .sk figcaption { color: var(--c-acc3); }
+.rg-all { display: grid; place-items: center; align-content: center; width: 140px; height: 110px; border: 1.5px solid var(--c-acc3); text-align: center;
+  background: repeating-linear-gradient(0deg, transparent 0 13px, color-mix(in srgb, var(--c-acc3) 25%, transparent) 13px 14px), repeating-linear-gradient(90deg, transparent 0 13px, color-mix(in srgb, var(--c-acc3) 25%, transparent) 13px 14px), color-mix(in srgb, var(--c-acc3) 12%, transparent); }
+.rg-all b { font-family: var(--f-serif); font-size: 17px; color: var(--c-text); }
+.rg-all small { font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.2em; color: var(--c-muted); }
+.cls-vs table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cls-vs th, .cls-vs td { padding: 7px 8px; border-bottom: 1px solid var(--c-line); text-align: left; }
+.cls-vs thead th { font-size: 13px; letter-spacing: 0.1em; }
+.cls-vs tbody th { font-weight: 500; color: var(--c-muted); white-space: nowrap; }
+.cls-vs .me { font-weight: 700; color: var(--c-acc); background: color-mix(in srgb, var(--c-acc) 10%, transparent); }
+
+/* 技能数学 */
+.cls-math { margin-top: 16px; }
+.math-tgt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 12px; }
+.math-tgt > span { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--c-muted); }
+.math-tgt .seg button { padding: 4px 10px; font-size: 12px; }
+.math-rows { display: grid; gap: 8px; }
+.mr { display: grid; grid-template-columns: minmax(140px, 200px) minmax(0, 1fr); gap: 4px 16px; align-items: center; padding: 9px 12px; border: 1px solid var(--c-line); background: var(--c-panel2); transition: border-color 0.3s, background 0.3s; }
+.mr.on { border-color: var(--c-acc); background: color-mix(in srgb, var(--c-acc) 9%, var(--c-panel2)); }
+.mr.base { opacity: 0.8; }
+.mr-n { grid-row: span 2; display: grid; }
+.mr-n b { font-family: var(--f-serif); font-size: 16px; }
+.mr.on .mr-n b { color: var(--c-acc); }
+.mr-n small { font-size: 11.5px; color: var(--c-muted); line-height: 1.5; }
+.mr-bar { position: relative; height: 26px; overflow: hidden; background: color-mix(in srgb, var(--c-text) 6%, transparent); }
+.mr-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left; transform: scaleX(var(--w, 0)); transition: transform 0.8s var(--ease);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c-acc3) 70%, transparent), var(--c-acc)); }
+.mr-bar i.solo { top: auto; height: 5px; background: var(--c-acc2); }
+.mr-bar.med i { background: linear-gradient(90deg, #7fdcaa, #34c878); }
+.mr-bar.med i.el { transform: translateX(calc(var(--x, 0) * 100%)) scaleX(var(--w, 0)); background: linear-gradient(90deg, #f6c46a, #e6a12a); }
+.mr-bar span { position: relative; z-index: 1; display: block; padding-left: 9px; line-height: 26px; font-family: var(--f-mono); font-weight: 800; font-size: 14px; color: var(--c-text); white-space: nowrap; text-shadow: 0 1px 2px color-mix(in srgb, var(--c-bg) 70%, transparent); }
+.mr-bar span small { font-family: var(--f-sans); font-weight: 500; font-size: 11px; color: var(--c-text); opacity: 0.8; }
+.mr-kv { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; color: var(--c-muted); }
+.mr-kv b { font-family: var(--f-mono); color: var(--c-text); }
+
+@media (max-width: 900px) {
+  .cls-grid { grid-template-columns: 1fr; }
+  .sim-under { grid-template-columns: 1fr; }
+  .sim-host { aspect-ratio: 10 / 5; }
+}
+@media (max-width: 640px) {
+  .sim-wrap { padding: 12px; }
+  .sim-top { gap: 10px; }
+  .sim-skills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 6px; }
+  .sim-sk { gap: 6px; padding: 5px 6px 5px 4px; font-size: 12px; min-width: 0; }
+  .sim-sk .sim-ic { width: 28px; height: 28px; }
+  .sim-sk span { min-width: 0; }
+  .sim-sk small { font-size: 9px; letter-spacing: 0.06em; }
+  .sim-ctrl { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'cast reset' 'auto speed'; gap: 8px; width: 100%; align-items: center; }
+  .sim-cast { grid-area: cast; min-width: 0; height: 40px; padding: 0 12px; white-space: nowrap; }
+  .sim-reset { grid-area: reset; height: 40px; padding: 0 16px; }
+  .sim-auto { grid-area: auto; }
+  .sim-speed { grid-area: speed; justify-self: end; }
+  .sim-tag { display: none; }
+  .sim-cfg { gap: 8px 12px; }
+  .cfg-g { flex: none; }
+  .sim-cfg .seg { flex-wrap: nowrap; }
+  .sim-cfg .seg button { white-space: nowrap; padding: 4px 8px; }
+  .cfg-tips { margin-left: 0; white-space: nowrap; }
+  .sim-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 地图保持看得清的格子大小，左右滑动查看 */
+  .sim-scroll { overflow-x: auto; overflow-y: hidden; margin: 0 -12px; padding: 0 12px; }
+  .sim-scroll::before { display: none; }
+  .sim-host { min-width: 640px; min-height: 0; }
+  .sim-stats b { font-size: 15px; }
+  .mr { grid-template-columns: 1fr; }
+  .mr-n { grid-row: auto; }
+  .mr-bar span small { display: none; }
+}

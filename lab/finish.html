@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>finish lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 "JetBrains Mono", monospace; }
+  #wrap { padding: 12px; }
+  canvas { display: block; }
+  .grid { display: grid; gap: 6px; }
+  .cell { position: relative; }
+  .cell b { position: absolute; left: 4px; top: 2px; font-size: 12px; color: #fff; background: rgba(0,0,0,.6); padding: 0 5px; font-weight: 400; }
+  h3 { margin: 14px 0 6px; font-size: 14px; color: #fff; }
+  table { border-collapse: collapse; margin-top: 10px; }
+  td, th { border: 1px solid #333; padding: 2px 8px; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .hot { color: #ff7a7a; }
+</style>
+</head>
+<body>
+<!--
+  后期工具箱实验页（开发用；js/mv/finish.js）
+    ?film=miss-you&t=150&look=rain-cool          单帧：在影片画面上叠一个成片风格（look 为 F.LOOKS 的名字，或 JSON）
+        &split=1   左半原样、右半成片          &cmp=1   原样 / 成片 并排          &w=1920 分辨率（默认 1280）
+        &q=low     低档（手机）                &captions=0 不画旁白
+    ?sheet=miss-you                              前后对比表：DEMO 表里这部片的代表帧（每行 原样 | 成片）；&cw=640
+    ?sheet=miss-you&items=24:rain-cool,150:dawn  自定义时间与风格
+    ?demo=looks&film=miss-you&t=150              同一帧套上全部风格
+    ?demo=fx&film=...&t=...                      各分项效果（纹理 / 镜头 / 光斑 / 雾 / 光束 / 标题 / 景深）一格一个
+    ?demo=titles | ?demo=accent                  标题样式 / 色彩隔离遮罩
+    ?bench=1&film=miss-you&t=150                 分项性能：每项跑 N 帧（rAF），记 CPU 与帧间隔；&n=60 &mult=1（每帧重复次数）
+    ?perf=1&film=miss-you&look=rain-cool         整片性能：按 1/15 秒步进播放并套成片；&from= &to= &step= &base=1（不套，作对照）
+  结束后 document.title = DONE（或 ERR ...），结果在 window.__out
+-->
+<div id="wrap"></div>
+<script src="../js/mv/engine.js"></script>
+<script src="../js/mv/cast.js"></script>
+<script src="../js/mv/finish.js"></script>
+<script>
+(async () => {
+  const E = MVE, F = MVE.finish, q = new URLSearchParams(location.search), wrap = document.getElementById('wrap');
+  const out = (window.__out = {});
+  if (q.get('q')) F.quality = q.get('q');
+  const W = +(q.get('w') || 1280), H = Math.round((W * 9) / 16);
+  const noop = () => {};
+
+  // ---------------- 代表帧（前后对比表） ----------------
+  // 每项：[时间, 风格, 附加（可选：在成片之前 / 之后画的东西）]
+  const X = {
+    rainTitle: { after: (g, s) => F.title(g, s, { text: 'MISS YOU', sub: 'EYJAFJALLA · A SUMMER LETTER', label: '03 : 53', style: 'bold', x: 120, y: 190, size: 150, reveal: 1, ghost: true }) },
+    ripples: { before: (g, s) => F.texture(g, s, 'ripple', { a: 0.5, n: 16, rect: [0, 560, 1920, 520], squash: 0.35, size: [80, 260] }) },
+    nightBokeh: { before: (g, s) => F.bokeh(g, s, { n: 14, seed: 4, colors: ['255,196,120', '255,150,200', '255,226,170'], depth: [0.3, 1], size: [24, 90], a: 0.32, drift: [6, -3], rect: [0, 0, 1920, 760] }) },
+    sunFlare: (x, y) => ({ after: (g, s) => F.flare(g, s, { x, y, a: 0.5, rgb: '255,226,190', streak: 0.35 }) }),
+    rays: (x, y) => ({ before: (g, s) => F.rays(g, s, { x, y, a: 0.2, n: 7, angle: Math.PI / 2 + 0.25, spread: 0.9 }) }),
+    topo: { before: (g, s) => F.texture(g, s, 'topo-lines', { a: 0.75, reveal: 1 }) },
+  };
+  const both = (...xs) => ({ before: (g, s) => xs.forEach((x) => x.before && x.before(g, s)), after: (g, s) => xs.forEach((x) => x.after && x.after(g, s)) });
+  const DEMO = {
+    'before-summer': [[60, 'golden-hour', X.rays(1150, -40)], [120, 'golden-hour'], [132, 'siesta-sunset'], [168, 'night-blue', X.nightBokeh]],
+    'misty-memory-night': [[24, 'dream-pink'], [36, 'dream-pink', X.nightBokeh], [108, 'dream-pink'], [144, 'ember']],
+    'miss-you': [[12, 'ember'], [26, 'rain-cool', both(X.ripples, X.rainTitle)], [72, 'summer-noon'], [144, 'dawn', X.sunFlare(1250, 490)]],
+    'misty-memory-day': [[14, 'summer-noon'], [26, 'summer-noon'], [72, 'summer-noon'], [98, 'summer-noon', X.sunFlare(1700, 120)]],
+    effervescence: [[13, 'summer-noon'], [26, 'summer-noon'], [38, 'golden-hour']],
+  };
+  F.DEMO = DEMO;
+
+  // ---------------- 影片 ----------------
+  const lab = { fin: null, suppress: false };
+  async function loadFilm(id) {
+    const film = await E.load(id, '../js/mv/films/');
+    const an = await E.analysis(`../assets/music/${film.analysisId || id}.json`);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const R = E.renderer(cv, film, an, { debug: q.get('debug') === '1' });
+    await R.prepare();
+    if (q.get('captions') === '0') R.captions = false;
+    if (!film.__lab) {
+      film.__lab = true;
+      const orig = film.overlay;
+      // 与影片作者的用法一致：成片（F.frame）放在 overlay 的最前面，影片自己的黑边 / 片名随后画在上面；
+      // 成片自带颗粒 / 暗角时，关掉影片自己的那一份（不叠两层）
+      film.overlay = function (g, s) {
+        if (lab.fin) lab.fin(g, s);
+        const pg = E.post.grain, pv = E.post.vignette;
+        if (lab.suppress) { E.post.grain = noop; E.post.vignette = noop; }
+        try { if (orig) orig.call(this, g, s); } finally { E.post.grain = pg; E.post.vignette = pv; }
+        if (lab.post) lab.post(g, s);
+      };
+    }
+    return { film, an, cv, R, dur: an.duration };
+  }
+  const lookOf = (v) => { if (!v) return 'film'; if (v[0] === '{') return JSON.parse(v); return v; };
+  const hasGrain = (L) => { const o = typeof L === 'string' ? F.LOOKS[L] : L; return !!(o && (o.grain || o.vignette)); };
+  /** 装上成片：look + 附加 */
+  function setFin(look, extra) {
+    lab.post = null;
+    if (!look) { lab.fin = null; lab.suppress = false; return; }
+    lab.suppress = hasGrain(look);
+    lab.fin = (g, s) => { if (extra && extra.before) extra.before(g, s); F.frame(g, s, look); };
+    if (extra && extra.after) lab.post = extra.after;
+  }
+  function cell(parent, src, cw, label) {
+    const ch = Math.round((cw * 9) / 16), c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, cw, ch);
+    const d = document.createElement('div'); d.className = 'cell'; d.appendChild(c);
+    if (label) { const b = document.createElement('b'); b.textContent = label; d.appendChild(b); }
+    parent.appendChild(d); return c;
+  }
+  function grid(cols, cw) { const g = document.createElement('div'); g.className = 'grid'; g.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`; wrap.appendChild(g); return g; }
+  const stat = (a) => { if (!a.length) return { n: 0, avg: 0, p95: 0, max: 0 }; const s = a.slice().sort((x, y) => x - y); return { n: a.length, avg: +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(3), p95: +s[Math.floor(s.length * 0.95)].toFixed(2), max: +s[s.length - 1].toFixed(2) }; };
+  const raf = () => new Promise((r) => requestAnimationFrame(r));
+  async function fontsReady() { try { await Promise.race([Promise.all(['700 150px "Noto Sans SC"', '500 30px "Noto Sans SC"', '900 120px "Noto Serif SC"', '700 110px Cinzel', '500 24px Cinzel', '400 20px "JetBrains Mono"'].map((f) => document.fonts.load(f, 'MISS YOU 想你 雾中之忆 Aa'))), new Promise((r) => setTimeout(r, 4000))]); } catch (e) {} }
+
+  try {
+    await fontsReady();
+    F.warm(['paper', 'watercolor', 'grain', 'dirt', 'ripple', 'dust', 'topo', 'ripple-field']);
+    const id = q.get('film') || q.get('sheet') || 'miss-you';
+
+    if (q.has('sheet')) {
+      // ---------- 前后对比表 ----------
+      const M = await loadFilm(id), cw = +(q.get('cw') || 640);
+      let items = DEMO[id] || [];
+      if (q.get('items')) items = q.get('items').split(',').map((s) => { const [t, l] = s.split(':'); return [+t, l]; });
+      const gr = grid(2, cw);
+      out.items = [];
+      for (const [t, look, extra] of items) {
+        setFin(null); M.R.render(t);
+        const sh = M.R.shotAt(t).id;
+        cell(gr, M.cv, cw, `${t.toFixed(1)}s · ${sh} · 原样`);
+        setFin(look, extra); M.R.render(t);
+        cell(gr, M.cv, cw, `${t.toFixed(1)}s · ${sh} · ${typeof look === 'string' ? look : 'custom'}${extra ? ' +' : ''}`);
+        out.items.push([t, sh, look]);
+      }
+    } else if (q.get('demo') === 'looks') {
+      // ---------- 同一帧 × 全部风格 ----------
+      const M = await loadFilm(id), t = +(q.get('t') || 30), cw = +(q.get('cw') || 480), gr = grid(+(q.get('cols') || 4), cw);
+      setFin(null); M.R.render(t); cell(gr, M.cv, cw, `原样 · ${t}s`);
+      for (const name of Object.keys(F.LOOKS)) { setFin(name); M.R.render(t); cell(gr, M.cv, cw, name); }
+    } else if (q.get('demo') === 'fx') {
+      // ---------- 分项效果 ----------
+      const M = await loadFilm(id), t = +(q.get('t') || 30), cw = +(q.get('cw') || 480), gr = grid(+(q.get('cols') || 4), cw);
+      const FX = {
+        '原样': null,
+        'bloom 0.6': (g, s) => F.bloom(g, s, { strength: 0.6, threshold: 0.6 }),
+        'bloom+halation+dirt': (g, s) => F.bloom(g, s, { strength: 0.55, threshold: 0.55, halation: 0.45, dirt: 0.6 }),
+        'accent red': (g, s) => F.grade(g, s, [['accent', { key: 'red', desat: 0.9 }]]),
+        'paper': (g, s) => F.texture(g, s, 'paper', { a: 0.6 }),
+        'watercolor': (g, s) => F.texture(g, s, 'watercolor', { a: 0.7 }),
+        'ripple': (g, s) => F.texture(g, s, 'ripple', { a: 0.7, n: 18 }),
+        'ripple-field': (g, s) => F.texture(g, s, 'ripple-field', { a: 0.5 }),
+        'halftone': (g, s) => F.texture(g, s, 'halftone', { a: 0.3 }),
+        'dust+scratches': (g, s) => { F.texture(g, s, 'dust', { a: 1, n: 6 }); F.texture(g, s, 'scratches', { a: 0.6, p: 1 }); },
+        'topo-lines': (g, s) => F.texture(g, s, 'topo-lines', { a: 0.9 }),
+        'grain 0.2': (g, s) => F.grain(g, s, { a: 0.2 }),
+        'leak warm': (g, s) => F.leak(g, s, { a: 0.6 }),
+        'leak pink tl': (g, s) => F.leak(g, s, { a: 0.6, palette: 'pink', side: 'tl' }),
+        'flare+streak': (g, s) => F.flare(g, s, { x: 1400, y: 260, a: 0.8, streak: 0.6 }),
+        'dirt (lights)': (g, s) => F.dirt(g, s, { a: 1, lights: [[1400, 260, 700, '255,230,200', 1]] }),
+        'chroma 1': (g, s) => F.chroma(g, s, { a: 1 }),
+        'bokeh disc': (g, s) => F.bokeh(g, s, { n: 26, a: 0.6 }),
+        'bokeh hex': (g, s) => F.bokeh(g, s, { n: 26, a: 0.6, shape: 'hex', colors: ['255,200,140', '255,160,120'] }),
+        'haze': (g, s) => F.haze(g, s, { from: 760, to: 300, density: 0.55, band: true, wisps: 1 }),
+        'rays': (g, s) => F.rays(g, s, { x: 1300, y: -60, a: 0.35, n: 7 }),
+        'vignette tinted': (g, s) => F.vignette(g, s, { a: 0.7, rgb: '40,10,60' }),
+        'dof live (whole frame)': (g, s) => { s.post.fill(g, '#000', 0); },
+        'title bold': (g, s) => F.title(g, s, { text: 'MISS YOU', sub: 'EYJAFJALLA · A SUMMER LETTER', label: '03 : 53', style: 'bold', x: 120, y: 200, reveal: 1, ghost: true }),
+        'title serif': (g, s) => F.title(g, s, { text: '雾中之忆', sub: 'MISTY MEMORY', seal: '艾', style: 'serif', y: 480, reveal: 1 }),
+        'title vertical': (g, s) => F.title(g, s, { text: '晴日之约', sub: 'MISTY MEMORY · DAY', seal: '汐', style: 'vertical', x: 1500, y: 540, reveal: 1 }),
+        'title serif-ink': (g, s) => F.title(g, s, { text: '夏天之前', sub: 'BEFORE SUMMER', seal: '夏', style: 'serif-ink', y: 420, reveal: 1 }),
+        'title display': (g, s) => F.title(g, s, { text: 'BEFORE SUMMER', sub: 'LETANIA · JUNE', style: 'display', y: 540, reveal: 1 }),
+        'title letters 50%': (g, s) => F.title(g, s, { text: 'MISS YOU', sub: 'EYJAFJALLA', style: 'bold', x: 120, y: 200, reveal: 0.5 }),
+      };
+      const only = q.get('only');
+      for (const [name, fn] of Object.entries(FX)) {
+        if (only && !only.split('|').includes(name)) continue;
+        lab.suppress = false;
+        if (name.startsWith('dof live')) {
+          // 整帧的景深示意：把当前画面当成一个"活"的层，用 live DOF 虚化
+          lab.fin = (g, s) => { const src = g.canvas, tmp = document.createElement('canvas'); tmp.width = src.width; tmp.height = src.height; tmp.getContext('2d').drawImage(src, 0, 0); F.dof(g, s, 'x', (qq) => qq.drawImage(tmp, 0, 0, 1920, 1080), { live: true, radius: 14 }); };
+        } else lab.fin = fn;
+        M.R.render(t); cell(gr, M.cv, cw, name);
+      }
+    } else if (q.get('demo') === 'accent') {
+      const M = await loadFilm(id), t = +(q.get('t') || 30), cw = +(q.get('cw') || 640), gr = grid(3, cw);
+      lab.fin = null; M.R.render(t); cell(gr, M.cv, cw, '原样');
+      let mask = null;
+      lab.fin = (g, s) => { mask = F._accentMask(g, { key: q.get('key') || 'red' }); };
+      M.R.render(t); const c2 = cell(gr, M.cv, cw, 'accent'); cell(gr, mask, cw, 'mask (1/4)');
+    } else if (q.has('bench')) {
+      // ---------- 分项性能 ----------
+      const M = await loadFilm(id), t0 = +(q.get('t') || 30), N = +(q.get('n') || 60), mult = +(q.get('mult') || 1);
+      wrap.appendChild(M.cv); M.cv.style.width = '640px';
+      const lights = [[1400, 260, 600, '255,230,200', 1]];
+      const B = {
+        none: null,
+        'bloom (hi: 1/2 → 1/32)': (g, s) => F.bloom(g, s, { strength: 0.5 }),
+        'bloom + halation + dirt': (g, s) => F.bloom(g, s, { strength: 0.5, halation: 0.3, dirt: 0.4 }),
+        'bloom sprites (4 lights)': (g, s) => F.bloom(g, s, { frame: false, lights: [lights[0], [300, 700, 200], [900, 500, 160], [1700, 800, 220]] }),
+        'grade film (3 ops + curve)': (g, s) => F.grade(g, s, 'film'),
+        'grade rain-cool (accent)': (g, s) => F.grade(g, s, 'rain-cool'),
+        'grade duotone-magenta': (g, s) => F.grade(g, s, 'duotone-magenta'),
+        'grade siesta-sunset': (g, s) => F.grade(g, s, 'siesta-sunset'),
+        'grade summer-noon': (g, s) => F.grade(g, s, 'summer-noon'),
+        'grade memory-sepia': (g, s) => F.grade(g, s, 'memory-sepia'),
+        'texture paper': (g, s) => F.texture(g, s, 'paper'),
+        'texture watercolor': (g, s) => F.texture(g, s, 'watercolor'),
+        'texture ripple (14)': (g, s) => F.texture(g, s, 'ripple'),
+        'texture ripple-field': (g, s) => F.texture(g, s, 'ripple-field'),
+        'texture halftone': (g, s) => F.texture(g, s, 'halftone'),
+        'texture dust': (g, s) => F.texture(g, s, 'dust', { n: 4 }),
+        'texture scratches': (g, s) => F.texture(g, s, 'scratches'),
+        'texture topo-lines': (g, s) => F.texture(g, s, 'topo-lines'),
+        grain: (g, s) => F.grain(g, s, 0.08),
+        vignette: (g, s) => F.vignette(g, s, 0.4),
+        leak: (g, s) => F.leak(g, s, { a: 0.4 }),
+        'flare + streak': (g, s) => F.flare(g, s, { x: 1400, y: 260, streak: 0.5 }),
+        'dirt (lights)': (g, s) => F.dirt(g, s, { lights }),
+        'chroma (hi only)': (g, s) => F.chroma(g, s, 0.6),
+        'bokeh 24': (g, s) => F.bokeh(g, s, { n: 24 }),
+        haze: (g, s) => F.haze(g, s, { from: 760, to: 300, density: 0.4 }),
+        'haze + wisps': (g, s) => F.haze(g, s, { from: 760, to: 300, density: 0.4, wisps: 1 }),
+        'rays 6': (g, s) => F.rays(g, s, {}),
+        'title bold (letters)': (g, s) => F.title(g, s, { text: 'MISS YOU', sub: 'EYJAFJALLA', label: '03 : 53', x: 120, y: 200, reveal: 0.6 + 0.4 * Math.sin(s.t * 3) ** 2 }),
+        'title serif (ink)': (g, s) => F.title(g, s, { text: '雾中之忆', sub: 'MISTY MEMORY', seal: '艾', style: 'serif', y: 480, reveal: 0.5 + 0.5 * Math.sin(s.t * 2) ** 2 }),
+        'title wipe': (g, s) => F.title(g, s, { text: 'BEFORE SUMMER', sub: 'LETANIA', style: 'display', y: 540, reveal: 0.5 + 0.5 * Math.sin(s.t * 2) ** 2 }),
+        'dofLayer (cached plane)': (g, s) => F.dof(g, s, 'bench', (qq) => { qq.fillStyle = '#446'; qq.fillRect(0, 700, 1920, 380); for (let i = 0; i < 12; i++) { qq.fillStyle = `hsl(${i * 30},50%,60%)`; qq.beginPath(); qq.arc(i * 170 + 60, 820, 70, 0, 7); qq.fill(); } }, { radius: 12, cam: { x: 960 + Math.sin(s.t) * 60, y: 540 }, depth: 1.3 }),
+        'dof live (12 shapes)': (g, s) => F.dof(g, s, 'live', (qq) => { for (let i = 0; i < 12; i++) { qq.fillStyle = `hsl(${i * 30},50%,60%)`; qq.beginPath(); qq.arc(i * 170 + 60 + Math.sin(s.t + i) * 40, 900, 90, 0, 7); qq.fill(); } }, { live: true, radius: 14 }),
+      };
+      for (const L of ['film', 'rain-cool', 'duotone-magenta', 'siesta-sunset', 'summer-noon', 'dream-pink', 'memory-sepia', 'night-blue', 'golden-hour', 'ember']) B['frame ' + L] = (g, s) => F.frame(g, s, L);
+      const only = q.get('only'), rows = [];
+      for (const [name, fn] of Object.entries(B)) {
+        if (only && !only.split('|').some((o) => name.startsWith(o))) continue;
+        const cpu = [], gaps = [];
+        let rec = false;
+        lab.fin = fn ? (g, s) => { const c0 = performance.now(); for (let m = 0; m < mult; m++) fn(g, s); if (rec) cpu.push(performance.now() - c0); } : null;
+        let tt = t0, last = 0;
+        for (let i = 0; i < 8; i++) { M.R.render(tt); tt += 1 / 30; await raf(); } // 预热：建缓存
+        rec = true;
+        for (let i = 0; i < N; i++) { const now = await raf(); if (last) gaps.push(now - last); last = now; M.R.render(tt); tt += 1 / 30; }
+        const now = await raf(); gaps.push(now - last);
+        rows.push({ name, cpu: stat(cpu), gap: stat(gaps) });
+      }
+      out.bench = { w: W, h: H, q: F.level(), mult, rows };
+      let html = `<p>${id} @ ${t0}s · ${W}×${H} · quality ${F.level()} · mult ${mult}</p><table><tr><th>effect</th><th>cpu avg ms</th><th>cpu p95</th><th>frame avg</th><th>frame p95</th></tr>`;
+      for (const r of rows) html += `<tr><td>${r.name}</td><td class="${r.cpu.avg > 0.5 ? 'hot' : ''}">${r.cpu.avg}</td><td>${r.cpu.p95}</td><td>${r.gap.avg}</td><td class="${r.gap.p95 > 20 ? 'hot' : ''}">${r.gap.p95}</td></tr>`;
+      wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    } else if (q.has('perf')) {
+      // ---------- 整片性能（与 lab/mv.html 同法，外加成片耗时） ----------
+      const M = await loadFilm(id), look = lookOf(q.get('look')), base = q.get('base') === '1';
+      wrap.appendChild(M.cv); M.cv.style.width = '640px';
+      const step = +(q.get('step') || 1 / 15), from = +(q.get('from') || 0), to = Math.min(+(q.get('to') || M.dur), M.dur);
+      let fin = [];
+      if (!base) { lab.suppress = hasGrain(look); lab.fin = (g, s) => { F.frame(g, s, look); fin.push(F.stats.frame); }; }
+      F.profile = !base; F.resetStats();
+      for (let t = from; t < to; t += 3) M.R.render(t);
+      fin = []; F.resetStats();
+      const cpu = [], gaps = [];
+      await new Promise((done) => {
+        let t = from, last = 0;
+        const tick = (now) => {
+          if (last) gaps.push(now - last); last = now;
+          if (t >= to) { done(); return; }
+          const c0 = performance.now(); M.R.render(t); cpu.push(performance.now() - c0);
+          t += step; requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      const fx = {}; for (const [k, v] of Object.entries(F.stats.fx)) fx[k] = { avg: +(v.sum / v.n).toFixed(3), max: +v.max.toFixed(2) };
+      out.perf = { film: id, look: base ? null : look, w: W, h: H, q: F.level(), cpu: stat(cpu), finish: stat(fin), frame: stat(gaps), fx };
+      wrap.insertAdjacentHTML('beforeend', `<pre>${JSON.stringify(out.perf, null, 1)}</pre>`);
+    } else if (q.has('play')) {
+      const M = await loadFilm(id), look = lookOf(q.get('look'));
+      setFin(q.get('look') === 'none' ? null : look);
+      wrap.appendChild(M.cv); M.cv.style.width = Math.min(W, innerWidth - 24) + 'px';
+      const from = +(q.get('from') || 0), t0 = performance.now();
+      const loop = () => { M.R.render((from + (performance.now() - t0) / 1000) % M.dur); requestAnimationFrame(loop); };
+      loop();
+    } else {
+      // ---------- 单帧 ----------
+      const M = await loadFilm(id), t = +(q.get('t') || 30), look = lookOf(q.get('look'));
+      if (q.get('split') === '1' || q.get('cmp') === '1') {
+        setFin(null); M.R.render(t);
+        const A = document.createElement('canvas'); A.width = W; A.height = H; A.getContext('2d').drawImage(M.cv, 0, 0);
+        setFin(look); M.R.render(t);
+        if (q.get('cmp') === '1') { const gr = grid(2, W / 2); cell(gr, A, W / 2, '原样'); cell(gr, M.cv, W / 2, typeof look === 'string' ? look : 'custom'); }
+        else { const x = M.cv.getContext('2d'); x.drawImage(A, 0, 0, W / 2, H, 0, 0, W / 2, H); x.fillStyle = 'rgba(255,255,255,.8)'; x.fillRect(W / 2 - 1, 0, 2, H); wrap.appendChild(M.cv); }
+      } else { setFin(q.get('look') === 'none' ? null : look); M.R.render(t); wrap.appendChild(M.cv); }
+      out.shot = M.R.shotAt(t).id; out.ms = M.R.lastMs; out.fin = F.stats.frame;
+    }
+    document.title = 'DONE';
+  } catch (e) {
+    wrap.textContent = 'ERR ' + (e.stack || e);
+    document.title = 'ERR ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

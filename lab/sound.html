@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN" data-form="base">
+<head>
+<meta charset="utf-8">
+<title>声景试听台</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sound.css">
+<style>
+  /* 声景试听台（开发用）：只加载声音相关的脚本，逐个试听场景与音效，也用来单独测声音的 CPU 开销 */
+  body { margin: 0; padding: 24px; cursor: auto; font-family: var(--f-sans); color: var(--c-text); background: var(--c-bg); }
+  #cursor, #bg { display: none; }
+  h1 { font: 700 18px var(--f-serif); letter-spacing: 0.12em; margin: 0 0 6px; }
+  p { color: var(--c-muted); font-size: 13px; margin: 0 0 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; align-items: center; }
+  .row b { width: 100%; font-size: 12px; color: var(--c-muted); letter-spacing: 0.1em; }
+  button { padding: 6px 10px; border: 1px solid var(--c-line2); border-radius: 8px; background: var(--c-panel2); color: var(--c-text); font: 12.5px var(--f-sans); cursor: pointer; }
+  button.on { background: var(--c-acc); color: var(--c-ink); border-color: var(--c-acc); }
+  #st { font: 12px var(--f-mono); color: var(--c-muted); white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>声景试听台</h1>
+<p>点「开启声音」之后试听各个场景（与正式页面相同的引擎）；场景按钮模拟滚动到那一段 / 那一章。?debug 时可用 window.__audioDbg。</p>
+<div class="row"><button id="on">开启声音</button><button id="aid">助听器</button><button id="form">切换形态</button></div>
+<div class="row" id="zones"><b>场景</b></div>
+<div class="row" id="sfx"><b>音效</b></div>
+<div id="st"></div>
+<script src="../js/soundscape.js"></script>
+<script src="../js/audio.js"></script>
+<script>
+  // ?lat=playback|balanced|interactive  ?sr=32000 ：试验不同的音频上下文参数（只影响本页）
+  const q = new URLSearchParams(location.search);
+  if (q.get('lat') || q.get('sr')) {
+    const AC0 = window.AudioContext;
+    window.AudioContext = class extends AC0 { constructor(o = {}) { super(Object.assign({}, o, q.get('lat') ? { latencyHint: q.get('lat') } : {}, q.get('sr') ? { sampleRate: +q.get('sr') } : {})); } };
+  }
+  const $ = (s) => document.querySelector(s);
+  let form = 'base';
+  const zones = Object.keys(SOUNDSCAPE.ZONES);
+  const sfx = ['hover', 'click', 'tick', 'tab', 'select', 'slide', 'open', 'close', 'flip', 'reveal', 'whoosh', 'boom', 'sparkle', 'heal', 'erupt', 'steam', 'thunder', 'fizz', 'splash', 'glass', 'crackle', 'throw', 'zoom', 'seed', 'warn', 'bleat', 'bell', 'chime'];
+  const mk = (host, label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; host.appendChild(b); return b; };
+  zones.forEach((z) => mk($('#zones'), z, () => { const e = SOUNDSCAPE.current; if (e) e.setZone(z); show(); }));
+  sfx.forEach((k) => mk($('#sfx'), k, () => AUDIO.sfx(k)));
+  $('#on').onclick = () => { AUDIO.setForm(form); AUDIO.setEnabled(!AUDIO.enabled); $('#on').classList.toggle('on', AUDIO.enabled); show(); };
+  $('#aid').onclick = () => { AUDIO.setClarity(!AUDIO.clear); $('#aid').classList.toggle('on', AUDIO.clear); show(); };
+  $('#form').onclick = () => { form = form === 'base' ? 'alter' : 'base'; document.documentElement.dataset.form = form; AUDIO.setForm(form); show(); };
+  function show() { const e = SOUNDSCAPE.current; $('#st').textContent = e ? `形态 ${form} · 场景 ${e.zone} · ${e.zoneLabel()} · 听阈 ${Math.round(e.cutoff)}Hz` : '（尚未开启）'; }
+  SOUNDSCAPE.on(show);
+  setInterval(show, 1000);
+</script>
+</body>
+</html>

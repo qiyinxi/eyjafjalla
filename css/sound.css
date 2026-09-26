@@ -1,0 +1,76 @@
+/* =========================================================
+ * 声音：助听器提示、混音面板（js/soundscape.js）
+ * ========================================================= */
+
+/* 助听器按钮的提示光圈：原先逐帧重绘 box-shadow，这里改成一只只做 transform / opacity 的圆环（交给合成器） */
+.hear-btn { position: relative; }
+.hear-btn:not(.on) { animation: none; }
+.hear-btn:not(.on)::after,
+.snd-panel.muffled .sp-hear::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; border: 2px solid var(--c-acc);
+  pointer-events: none; opacity: 0; animation: sndRing 1.8s ease-out infinite;
+}
+@keyframes sndRing { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.45); opacity: 0; } }
+.snd-panel.muffled .sp-hear::after { animation-name: sndRingWide; }
+@keyframes sndRingWide { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.12, 1.3); opacity: 0; } }
+
+.mix-btn .ico { width: 18px; height: 18px; }
+.snd-btn[aria-expanded='true'], .mix-btn[aria-expanded='true'] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-acc) 30%, transparent); }
+
+/* ---------------------------------------------------- 混音面板 */
+.snd-panel {
+  position: fixed; z-index: 92; top: 62px; right: var(--gut);
+  width: min(340px, calc(100vw - 2 * var(--gut)));
+  padding: 14px 16px 12px; border: 1px solid var(--c-line2); border-radius: 14px;
+  background: color-mix(in srgb, var(--c-bg) 95%, var(--c-acc) 5%);
+  box-shadow: 0 18px 50px -14px var(--c-shadow), inset 0 1px 0 color-mix(in srgb, var(--c-text) 6%, transparent);
+  color: var(--c-text); font-family: var(--f-sans);
+  animation: spIn 0.28s var(--ease);
+}
+.snd-panel[hidden] { display: none; }
+@keyframes spIn { from { opacity: 0; transform: translateY(-6px) scale(0.98); } }
+.sp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.sp-t { flex: none; font-family: var(--f-serif); font-weight: 700; font-size: 15px; letter-spacing: 0.14em; }
+.sp-t small { margin-left: 8px; font-family: var(--f-mono); font-size: 9px; font-weight: 400; letter-spacing: 0.28em; color: var(--c-muted); }
+.sp-now { min-width: 0; font-size: 11.5px; line-height: 1.35; color: var(--c-muted); text-align: right; }
+
+.sp-viz { position: relative; height: 54px; margin: 2px 0 10px; border: 1px solid var(--c-line); border-radius: 8px; background: color-mix(in srgb, var(--c-panel2) 70%, transparent); overflow: hidden; }
+.sp-viz canvas { display: block; width: 100%; height: 100%; }
+.sp-th { position: absolute; top: 0; left: 0; bottom: 0; padding: 3px 0 0 6px; border-left: 1px dashed var(--c-acc); font: 10px/1.2 var(--f-mono); color: var(--c-acc); white-space: nowrap; pointer-events: none; transition: transform 0.5s var(--ease), color 0.4s; }
+.sp-th.full { border-left-color: transparent; color: var(--c-muted); }
+
+.sp-rows { display: grid; gap: 4px; }
+.sp-row { display: grid; grid-template-columns: 50px 1fr 26px; align-items: center; gap: 10px; font-size: 12.5px; color: var(--c-muted); cursor: pointer; }
+.sp-row em { font: 11px var(--f-mono); font-style: normal; text-align: right; color: var(--c-text); }
+.sp-row input[type='range'] { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer; }
+.sp-row input[type='range']::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--c-acc), var(--c-acc2)) 0 / var(--v, 50%) 100% no-repeat, var(--c-line2); }
+.sp-row input[type='range']::-moz-range-track { height: 4px; border-radius: 4px; background: var(--c-line2); }
+.sp-row input[type='range']::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--c-acc); }
+.sp-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border: 2px solid var(--c-acc); border-radius: 50%; background: var(--c-bg); box-shadow: 0 0 10px var(--c-glow); }
+.sp-row input[type='range']::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid var(--c-acc); border-radius: 50%; background: var(--c-bg); }
+.sp-row input[type='range']:focus-visible { outline: 2px solid var(--c-acc); outline-offset: 2px; border-radius: 4px; }
+
+.sp-togs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.sp-tog {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 8px 10px; border: 1px solid var(--c-line2); border-radius: 10px; background: var(--c-panel2);
+  color: var(--c-text); font: inherit; text-align: left; cursor: pointer; transition: background 0.25s, border-color 0.25s, color 0.25s;
+}
+.sp-tog b { font-size: 12.5px; letter-spacing: 0.08em; }
+.sp-tog small { font-size: 10.5px; color: var(--c-muted); }
+.sp-tog:hover { border-color: var(--c-acc); }
+.sp-tog.on { background: var(--c-acc); border-color: var(--c-acc); color: var(--c-ink); }
+.sp-tog.on small { color: color-mix(in srgb, var(--c-ink) 72%, transparent); }
+.sp-tog:focus-visible { outline: 2px solid var(--c-acc); outline-offset: 2px; }
+.sp-off b::before { content: '⏻ '; }
+.sp-note { margin: 10px 0 0; font-size: 10.5px; line-height: 1.55; color: var(--c-muted); }
+
+/* 窄屏：导航栏放不下三个圆按钮——助听器与混音都收进面板，声音按钮开着时点它打开面板 */
+@media (max-width: 640px) {
+  .nav-tools .hear-btn, .nav-tools .mix-btn { display: none; }
+  .snd-panel { top: 58px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hear-btn:not(.on)::after, .snd-panel.muffled .sp-hear::after { animation: none; opacity: 0.45; transform: none; }
+  .snd-panel { animation: none; }
+}

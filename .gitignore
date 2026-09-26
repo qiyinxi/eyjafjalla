@@ -1,0 +1,8 @@
+# 本机工具与缓存
+.claude/
+tools/puppet/.cache/
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+Thumbs.db

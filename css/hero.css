@@ -1,0 +1,359 @@
+/* =========================================================
+ * 首屏 · 加载页 · 导航（js/hero.js）
+ * 动效约定：只动 transform / opacity；常驻动画都能交给合成器
+ * ========================================================= */
+
+/* ---------------------------------------------------- 加载页 v2：跟随形态上色 */
+#loader.ld-v2 {
+  --l-bg: #070304; --l-bg-top: #070304; --l-bg-bot: #12050c;
+  --l-glow: rgba(255, 70, 140, 0.30);
+  --l-scan: rgba(255, 255, 255, 0.025);
+  --l-text: #f2dccf; --l-text2: #c9a99b; --l-dim: #8d6f65; --l-faint: #6f564e;
+  --l-acc: #ff4f8f; --l-acc2: #ffb0c8; --l-acc3: #ff6a3d;
+  --l-line: rgba(255, 255, 255, 0.08);
+  --l-title: linear-gradient(180deg, #fff0f6, #ff7aa8 60%, #ff6a3d);
+  --lb: 10vh;
+  background: transparent;
+  color: var(--l-text);
+  animation: none;
+}
+#loader.ld-v2.ld-alter {
+  --l-bg: #f3f6fb; --l-bg-top: #d9e8f8; --l-bg-bot: #f7f3f4;
+  --l-glow: rgba(120, 175, 255, 0.34);
+  --l-scan: rgba(60, 80, 140, 0.03);
+  --l-text: #2b2a44; --l-text2: #55567a; --l-dim: #7d7f9a; --l-faint: #9a9bb3;
+  --l-acc: #d2334f; --l-acc2: #4f9fe0; --l-acc3: #9a82d8;
+  --l-line: rgba(60, 80, 140, 0.12);
+  --l-title: linear-gradient(90deg, #d2334f 0%, #c46aa8 40%, #7f8fe0 70%, #4f9fe0 100%);
+}
+#loader.ld-v2::before, #loader.ld-v2::after { content: none; }
+/* 背景拆成上下两扇幕布：进入时从中缝拉开 */
+.ld-sh { position: absolute; left: 0; right: 0; height: 50.5%; z-index: 0; will-change: transform; }
+.ld-sh.t { top: 0; background: linear-gradient(180deg, var(--l-bg-top), var(--l-bg)); }
+.ld-sh.b { bottom: 0; background: linear-gradient(180deg, var(--l-bg), var(--l-bg-bot)); }
+.ld-fx { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; transition: opacity 0.5s ease; }
+.ld-fx .ld-glow { position: absolute; left: 50%; bottom: -30vh; width: 120vw; height: 60vh; translate: -50% 0; background: radial-gradient(closest-side, var(--l-glow), color-mix(in srgb, var(--l-glow) 35%, transparent) 55%, transparent); animation: ldGlow 3.2s ease-in-out infinite; }
+.ld-alter .ld-fx .ld-glow { bottom: auto; top: -34vh; left: 72%; width: 90vw; height: 70vh; }
+@keyframes ldGlow { 50% { opacity: 0.6; transform: scale(1.08); } }
+.ld-fx .ld-grain { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, var(--l-scan) 0 1px, transparent 1px 3px); }
+/* 飘浮颗粒：术师的火星从底部升起，医疗的灰羽从上方飘落 */
+.ld-mote { position: absolute; left: var(--x); bottom: -12px; width: var(--sz); height: var(--sz); border-radius: 50%; background: radial-gradient(circle, #fff3d6 0, #ff9a4d 35%, rgba(255, 79, 143, 0) 70%); opacity: 0; animation: ldRise var(--d) linear var(--dl) infinite; will-change: transform; }
+@keyframes ldRise { 0% { opacity: 0; transform: translate(0, 0); } 10% { opacity: 0.9; } 70% { opacity: 0.6; } 100% { opacity: 0; transform: translate(var(--dx), -86vh); } }
+.ld-alter .ld-mote { top: -12px; bottom: auto; height: calc(var(--sz) * 0.55); border-radius: 50% 0; background: linear-gradient(135deg, #ffffff, #a9bfe2); box-shadow: 0 0 0 0.5px rgba(110, 130, 190, 0.45); animation-name: ldFall; }
+@keyframes ldFall { 0% { opacity: 0; transform: translate(0, 0) rotate(0deg); } 12% { opacity: 0.85; } 80% { opacity: 0.7; } 100% { opacity: 0; transform: translate(var(--dx), 92vh) rotate(260deg); } }
+
+/* 左栏终端：与首屏文字栏对齐，进入时文字栏正好在同一位置出现 */
+#loader.ld-v2 .ld-inner { z-index: 3; justify-self: start; width: min(520px, 40vw); margin-left: max(var(--gut), calc((100vw - var(--wrap)) / 2 + var(--gut))); }
+#loader.ld-v2 .ld-emblem .emblem { --c-acc: var(--l-acc); --c-acc2: var(--l-acc2); --c-bg: var(--l-bg); }
+.ld-alter .ld-emblem .emblem { filter: drop-shadow(0 0 12px rgba(120, 170, 240, 0.55)); }
+#loader.ld-v2 .ld-emblem h1 { background: var(--l-title); -webkit-background-clip: text; background-clip: text; }
+#loader.ld-v2 .ld-emblem h1 small { color: var(--l-dim); -webkit-text-fill-color: var(--l-dim); letter-spacing: 0.34em; font-size: 10.5px; margin-top: 4px; }
+#loader.ld-v2 .ld-lines { min-height: 168px; color: var(--l-text2); }
+#loader.ld-v2 .ld-lines .ok { color: var(--l-acc2); }
+#loader.ld-alter .ld-lines .ok { color: var(--l-acc); }
+#loader.ld-v2 .ld-lines .later { color: var(--l-dim); }
+#loader.ld-v2 .ld-lines .ld-st { color: var(--l-dim); }
+#loader.ld-v2 .ld-lines .caret { background: var(--l-acc); }
+#loader.ld-v2 .ld-pct { color: var(--l-dim); }
+#loader.ld-v2 .ld-hint { color: var(--l-faint); }
+
+/* 记录笔（地震仪 / 心电）取代细进度条 */
+#loader.ld-v2 .ld-bar.has-trace { position: relative; height: 62px; margin: 30px 0 14px; background: none; overflow: visible; border-top: 1px solid var(--l-line); border-bottom: 1px solid var(--l-line); }
+.ld-bar.has-trace > i { display: none; }
+/* 单独成层：每帧重画记录笔时不连带重绘整个文字栏 */
+.ld-trace { display: block; width: 100%; height: 100%; will-change: transform; }
+.ld-tlab { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); display: flex; justify-content: space-between; gap: 12px; font-size: 9.5px; letter-spacing: 0.24em; white-space: nowrap; }
+.ld-tlab b { color: var(--l-acc); font-weight: 700; }
+.ld-tlab em { font-style: normal; color: var(--l-dim); overflow: hidden; text-overflow: ellipsis; }
+
+/* 进入按钮：脉动与扫光只动 transform（原先的 box-shadow 脉动每帧重绘） */
+#loader.ld-v2 .ld-enter { position: relative; overflow: hidden; }
+.ld-alter .ld-enter { color: #fff; background: linear-gradient(90deg, #d2334f, #9a82d8 60%, #4f9fe0); }
+#loader.ld-v2 .ld-enter:not(:disabled) { animation: ldEnterPulse 1.8s ease-in-out infinite; }
+#loader.ld-v2 .ld-enter::before { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%); transform: translateX(-120%); }
+#loader.ld-v2 .ld-enter:not(:disabled)::before { animation: ldShine 2.6s ease-in-out infinite 0.6s; }
+@keyframes ldEnterPulse { 50% { transform: scale(1.04); } }
+@keyframes ldShine { 0% { transform: translateX(-120%); } 45%, 100% { transform: translateX(120%); } }
+
+/* 扫描框：摆在首屏立绘将要出现的位置；立绘到之前是空的取景框 + 准星 */
+.ld-portrait { position: absolute; z-index: 2; opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
+.ld-portrait.on { opacity: 1; }
+.ld-alter .ld-portrait canvas { opacity: 0.92; }
+.ld-portrait canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 光带容器用人物剪影做遮罩（静止），光带本身只做位移 */
+.ld-pmask { position: absolute; inset: 0; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; opacity: 0; transition: opacity 0.6s; }
+.ld-portrait.shown .ld-pmask { opacity: 1; }
+.ld-pscan { position: absolute; left: 0; right: 0; top: 0; height: 22%; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--l-acc2) 18%, transparent) 72%, color-mix(in srgb, #fff 70%, var(--l-acc2)) 98%, transparent); will-change: transform; }
+.ld-alter .ld-pscan { background: linear-gradient(180deg, transparent, rgba(79, 159, 224, 0.16) 72%, rgba(210, 51, 79, 0.75) 98%, transparent); }
+.ld-portrait.shown .ld-pscan { animation: ldPScan 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+@keyframes ldPScan { 0% { transform: translateY(-100%); } 100% { transform: translateY(460%); } }
+/* 准星：立绘到达前在取景框中央缓缓转动 */
+.ld-reticle { position: absolute; left: 50%; top: 46%; width: 30%; aspect-ratio: 1; translate: -50% -50%; display: grid; place-items: center; transition: opacity 0.5s, transform 0.8s var(--ease); }
+.ld-reticle i { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed color-mix(in srgb, var(--l-acc) 55%, transparent); animation: spin 14s linear infinite; }
+.ld-reticle i + i { inset: 18%; border: 1px solid color-mix(in srgb, var(--l-acc2) 35%, transparent); border-left-color: transparent; border-right-color: transparent; animation-duration: 5s; animation-direction: reverse; }
+.ld-base .ld-reticle i:first-child { border: 0; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--l-acc) 30%, transparent) 0 2deg, transparent 2deg 10deg); -webkit-mask: radial-gradient(closest-side, transparent 86%, #000 87%); mask: radial-gradient(closest-side, transparent 86%, #000 87%); }
+.ld-reticle b { font-size: 10px; letter-spacing: 0.3em; color: var(--l-dim); animation: blink 1.2s steps(1) infinite; }
+#loader.has-portrait .ld-reticle { opacity: 0; transform: scale(1.4); }
+#loader.no-portrait .ld-reticle { opacity: 0.35; }
+#loader.has-portrait .ld-reticle i { animation-play-state: paused; }
+.ld-corner { position: absolute; width: 22px; height: 22px; border: 0 solid var(--l-acc); opacity: 0.8; }
+.ld-corner.c1 { left: 6%; top: 2%; border-width: 2px 0 0 2px; }
+.ld-corner.c2 { right: 6%; top: 2%; border-width: 2px 2px 0 0; }
+.ld-corner.c3 { left: 6%; bottom: 2%; border-width: 0 0 2px 2px; }
+.ld-corner.c4 { right: 6%; bottom: 2%; border-width: 0 2px 2px 0; }
+.ld-ptag { position: absolute; font-size: 9.5px; letter-spacing: 0.26em; color: var(--l-dim); white-space: nowrap; line-height: 1.5; }
+.ld-ptag b { display: block; color: var(--l-acc); font-weight: 700; }
+.ld-ptag.tl { left: calc(6% + 30px); top: 2%; }
+.ld-ptag.br { right: calc(6% + 30px); bottom: 2%; color: var(--l-acc2); }
+.ld-alter .ld-ptag.br { color: var(--l-acc); }
+
+/* 字幕：标题下的一段题记，逐句淡入淡出 */
+.ld-story { position: relative; margin: -6px 0 18px; padding-left: 14px; border-left: 2px solid color-mix(in srgb, var(--l-acc) 70%, transparent); pointer-events: none; }
+.ld-story small { display: block; font-size: 9.5px; letter-spacing: 0.38em; color: var(--l-dim); }
+.ld-sline { position: relative; height: 3.3em; margin-top: 4px; font-family: var(--f-serif); font-size: clamp(15px, 1.25vw, 18px); font-weight: 600; line-height: 1.6; letter-spacing: 0.1em; }
+.ld-sline p { position: absolute; left: 0; right: 0; top: 0; margin: 0; opacity: 0; transform: translateY(10px); transition: opacity 0.7s ease, transform 0.9s var(--ease); color: var(--l-text); }
+.ld-sline p.in { opacity: 1; transform: none; }
+.ld-sline p.out { opacity: 0; transform: translateY(-10px); transition-duration: 0.5s; }
+#loader.ready .ld-sline p.in { color: var(--l-acc2); }
+.ld-alter.ready .ld-sline p.in { color: var(--l-acc); }
+
+/* 中缝：幕布拉开时的一道光 */
+.ld-seam { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; z-index: 4; opacity: 0; transform: scaleX(0); background: linear-gradient(90deg, transparent, var(--l-acc2) 30%, #fff 50%, var(--l-acc2) 70%, transparent); pointer-events: none; }
+
+/* ---------- 进入 ---------- */
+#loader.ld-v2.out { animation: none; pointer-events: none; }
+#loader.ld-v2.out .ld-inner { animation: ldUp 0.45s var(--ease) forwards; }
+#loader.ld-v2.out .ld-story { animation: ldFade 0.4s ease forwards; }
+#loader.ld-v2.out .ld-fx { opacity: 0; }
+#loader.ld-v2.out .ld-seam { animation: ldSeam 0.9s var(--ease) forwards; }
+#loader.ld-v2.out .ld-sh.t { animation: ldShT 2.25s cubic-bezier(0.7, 0, 0.2, 1) forwards; }
+#loader.ld-v2.out .ld-sh.b { animation: ldShB 2.25s cubic-bezier(0.7, 0, 0.2, 1) forwards; }
+/* 扫描像等到真正的立绘出现才溶解（hero.js 加 .dissolve）；标注与取景框先收起 */
+#loader.ld-v2.out .ld-portrait .ld-ptag, #loader.ld-v2.out .ld-portrait .ld-corner, #loader.ld-v2.out .ld-portrait .ld-pmask { transition: opacity 0.3s; opacity: 0; }
+#loader.ld-v2.out .ld-portrait.dissolve { opacity: 0; transition: opacity 0.9s ease; }
+@keyframes ldUp { to { opacity: 0; transform: translateY(-18px); } }
+@keyframes ldFade { to { opacity: 0; } }
+@keyframes ldSeam { 0% { opacity: 1; transform: scaleX(0); } 35% { opacity: 1; transform: scaleX(1); } 100% { opacity: 0; transform: scaleX(1); } }
+@keyframes ldShT { 0% { transform: none; } 34% { transform: translateY(calc(-100% + var(--lb))); } 64% { transform: translateY(calc(-100% + var(--lb))); } 100% { transform: translateY(-101%); } }
+@keyframes ldShB { 0% { transform: none; } 34% { transform: translateY(calc(100% - var(--lb))); } 64% { transform: translateY(calc(100% - var(--lb))); } 100% { transform: translateY(101%); } }
+/* 扫描像与立绘的推近（pushIn）同起点，溶解时不重影 */
+#loader.ld-v2.out .ld-portrait.align { transform: translateX(-24px) scale(0.97); }
+
+/* ---------------------------------------------------- 开场：幕布拉开后按镜头顺序入场（hero.js intro，约 4 秒后移除 html.intro） */
+/* 只用独立的 translate / scale / opacity 做入场，不覆盖元素原有的 transform */
+@keyframes inUp { from { opacity: 0; translate: 0 22px; } }
+@keyframes inLeft { from { opacity: 0; translate: -28px 0; } }
+@keyframes inRight { from { opacity: 0; translate: 28px 0; } }
+@keyframes inFade { from { opacity: 0; } }
+@keyframes inNav { from { translate: 0 -110%; } }
+@keyframes inGiant { from { opacity: 0; translate: 10vw 0; } }
+@keyframes inDolly { from { scale: 1.035; } }
+html.intro .hero-grid { animation: inDolly 2.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+html.intro .hero .kicker { animation: inLeft 0.8s var(--ease) 0.45s both; }
+html.intro .hero .cls-chip { animation: inLeft 0.8s var(--ease) 0.55s both; }
+html.intro .hn-main .ch { animation-delay: calc(var(--k) * 80ms + 0.6s); }
+html.intro .hero-en { animation: inFade 1.2s ease 1s both; }
+html.intro .stars i { animation-delay: calc(var(--k) * 80ms + 1s); }
+html.intro .hero-tag { animation: inUp 0.9s var(--ease) 1.1s both; }
+html.intro .hero-intro { animation: inUp 0.9s var(--ease) 1.2s both; }
+html.intro .hero-facts li { animation: inUp 0.8s var(--ease) calc(1.3s + var(--i, 0) * 70ms) both; }
+html.intro .hero-facts li:nth-child(2) { --i: 1; } html.intro .hero-facts li:nth-child(3) { --i: 2; } html.intro .hero-facts li:nth-child(4) { --i: 3; }
+html.intro .hero-actions > * { animation: inUp 0.8s var(--ease) 1.55s both; }
+html.intro .hero-actions > :nth-child(2) { animation-delay: 1.62s; } html.intro .hero-actions > :nth-child(3) { animation-delay: 1.69s; } html.intro .hero-actions > :nth-child(4) { animation-delay: 1.76s; }
+html.intro .hold-hint, html.intro .hero-credit { animation: inFade 1s ease 1.9s both; }
+html.intro .hv-hud .tl { animation: inLeft 0.9s var(--ease) 1.15s both; }
+html.intro .hv-hud .tr { animation: inLeft 0.9s var(--ease) 1.3s both; }
+html.intro .hv-hud .rd { animation: inRight 0.9s var(--ease) 1.4s both; }
+html.intro .hv-acts { animation: inUp 0.9s var(--ease) 2.1s both; }
+html.intro .hero-giant { animation: inGiant 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s both; }
+html.intro .scroll-hint { animation: inFade 1s ease 2.5s both; }
+html.intro #nav { animation: inNav 0.9s var(--ease) 1.7s both; }
+
+/* ---------------------------------------------------- 首屏：名字、作战速览、署名、巨字、动作栏 */
+/* 「纯烬」竖排成一枚绯红印章，主名两个形态一样大、不折行 */
+.hero-name.has-pre { display: flex; align-items: flex-start; gap: 0.14em; }
+.hn-pre {
+  --fs: calc(clamp(52px, 7.4vw, 116px) * 0.29);
+  display: inline-flex; flex-direction: column; align-items: center; flex: none;
+  margin-top: 0.1em; padding: 0.22em 0.16em 0.5em;
+  font-family: var(--f-serif); font-weight: 900; font-size: var(--fs); line-height: 1.08; color: #fff;
+  background: linear-gradient(180deg, #e3485f, #b8203c);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 0.36em), 0 100%);
+  animation: preIn 0.9s var(--ease) 0.1s both;
+}
+.hn-pre i { font-style: normal; display: block; }
+@keyframes preIn { from { opacity: 0; translate: 0 -40%; } }
+html.intro .hn-pre { animation-delay: 0.55s; }
+.hero-name.has-pre .hn-main { --ns: 0.84; white-space: nowrap; }
+/* 名字的光晕：原先整块 drop-shadow，流光每秒重绘名字 6 次就要重算 6 次模糊。
+   改成 ::before 里同样的文字只画文字阴影，单独成层、只栅格化一次 */
+.hn-main, [data-form='alter'] .hn-main { filter: none; position: relative; }
+.hn-main::before { content: attr(data-t); position: absolute; left: 0; top: 0; white-space: nowrap; color: transparent; text-shadow: 0 0 26px var(--c-glow), 0 0 6px color-mix(in srgb, var(--c-glow) 55%, transparent); pointer-events: none; z-index: -1; will-change: transform; animation: glowIn 1.4s ease 0.6s both; }
+[data-form='alter'] .hn-main::before { text-shadow: 0 4px 22px rgba(120, 160, 230, 0.5); }
+@keyframes glowIn { from { opacity: 0; } }
+html.intro .hn-main::before { animation-delay: 1.1s; }
+
+/* HUD：左上是录像信息（带走动的时间码）与立绘状态，右上是作战速览 */
+.hv-hud .tc { margin-right: 10px; color: var(--c-text); font-variant-numeric: tabular-nums; letter-spacing: 0.12em; }
+.hv-hud .tr { top: 58px; left: 0; right: auto; text-align: left; opacity: 0.8; }
+.hv-hud .rd { position: absolute; right: 0; top: 0; width: 156px; padding: 9px 11px 10px; font-size: 9.5px; letter-spacing: 0.2em; color: var(--c-muted); background: linear-gradient(270deg, color-mix(in srgb, var(--c-bg) 70%, transparent), color-mix(in srgb, var(--c-bg) 45%, transparent) 70%, color-mix(in srgb, var(--c-bg) 10%, transparent)); border-right: 2px solid var(--c-acc); }
+.rd-h { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; margin: 0 0 8px; }
+.rd-h b { color: var(--c-acc); letter-spacing: 0.34em; font-size: 10px; }
+.rd-h span { font-family: var(--f-sans); letter-spacing: 0.12em; font-size: 11px; color: var(--c-text); }
+.rd dl { margin: 0; display: grid; gap: 6px; }
+.rd dl > div { position: relative; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 5px; }
+.rd dt { font-size: 9px; letter-spacing: 0.24em; }
+.rd dd { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: 0.04em; color: var(--c-text); }
+.rd dd small { margin-left: 2px; font-family: var(--f-sans); font-size: 10px; font-weight: 500; letter-spacing: 0; color: var(--c-muted); }
+.rd dl i { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--c-line); }
+.rd dl i::after { content: ''; position: absolute; inset: 0; background: var(--grad-acc); transform-origin: right; transform: scaleX(var(--v, 1)); animation: rdBar 1.3s var(--ease) 0.4s both; }
+@keyframes rdBar { from { transform: scaleX(0); } }
+.rd-sk { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin: 12px 0 0; text-align: right; }
+.rd-sk small { display: block; font-size: 8.5px; letter-spacing: 0.2em; }
+.rd-sk b { display: block; font-family: var(--f-serif); font-size: 15px; letter-spacing: 0.12em; color: var(--c-text); line-height: 1.3; }
+.rd-ic { order: 2; position: relative; width: 34px; height: 34px; flex: none; border: 1px solid var(--c-line2); background: color-mix(in srgb, var(--c-bg) 70%, #000); }
+.rd-ic .sk-emblem { position: absolute; inset: 0; width: 100%; height: 100%; padding: 4px; opacity: 1; transform: none; background: none; border: 0; transition: none; }
+.rd-ic img { position: absolute; inset: 1px; width: calc(100% - 2px); height: calc(100% - 2px); object-fit: contain; }
+.rd-f { margin: 8px 0 0; text-align: right; font-size: 8.5px; letter-spacing: 0.24em; opacity: 0.8; }
+
+/* 署名：画师一行、配音一行 */
+.hero-credit { display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; letter-spacing: 0.14em; }
+.hero-credit em { font-style: normal; color: var(--c-acc); margin-right: 8px; letter-spacing: 0.2em; }
+.hero-credit i { font-style: normal; font-size: 9px; padding: 0 4px; margin: 0 5px 0 8px; border: 1px solid var(--c-line2); border-radius: 2px; letter-spacing: 0; }
+.hero-credit span > i:first-of-type { margin-left: 0; }
+
+/* 巨字：竖排贴在右缘（不再横穿文字栏和按钮）；随鼠标上下错开由 hero.js 的 parallax 直接写 transform */
+@media (min-width: 981px) {
+  .hero-giant { left: auto; right: max(8px, calc((100vw - var(--wrap)) / 2 - 150px)); top: 84px; bottom: 30px; display: flex; justify-content: center; align-items: center; writing-mode: vertical-rl; font-size: min(12.5vh, 8.5vw); letter-spacing: 0.06em; opacity: 0.5; transform: none; }
+}
+
+/* 动作栏：进行中的动作在按钮底部走一条进度 */
+.hv-acts { padding: 5px; gap: 2px; background: color-mix(in srgb, var(--c-bg) 86%, transparent); opacity: 0.78; }
+.hv-acts button { position: relative; overflow: hidden; padding: 6px 12px; font-size: 12.5px; }
+.hv-acts button::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px; background: currentColor; opacity: 0.55; transform: scaleX(0); transform-origin: left; }
+.hv-acts button.on::after { animation: actProg var(--dur, 1.5s) linear forwards; }
+@keyframes actProg { to { transform: scaleX(1); } }
+
+/* 打盹的“z”：一个个往右上飘、变大、淡出 */
+.hv-zzz { position: absolute; z-index: 5; pointer-events: none; font-family: var(--f-display); font-weight: 700; font-size: calc(22px * var(--s, 1)); color: var(--c-acc2); animation: zUp 3.2s ease-out forwards; }
+[data-form='alter'] .hv-zzz { color: var(--c-acc3); }
+@keyframes zUp { 0% { opacity: 0; transform: translate(0, 0) scale(0.6) rotate(-10deg); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(34px, -80px) scale(1.4) rotate(12deg); } }
+/* 换立绘的扫描光 */
+.hv-sweep { position: absolute; left: 6%; right: 6%; top: 0; height: 14%; z-index: 4; pointer-events: none; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--c-acc2) 20%, transparent) 75%, color-mix(in srgb, #fff 75%, var(--c-acc2)) 97%, transparent); animation: hvSweep 0.95s cubic-bezier(0.5, 0, 0.3, 1) forwards; }
+[data-form='alter'] .hv-sweep { height: 9%; background: linear-gradient(180deg, transparent, rgba(79, 159, 224, 0.1) 70%, rgba(154, 130, 216, 0.35) 92%, rgba(210, 51, 79, 0.85) 98%, transparent); }
+@keyframes hvSweep { 0% { opacity: 0; transform: translateY(-100%); } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(640%); } }
+
+/* 往下滚动离开首屏：文字栏先走、淡出，立绘落后半拍（滚动驱动，交给合成器；不支持的浏览器保持原样） */
+@supports (animation-timeline: scroll()) {
+  /* 只在宽屏：窄屏上首屏比一屏高，文字还没读完就淡掉不合适 */
+  @media (prefers-reduced-motion: no-preference) and (min-width: 981px) {
+    .hero-info { animation: heroInfoOut linear both; animation-timeline: scroll(root block); animation-range: 0 90vh; }
+    .hero-visual { animation: heroVisOut linear both; animation-timeline: scroll(root block); animation-range: 0 100vh; }
+    .scroll-hint { animation: inFade linear reverse both; animation-timeline: scroll(root block); animation-range: 0 25vh; }
+  }
+}
+@keyframes heroInfoOut { to { translate: 0 -10vh; opacity: 0.1; } }
+@keyframes heroVisOut { to { translate: 0 16vh; scale: 0.95; opacity: 0.35; } }
+
+/* ---------------------------------------------------- 导航 */
+/* 当前区块：一条指示条在链接之间滑动（只动 transform） */
+.nav-links { position: relative; }
+.nav-ind { position: absolute; left: 0; bottom: 3px; width: 100px; height: 2px; border-radius: 2px; background: var(--grad-acc); transform-origin: left; opacity: 0; pointer-events: none; transition: transform 0.55s cubic-bezier(0.6, 0, 0.2, 1), opacity 0.3s; }
+.nav-ind.on { opacity: 1; }
+.nav-links a.on:not(:hover)::after { transform: scaleX(0); }
+.nav-links a.on { color: var(--c-text); }
+/* 窄屏：品牌名旁边显示当前区块 */
+.nav-cur { display: none; }
+/* 汉堡按钮：三道横线，打开时变成 × */
+.menu-btn { position: relative; }
+.menu-btn i { position: absolute; left: 50%; top: 50%; width: 16px; height: 1.6px; margin: -0.8px 0 0 -8px; border-radius: 2px; background: currentColor; transition: transform 0.35s var(--ease), opacity 0.2s; }
+.menu-btn i:nth-child(1) { transform: translateY(-5px); }
+.menu-btn i:nth-child(3) { transform: translateY(5px); }
+#nav.menu-open .menu-btn i:nth-child(1) { transform: rotate(45deg); }
+#nav.menu-open .menu-btn i:nth-child(2) { opacity: 0; transform: scaleX(0.2); }
+#nav.menu-open .menu-btn i:nth-child(3) { transform: rotate(-45deg); }
+/* 形态开关：悬停时滑块往另一边探一下 */
+.form-switch:hover .fs-knob { transform: translateX(7px); }
+[data-form='alter'] .form-switch:hover .fs-knob { transform: translateX(calc(100% - 7px)); }
+.form-switch:hover .fs-opt { color: var(--c-text); }
+[data-form='base'] .form-switch:hover .fs-opt[data-f='base'], [data-form='alter'] .form-switch:hover .fs-opt[data-f='alter'] { color: #fff; }
+[data-form='alter'] .form-switch:hover .fs-opt[data-f='alter'] { color: #3a2140; }
+
+.nav-links a { white-space: nowrap; }
+/* 链接一行放不下（12 个区块，约 1120px 以下）就收进汉堡菜单，不让两个字的链接竖着折行 */
+@media (max-width: 1120px) {
+  .menu-btn { display: grid; }
+  .nav-tools { margin-left: auto; }
+  .nav-links { opacity: 0; pointer-events: none; transition: transform 0.35s var(--ease), opacity 0.35s var(--ease); }
+  .nav-links.open { transform: none; opacity: 1; pointer-events: auto; }
+  .nav-brand { position: relative; z-index: 2; }
+  .nav-tools { position: relative; z-index: 2; }
+  .nav-cur { display: flex; align-items: baseline; gap: 6px; position: absolute; left: 44px; top: 50%; translate: 0 -50%; white-space: nowrap; opacity: 0; transform: translateY(8px); transition: opacity 0.35s, transform 0.45s var(--ease); pointer-events: none; }
+  .nav-cur b { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.08em; color: var(--c-acc); }
+  .nav-cur em { font-style: normal; font-family: var(--f-serif); font-size: 15px; font-weight: 700; letter-spacing: 0.12em; color: var(--c-text); }
+  .nav-brand > span:not(.nav-emblem):not(.nav-cur) { transition: opacity 0.3s, transform 0.4s var(--ease); }
+  #nav.solid.has-cur:not(.menu-open) .nav-brand > span:not(.nav-emblem):not(.nav-cur) { opacity: 0; transform: translateY(-8px); }
+  #nav.solid.has-cur:not(.menu-open) .nav-cur { opacity: 1; transform: none; }
+  /* 全屏菜单：两栏编号条目，依次滑入 */
+  .nav-links, .nav-links.open { position: fixed; inset: 0; z-index: 1; height: 100vh; height: 100svh; margin: 0; padding: 78px var(--gut) 28px; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 0 18px; border: 0; overflow-y: auto; background: color-mix(in srgb, var(--c-bg) 97%, transparent); }
+  .nav-links { transform: translateY(-10px); }
+  .nav-links a { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 0 10px; padding: 13px 2px 11px; border-bottom: 1px solid var(--c-line); font-family: var(--f-serif); font-size: 19px; font-weight: 700; letter-spacing: 0.1em; color: var(--c-text); opacity: 0; transform: translateY(12px); transition: opacity 0.35s, transform 0.5s var(--ease), color 0.25s; transition-delay: 0s; }
+  .nav-links.open a { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 28ms + 60ms); }
+  .nav-links a::before { content: attr(data-no); grid-row: span 2; align-self: start; padding-top: 5px; font-family: var(--f-display); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--c-acc); }
+  .nav-links a::after, .nav-links a:hover::after, .nav-links a.on::after, .nav-links a.on:not(:hover)::after { content: attr(data-en); position: static; grid-column: 2; height: auto; margin-top: 2px; font-family: var(--f-mono); font-size: 9px; font-weight: 400; letter-spacing: 0.24em; color: var(--c-muted); background: none; transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-links a.on { color: var(--c-acc); }
+  .nav-ind { display: none; }
+}
+@media (max-width: 640px) {
+  #nav { gap: 10px; }
+  .nav-tools { gap: 6px; }
+  .form-switch { width: 108px; height: 34px; }
+  .icon-btn { width: 34px; height: 34px; }
+  .nav-brand b { font-size: 13px; letter-spacing: 0.12em; }
+  .nav-brand .emblem { width: 30px; height: 30px; }
+  .nav-cur { left: 40px; }
+}
+
+/* 屏幕不够高 / 不够宽时，“SCROLL”提示会和动作栏叠在一起：干脆不显示 */
+@media (max-width: 1400px), (max-height: 860px) { .scroll-hint { display: none; } }
+
+/* ---------- 窄屏：立绘在上、文字在下；HUD 精简，动作栏挪到立绘下方，不挡脚 ---------- */
+@media (max-width: 980px) {
+  .hero-giant, .scroll-hint { display: none; }
+  .hv-hud .rd, .hv-hud .tr { display: none; }
+  .hero-visual { margin-bottom: 54px; }
+  .hv-acts { bottom: -50px; }
+}
+@media (max-width: 640px) {
+  /* 动作栏横向滑动：右缘渐隐，提示后面还有 */
+  .hv-acts { -webkit-mask-image: linear-gradient(90deg, #000 84%, transparent); mask-image: linear-gradient(90deg, #000 84%, transparent); }
+  .hero .kicker { letter-spacing: 0.14em; font-size: 10.5px; }
+  .hv-hud { display: none; }
+  .hero-credit { font-size: 10px; letter-spacing: 0.06em; }
+}
+
+/* 减少动态：直接淡出；扫描光带、准星、打盹的“z”不出现 */
+#loader.ld-v2.out-quick, #loader.ld-v2.out-quick * { animation: none !important; }
+#loader.ld-v2.out-quick { opacity: 0; transition: opacity 0.35s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .ld-pmask, .ld-reticle, .hv-zzz { display: none; }
+}
+
+@media (max-width: 980px) {
+  #loader.ld-v2 { --lb: 7vh; }
+  #loader.ld-v2 .ld-inner { justify-self: center; align-self: end; width: min(560px, 90vw); margin: 0 0 calc(6.5vh + 70px); }
+  #loader.ld-v2 .ld-lines { min-height: 0; font-size: 11px; line-height: 1.75; }
+  #loader.ld-v2 .ld-emblem { margin-bottom: 14px; }
+  .ld-portrait.on { opacity: 0.42; }
+  .ld-ptag { display: none; }
+  /* 文字栏压在扫描像下半身上：垫一层渐隐的底色保证可读 */
+  #loader.ld-v2 .ld-inner::before { content: ''; position: absolute; z-index: -1; left: -8vw; right: -8vw; top: -40px; bottom: -30px; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--l-bg) 78%, transparent) 70px); pointer-events: none; }
+}
+@media (max-width: 640px) {
+  #loader.ld-v2 .ld-emblem .emblem { width: 46px; height: 46px; }
+  #loader.ld-v2 .ld-emblem h1 { font-size: 24px; }
+  #loader.ld-v2 .ld-emblem h1 small { font-size: 8.5px; letter-spacing: 0.22em; }
+  #loader.ld-v2 .ld-lines { font-size: 10.5px; }
+  .ld-tlab em { display: none; }
+  .ld-sline { font-size: 14px; letter-spacing: 0.06em; height: 3.2em; }
+}

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>mv lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 "JetBrains Mono", monospace; }
+  #wrap { padding: 12px; }
+  canvas { display: block; }
+  .strip { display: grid; gap: 6px; }
+  .cell { position: relative; }
+  .cell b { position: absolute; left: 4px; top: 2px; font-size: 11px; color: #fff; background: rgba(0,0,0,.55); padding: 0 4px; }
+  table { border-collapse: collapse; margin-top: 10px; }
+  td, th { border: 1px solid #333; padding: 2px 8px; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .hot { color: #ff7a7a; }
+</style>
+</head>
+<body>
+<!--
+  MV 实验页（开发用）
+    ?film=before-summer&t=42.5            单帧（默认 1280 宽；&w=1920 改分辨率；&debug=1 叠加时间 / 镜头 / 拍号）
+    ?film=before-summer&strip=auto        联系表：每个镜头的开头、中间各一帧（&cols=6 &cw=384）
+    ?film=before-summer&strip=every:8     每 8 秒一帧
+    ?film=before-summer&strip=12,13.5,15  指定时间
+    ?film=before-summer&perf=1            离线性能：每 1/15 秒渲染一帧，按镜头统计毫秒（&step=0.0667 &from= &to=）
+    ?film=before-summer&play=1&from=40    实时播放（无声音），&speed=0.5
+  结束后 document.title = DONE（或 ERR ...），结果在 window.__out
+-->
+<div id="wrap"></div>
+<script src="../js/mv/engine.js"></script>
+<script src="../js/mv/cast.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const id = q.get('film') || 'before-summer';
+  const wrap = document.getElementById('wrap');
+  const W = +(q.get('w') || 1280), H = Math.round((W * 9) / 16);
+  const out = (window.__out = {});
+  try {
+    const film = await MVE.load(id, '../js/mv/films/');
+    const an = await MVE.analysis(`../assets/music/${film.analysisId || id}.json`);
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const R = MVE.renderer(cv, film, an, { debug: q.get('debug') === '1' });
+    window.__mv = R;
+    await R.prepare();
+    if (q.get('captions') === '0') R.captions = false;
+    const dur = an.duration;
+    if (q.has('perf')) {
+      // 按真实播放的方式测：画布在页面里，每个 rAF 画一帧（时间按 step 快进，不按真实时间），
+      // 记下 render() 的 CPU 耗时和相邻两帧的间隔（包含 GPU 合成）。不读回像素（读回会让画布退化成软件渲染）
+      wrap.appendChild(cv); cv.style.width = '640px';
+      const step = +(q.get('step') || 1 / 15), from = +(q.get('from') || 0), to = +(q.get('to') || dur);
+      for (let t = from; t < to; t += 3) R.render(t); // 预热：建缓存
+      const per = new Map(), all = [], gaps = [];
+      await new Promise((done) => {
+        let t = from, last = 0;
+        const tick = (now) => {
+          if (last) gaps.push([t - step, now - last]);
+          last = now;
+          if (t >= to) { done(); return; }
+          const c0 = performance.now(); R.render(t); const ms = performance.now() - c0;
+          const sh = R.shotAt(t).id; if (!per.has(sh)) per.set(sh, { cpu: [], gap: [] }); per.get(sh).cpu.push(ms); all.push(ms);
+          t += step; requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      for (const [tt, gap] of gaps) { const sh = R.shotAt(tt).id; if (per.has(sh)) per.get(sh).gap.push(gap); }
+      const stat = (a) => { if (!a.length) return { n: 0, avg: 0, p95: 0, max: 0 }; const s = a.slice().sort((x, y) => x - y); return { n: a.length, avg: +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(2), p95: +s[Math.floor(s.length * 0.95)].toFixed(2), max: +s[s.length - 1].toFixed(2) }; };
+      out.perf = { cpu: stat(all), frame: stat(gaps.map((x) => x[1])), shots: [...per.entries()].map(([k, v]) => ({ shot: k, cpu: stat(v.cpu), frame: stat(v.gap) })) };
+      let html = `<p>${id} · ${W}×${H} · CPU avg ${out.perf.cpu.avg}ms p95 ${out.perf.cpu.p95}ms · 帧间隔 avg ${out.perf.frame.avg}ms p95 ${out.perf.frame.p95}ms</p><table><tr><th>shot</th><th>n</th><th>cpu avg</th><th>cpu p95</th><th>frame avg</th><th>frame p95</th></tr>`;
+      for (const r of out.perf.shots) html += `<tr><td>${r.shot}</td><td>${r.cpu.n}</td><td class="${r.cpu.avg > 6 ? 'hot' : ''}">${r.cpu.avg}</td><td class="${r.cpu.p95 > 10 ? 'hot' : ''}">${r.cpu.p95}</td><td class="${r.frame.avg > 17.5 ? 'hot' : ''}">${r.frame.avg}</td><td class="${r.frame.p95 > 25 ? 'hot' : ''}">${r.frame.p95}</td></tr>`;
+      wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    } else if (q.has('strip')) {
+      const sp = q.get('strip'), cols = +(q.get('cols') || 6), cw = +(q.get('cw') || 384), ch = Math.round((cw * 9) / 16);
+      let times = [];
+      if (sp === 'auto') { for (const s of film.shots) { const t1 = Math.min(Number.isFinite(s.t1) ? s.t1 : dur, dur); times.push(s.t0 + 0.05, (s.t0 + t1) / 2); } }
+      else if (sp.startsWith('every:')) { const e = +sp.slice(6); for (let t = 0; t < dur; t += e) times.push(t); }
+      else times = sp.split(',').map(Number);
+      const grid = document.createElement('div'); grid.className = 'strip'; grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+      wrap.appendChild(grid);
+      for (const t of times) {
+        R.render(t);
+        const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.getContext('2d').drawImage(cv, 0, 0, cw, ch);
+        const cell = document.createElement('div'); cell.className = 'cell';
+        const sh = R.shotAt(t);
+        cell.innerHTML = `<b>${t.toFixed(1)}s · ${sh.id}</b>`; cell.prepend(c); grid.appendChild(cell);
+      }
+      out.times = times;
+    } else if (q.has('play')) {
+      wrap.appendChild(cv); cv.style.width = Math.min(W, innerWidth - 24) + 'px';
+      const from = +(q.get('from') || 0), speed = +(q.get('speed') || 1), t0 = performance.now();
+      const loop = () => { const t = from + ((performance.now() - t0) / 1000) * speed; R.render(t % dur); requestAnimationFrame(loop); };
+      loop();
+    } else {
+      const t = +(q.get('t') || 0);
+      R.render(t);
+      wrap.appendChild(cv);
+      out.shot = R.shotAt(t).id; out.ms = R.lastMs;
+    }
+    document.title = 'DONE';
+  } catch (e) {
+    wrap.textContent = 'ERR ' + (e.stack || e);
+    document.title = 'ERR ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

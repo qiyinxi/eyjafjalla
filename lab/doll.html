@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>doll lab</title>
+<!--
+  3D 人偶调试页（开发用）。参数：
+    outfit=alter-e0      时装 key（自动加载 js/doll/outfits/<key>.js）
+    act=wave|walk|...    动作；walk = 朝镜头走，walkx = 横向走
+    t=1.5                模拟到第几秒再截图
+    grid=1               四视图：正面 / 3/4 / 侧面 / 背面（默认开启）
+    zoom=head|body       头部特写 / 全身
+    views=0,40,90,180    自定义视角（度）
+    bg=#dfe4ee           背景色
+    comp=1               显示同伴（小羊）
+    w=1600&h=900         画布尺寸（与 shot.ps1 的窗口尺寸一致）
+  截图完成后 document.title = 'DONE'；出错时为 'ERR ...'
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #dfe4ee; font: 12px/1.4 monospace; }
+  #host { position: fixed; inset: 0; }
+  .lbl { position: fixed; top: 6px; color: #334; background: rgba(255,255,255,.7); padding: 1px 6px; border-radius: 4px; }
+  pre.err { position: fixed; left: 0; top: 0; right: 0; color: #c00; background: #fff; white-space: pre-wrap; z-index: 9; margin: 0; padding: 8px; }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<script src="../js/doll/core.js"></script>
+<script src="../js/doll/body.js"></script>
+<script src="../js/doll/hair.js"></script>
+<script src="../js/doll/motion.js"></script>
+<script src="../js/doll/stage.js"></script>
+<script>
+(() => {
+  const fail = (e) => {
+    document.title = 'ERR ' + (e && e.message || e);
+    const p = document.createElement('pre');
+    p.className = 'err';
+    p.textContent = (e && e.stack) || String(e);
+    document.body.appendChild(p);
+  };
+  window.addEventListener('error', (e) => fail(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e) => fail(e.reason));
+  const q = new URLSearchParams(location.search);
+  const load = (src) => new Promise((res) => {
+    const s = document.createElement('script');
+    s.src = src + '?v=' + Date.now();
+    s.onload = res; s.onerror = res;
+    document.head.appendChild(s);
+  });
+  (async () => {
+    const outfit = q.get('outfit') || 'alter-e0';
+    await load('../js/doll/actions-extra.js');
+    await load('../js/doll/props.js');
+    await load('../js/doll/sheep.js');
+    await load('../js/doll/outfits/' + outfit + '.js');
+    await DOLL.load();
+    const def = DOLL.outfits[outfit];
+    if (!def) throw new Error('outfit not registered: ' + outfit);
+    document.body.style.background = q.get('bg') || (def.form === 'base' ? '#2a1119' : '#dfe6f2');
+    const host = document.getElementById('host');
+    // 固定像素尺寸：无头浏览器截图时会调整视口，若画布随之改变尺寸会被清空
+    host.style.width = (+(q.get('w') || 1600)) + 'px';
+    host.style.height = (+(q.get('h') || 900)) + 'px';
+    host.style.right = 'auto';
+    host.style.bottom = 'auto';
+    const ctl = DOLL.create(host, { outfit, form: def.form, auto: false, preserve: true, maxDpr: 1, manual: true, floor: q.get('floor') !== '0',
+      companions: q.get('comp') === '1' ? undefined : [] });
+    await ctl.ready;
+    await new Promise((r) => setTimeout(r, 200));
+    const T = DOLL.T, m = ctl.motion;
+    const act = q.get('act') || '';
+    const t = +(q.get('t') || 1.4);
+    if (act === 'walk') m.walkTo(0, 60);
+    else if (act === 'walkx') m.walkTo(60, 0);
+    else if (act) { if (!ctl.act(act)) throw new Error('action failed: ' + act); }
+    ctl.simulate(t);
+    const r = ctl.renderer, scene = ctl.scene, W = host.clientWidth, H = host.clientHeight;
+    const views = (q.get('views') || (q.get('grid') === '0' ? '' : '0,40,90,180')).split(',').filter(Boolean).map(Number);
+    if (!views.length) { document.title = 'DONE'; return; }
+    const zoom = q.get('zoom') || 'body';
+    const rig = ctl.rig, V = new T.Vector3();
+    const target = new T.Vector3();
+    if (zoom === 'head') rig.headC.getWorldPosition(target);
+    else if (zoom === 'legs') target.set(rig.root.position.x, 0.4, rig.root.position.z);
+    else target.set(rig.root.position.x, 0.8, rig.root.position.z);
+    const dist = zoom === 'head' ? 0.75 : zoom === 'legs' ? 1.9 : 3.3;
+    r.setScissorTest(true);
+    const vw = Math.floor(W / views.length);
+    views.forEach((deg, i) => {
+      const cam = new T.PerspectiveCamera(zoom === 'head' ? 30 : 28, vw / H, 0.02, 50);
+      const a = rig.root.rotation.y + (deg * Math.PI) / 180;
+      cam.position.set(target.x + Math.sin(a) * dist, target.y + (zoom === 'head' ? 0.03 : 0.25), target.z + Math.cos(a) * dist);
+      cam.lookAt(target);
+      cam.updateMatrixWorld();
+      ctl.kit.G.uK.value = (2 * Math.tan((cam.fov * Math.PI) / 360)) / H * 1.35;
+      r.setViewport(i * vw, 0, vw, H);
+      r.setScissor(i * vw, 0, vw, H);
+      r.render(scene, cam);
+      const l = document.createElement('div');
+      l.className = 'lbl';
+      l.style.left = i * vw + 6 + 'px';
+      l.textContent = `${outfit} ${act || 'idle'} t=${t} yaw=${deg}` + (q.get('debug') ? ` cam=${cam.position.toArray().map((v) => v.toFixed(2))} tgt=${target.toArray().map((v) => v.toFixed(2))} vp=${i * vw},${vw}x${H} pr=${r.getPixelRatio()}` : '');
+      document.body.appendChild(l);
+    });
+    r.setScissorTest(false);
+    document.title = 'DONE';
+  })().catch(fail);
+})();
+</script>
+</body>
+</html>

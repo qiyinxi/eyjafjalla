@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>audio analyze</title>
+</head>
+<body>
+<pre id="o">…</pre>
+<script>
+/* =========================================================
+ * 歌曲结构分析（开发用）：?song=before-summer
+ *  - 解码 assets/music/<song>.mp3，混成单声道
+ *  - STFT（2048 点，跳 512）→ 梅尔频带 → 起音强度（谱通量）
+ *  - 速度：起音包络自相关 + 以 120 BPM 为中心的对数高斯先验
+ *  - 拍点：动态规划（Ellis 2007）；小节线：按拍位累加低频起音与和声变化，选最强的相位
+ *  - 段落：逐拍的色度 + 音色特征 → 自相似矩阵 → 棋盘核新颖度 → 峰值
+ *  - 包络：10 Hz 的响度与低 / 中 / 高三段能量（0–255），给 MV 做视觉联动
+ * 结果放在 window.__result，document.title 变成 DONE
+ * ========================================================= */
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const song = q.get('song') || 'before-summer';
+  const log = (s) => { document.getElementById('o').textContent += '\n' + s; };
+  try {
+    const buf = await (await fetch(`../assets/music/${song}.mp3`)).arrayBuffer();
+    const ac = new OfflineAudioContext(1, 48000, 48000);
+    const ab = await ac.decodeAudioData(buf);
+    const sr = ab.sampleRate, n = ab.length;
+    const x = new Float32Array(n);
+    for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < n; i++) x[i] += d[i] / ab.numberOfChannels; }
+    log(`decoded ${song}: ${(n / sr).toFixed(2)}s @ ${sr}Hz, ${ab.numberOfChannels}ch`);
+
+    /* ---------- FFT ---------- */
+    const N = 2048, H = 512, half = N / 2;
+    const win = new Float32Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N);
+    const rev = new Uint32Array(N); { const bits = Math.log2(N); for (let i = 0; i < N; i++) { let r = 0; for (let b = 0; b < bits; b++) r |= ((i >> b) & 1) << (bits - 1 - b); rev[i] = r; } }
+    const cosT = new Float32Array(half), sinT = new Float32Array(half);
+    for (let i = 0; i < half; i++) { cosT[i] = Math.cos((2 * Math.PI * i) / N); sinT[i] = -Math.sin((2 * Math.PI * i) / N); }
+    const re = new Float32Array(N), im = new Float32Array(N);
+    function fft() {
+      for (let i = 0; i < N; i++) { const j = rev[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+      for (let size = 2; size <= N; size <<= 1) {
+        const h2 = size >> 1, step = N / size;
+        for (let s = 0; s < N; s += size) {
+          for (let k = 0; k < h2; k++) {
+            const a = s + k, b = a + h2, wr = cosT[k * step], wi = sinT[k * step];
+            const tr = re[b] * wr - im[b] * wi, ti = re[b] * wi + im[b] * wr;
+            re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+          }
+        }
+      }
+    }
+    /* ---------- 梅尔滤波器与色度映射 ---------- */
+    const NM = 48, fmin = 30, fmax = Math.min(12000, sr / 2);
+    const mel = (f) => 2595 * Math.log10(1 + f / 700), imel = (m) => 700 * (Math.pow(10, m / 2595) - 1);
+    const mpts = []; for (let i = 0; i < NM + 2; i++) mpts.push(imel(mel(fmin) + ((mel(fmax) - mel(fmin)) * i) / (NM + 1)));
+    const binHz = sr / N;
+    const filt = []; for (let m = 0; m < NM; m++) { const lo = mpts[m], c = mpts[m + 1], hi = mpts[m + 2]; const w = []; for (let k = Math.floor(lo / binHz); k <= Math.ceil(hi / binHz) && k < half; k++) { const f = k * binHz; const v = f < c ? (f - lo) / (c - lo) : (hi - f) / (hi - c); if (v > 0) w.push([k, v]); } filt.push(w); }
+    const chromaBin = new Int8Array(half).fill(-1);
+    for (let k = 1; k < half; k++) { const f = k * binHz; if (f < 55 || f > 5000) continue; const midi = 69 + 12 * Math.log2(f / 440); chromaBin[k] = ((Math.round(midi) % 12) + 12) % 12; }
+
+    const nF = Math.floor((n - N) / H) + 1, hopS = H / sr;
+    const melE = new Float32Array(nF * NM), chroma = new Float32Array(nF * 12), rms = new Float32Array(nF);
+    const bandLo = new Float32Array(nF), bandMid = new Float32Array(nF), bandHi = new Float32Array(nF);
+    for (let t = 0; t < nF; t++) {
+      const o = t * H; let e = 0;
+      for (let i = 0; i < N; i++) { const v = x[o + i]; re[i] = v * win[i]; im[i] = 0; e += v * v; }
+      rms[t] = Math.sqrt(e / N);
+      fft();
+      let lo = 0, mi = 0, hi = 0;
+      for (let k = 1; k < half; k++) {
+        const mag = Math.hypot(re[k], im[k]); re[k] = mag; // 复用：幅度放回 re
+        const f = k * binHz;
+        if (f < 180) lo += mag * mag; else if (f < 2500) mi += mag * mag; else hi += mag * mag;
+        const cb = chromaBin[k]; if (cb >= 0) chroma[t * 12 + cb] += mag;
+      }
+      bandLo[t] = Math.sqrt(lo); bandMid[t] = Math.sqrt(mi); bandHi[t] = Math.sqrt(hi);
+      for (let m = 0; m < NM; m++) { let s = 0; for (const [k, w] of filt[m]) s += re[k] * w; melE[t * NM + m] = Math.log(1 + 100 * s); }
+    }
+    log(`stft: ${nF} frames, hop ${(hopS * 1000).toFixed(1)}ms`);
+
+    /* ---------- 起音强度（梅尔谱通量，低频加权另算一条） ---------- */
+    const onset = new Float32Array(nF), onsetLo = new Float32Array(nF);
+    for (let t = 1; t < nF; t++) {
+      let s = 0, sl = 0;
+      for (let m = 0; m < NM; m++) { const d = melE[t * NM + m] - melE[(t - 1) * NM + m]; if (d > 0) { s += d; if (m < 10) sl += d; } }
+      onset[t] = s; onsetLo[t] = sl;
+    }
+    const hp = (a, w) => { const out = new Float32Array(a.length); let acc = 0; const q = []; for (let i = 0; i < a.length; i++) { q.push(a[i]); acc += a[i]; if (q.length > w) acc -= q.shift(); out[i] = Math.max(0, a[i] - acc / q.length); } return out; };
+    const on = hp(onset, Math.round(0.4 / hopS)), onL = hp(onsetLo, Math.round(0.4 / hopS));
+    const sd = (a) => { let m = 0; for (const v of a) m += v; m /= a.length; let s = 0; for (const v of a) s += (v - m) ** 2; return Math.sqrt(s / a.length) || 1; };
+    { const s1 = sd(on), s2 = sd(onL); for (let i = 0; i < nF; i++) { on[i] /= s1; onL[i] /= s2; } }
+
+    /* ---------- 速度 ---------- */
+    const minLag = Math.round(60 / 200 / hopS), maxLag = Math.round(60 / 55 / hopS);
+    const ac2 = []; let best = 0, bestLag = minLag;
+    for (let L = minLag; L <= maxLag; L++) {
+      let s = 0; for (let i = L; i < nF; i++) s += on[i] * on[i - L];
+      s /= (nF - L);
+      const bpm = 60 / (L * hopS);
+      const w = Math.exp(-0.5 * (Math.log2(bpm / 120) / 0.9) ** 2);
+      ac2.push([L, s, s * w]);
+      if (s * w > best) { best = s * w; bestLag = L; }
+    }
+    // 抛物线插值
+    const idx = ac2.findIndex((a) => a[0] === bestLag);
+    let lag = bestLag;
+    if (idx > 0 && idx < ac2.length - 1) { const [a, b, c] = [ac2[idx - 1][2], ac2[idx][2], ac2[idx + 1][2]]; const d = (a - c) / (2 * (a - 2 * b + c)); if (Math.abs(d) < 1) lag = bestLag + d; }
+    const tempo = 60 / (lag * hopS);
+    const cands = ac2.slice().sort((a, b) => b[2] - a[2]).filter((a, i, arr) => arr.findIndex((z) => Math.abs(z[0] - a[0]) < 3) === i).slice(0, 5).map(([L, s, w]) => [+(60 / (L * hopS)).toFixed(1), +w.toFixed(3)]);
+    log(`tempo ≈ ${tempo.toFixed(2)} BPM; candidates ${JSON.stringify(cands)}`);
+
+    /* ---------- 拍点：动态规划 ---------- */
+    const P = lag, alpha = 400;
+    const score = new Float32Array(nF), back = new Int32Array(nF).fill(-1);
+    for (let t = 0; t < nF; t++) {
+      let bestS = 0, bestT = -1;
+      const a = Math.round(t - 2 * P), b = Math.round(t - P / 2);
+      for (let u = Math.max(0, a); u <= b; u++) { const pen = -alpha * Math.log((t - u) / P) ** 2; const s = score[u] + pen; if (s > bestS || bestT < 0) { bestS = s; bestT = u; } }
+      score[t] = on[t] + (bestT >= 0 ? bestS : 0); back[t] = bestT;
+    }
+    let tEnd = nF - 1, mx = -1e9; for (let t = Math.max(0, nF - Math.round(2 * P)); t < nF; t++) if (score[t] > mx) { mx = score[t]; tEnd = t; }
+    const beatsF = []; for (let t = tEnd; t >= 0; t = back[t]) { beatsF.push(t); if (back[t] < 0) break; }
+    beatsF.reverse();
+    // 去掉开头静音前的拍（起音太弱）
+    const beats = beatsF.map((f) => +(f * hopS + N / 2 / sr).toFixed(3));
+    log(`beats: ${beats.length}, first ${beats.slice(0, 4).join(', ')}`);
+
+    /* ---------- 逐拍特征（色度 + 音色） ---------- */
+    const nb = beatsF.length;
+    const bChroma = [], bTimb = [], bE = [], bLo = [];
+    for (let b = 0; b < nb; b++) {
+      const f0 = beatsF[b], f1 = b + 1 < nb ? beatsF[b + 1] : Math.min(nF, f0 + Math.round(P));
+      const ch = new Float32Array(12), tm = new Float32Array(NM); let e = 0, lo = 0, cnt = 0;
+      for (let t = f0; t < f1; t++) { for (let c = 0; c < 12; c++) ch[c] += chroma[t * 12 + c]; for (let m = 0; m < NM; m++) tm[m] += melE[t * NM + m]; e += rms[t]; lo += onL[t]; cnt++; }
+      const cn = Math.hypot(...ch) || 1; for (let c = 0; c < 12; c++) ch[c] /= cn;
+      // 音色：梅尔对数谱的 DCT（取 1..12）
+      const mf = new Float32Array(12); for (let k = 1; k <= 12; k++) { let s = 0; for (let m = 0; m < NM; m++) s += (tm[m] / cnt) * Math.cos((Math.PI * k * (m + 0.5)) / NM); mf[k - 1] = s; }
+      bChroma.push(ch); bTimb.push(mf); bE.push(e / cnt); bLo.push(lo);
+    }
+    // 音色特征标准化
+    for (let k = 0; k < 12; k++) { let m = 0; for (const v of bTimb) m += v[k]; m /= nb; let s = 0; for (const v of bTimb) s += (v[k] - m) ** 2; s = Math.sqrt(s / nb) || 1; for (const v of bTimb) v[k] = (v[k] - m) / s; }
+
+    /* ---------- 小节线（4/4）：哪个相位上的低频起音 + 和声变化最强 ---------- */
+    const phaseScore = [0, 0, 0, 0];
+    for (let b = 1; b < nb; b++) { let d = 0; for (let c = 0; c < 12; c++) d += (bChroma[b][c] - bChroma[b - 1][c]) ** 2; phaseScore[b % 4] += bLo[b] + 3 * Math.sqrt(d); }
+    const ph = phaseScore.indexOf(Math.max(...phaseScore));
+    const downbeats = beats.filter((_, i) => i % 4 === ph);
+    log(`downbeat phase ${ph}, bars ${downbeats.length}`);
+
+    /* ---------- 段落：逐拍自相似 → 棋盘核新颖度 ---------- */
+    const feat = bChroma.map((c, i) => { const v = [...c, ...Array.from(bTimb[i]).map((z) => z * 0.25)]; const nn = Math.hypot(...v) || 1; return v.map((z) => z / nn); });
+    const sim = (i, j) => { let s = 0; const a = feat[i], b = feat[j]; for (let k = 0; k < a.length; k++) s += a[k] * b[k]; return s; };
+    const K = 16; // 4 小节
+    const nov = new Float32Array(nb);
+    for (let i = K; i < nb - K; i++) {
+      let s = 0;
+      for (let a = -K; a < K; a++) for (let b = -K; b < K; b++) { const w = (a < 0) === (b < 0) ? 1 : -1; const g = Math.exp(-((a + 0.5) ** 2 + (b + 0.5) ** 2) / (2 * (K / 2) ** 2)); s += w * g * sim(i + a, i + b); }
+      nov[i] = s;
+    }
+    const peaks = [];
+    for (let i = 2; i < nb - 2; i++) if (nov[i] > 0 && nov[i] >= nov[i - 1] && nov[i] >= nov[i + 1] && nov[i] >= nov[i - 2] && nov[i] >= nov[i + 2]) peaks.push([i, nov[i]]);
+    peaks.sort((a, b) => b[1] - a[1]);
+    const chosen = [];
+    for (const [i, v] of peaks) { if (chosen.every(([j]) => Math.abs(j - i) >= 12)) chosen.push([i, v]); if (chosen.length >= 16) break; }
+    chosen.sort((a, b) => a[0] - b[0]);
+    const snap = (bi) => { // 拍号吸附到最近的小节线
+      let best = bi, d = 99; for (let k = bi - 2; k <= bi + 2; k++) if (k >= 0 && k < nb && k % 4 === ph && Math.abs(k - bi) < d) { d = Math.abs(k - bi); best = k; } return best; };
+    const bounds = chosen.map(([i, v]) => ({ beat: snap(i), t: beats[snap(i)], strength: +v.toFixed(2) }));
+    // 每小节的平均响度（dB）
+    const barE = downbeats.map((t0, i) => { const t1 = downbeats[i + 1] ?? (n / sr); const f0 = Math.floor(t0 / hopS), f1 = Math.floor(t1 / hopS); let s = 0, c = 0; for (let f = f0; f < f1 && f < nF; f++) { s += rms[f] ** 2; c++; } return +(10 * Math.log10((s / Math.max(1, c)) + 1e-9)).toFixed(1); });
+
+    /* ---------- 10 Hz 包络 ---------- */
+    const R = 10, nE = Math.ceil((n / sr) * R);
+    const pack = (arr) => { const out = new Array(nE).fill(0); for (let i = 0; i < nE; i++) { const f0 = Math.floor(i / R / hopS), f1 = Math.max(f0 + 1, Math.floor((i + 1) / R / hopS)); let s = 0, c = 0; for (let f = f0; f < f1 && f < nF; f++) { s += arr[f]; c++; } out[i] = c ? s / c : 0; } const sorted = out.slice().sort((a, b) => a - b); const hi = sorted[Math.floor(sorted.length * 0.985)] || 1; return out.map((v) => Math.max(0, Math.min(255, Math.round((v / hi) * 255)))); };
+    const env = { rate: R, rms: pack(rms), low: pack(bandLo), mid: pack(bandMid), high: pack(bandHi), onset: pack(on) };
+
+    // 强起音（重音）：起音包络的局部峰值，前 10%
+    const oPk = []; for (let t = 2; t < nF - 2; t++) if (on[t] > on[t - 1] && on[t] >= on[t + 1] && on[t] > 2.2) oPk.push([+(t * hopS + N / 2 / sr).toFixed(3), +on[t].toFixed(2)]);
+    oPk.sort((a, b) => b[1] - a[1]);
+    const accents = oPk.slice(0, Math.round(oPk.length * 0.25)).sort((a, b) => a[0] - b[0]);
+
+    window.__result = { song, duration: +(n / sr).toFixed(3), sr, tempo: +tempo.toFixed(2), tempoCandidates: cands, beats, downbeatPhase: ph, downbeats, bounds, barE, env, accents };
+    log(`bounds: ${bounds.map((b) => b.t.toFixed(1) + '(' + b.strength + ')').join(' ')}`);
+    document.title = 'DONE';
+  } catch (e) {
+    log('ERR ' + (e.stack || e));
+    document.title = 'ERR ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

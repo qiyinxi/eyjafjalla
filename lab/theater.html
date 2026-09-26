@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN" data-form="base">
+<head>
+<meta charset="utf-8">
+<title>theater</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/theater.css">
+<style>
+  /* 剧场布景一览（开发用）：?form=base|alter&skins=默认,夏卉 FA018&group=build|front&sizes=865x645,358x320&ghost=1&state=lamp-off
+     ghost=1 在舞台中央画一个小人大小的轮廓，看构图 */
+  body { margin: 0; padding: 20px; cursor: auto; }
+  #cursor, #bg { display: none; }
+  .grid { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .cell { position: relative; }
+  .cell > b { display: block; font: 12px monospace; color: var(--c-muted); margin-bottom: 4px; }
+  .th-stage { min-height: 0 !important; aspect-ratio: auto !important; }
+  .ghost { position: absolute; left: 50%; bottom: 16%; z-index: 3; width: 21%; height: 58%; transform: translateX(-50%); border-radius: 40% 40% 12% 12%; background: rgba(255, 255, 255, 0.14); border: 1px dashed rgba(255, 255, 255, 0.5); pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="grid" id="g"></div>
+<script src="../js/data.js"></script>
+<script src="../js/art.js"></script>
+<script src="../js/theater.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const form = q.get('form') || 'base';
+  document.documentElement.dataset.form = form;
+  const skins = (q.get('skins') || '默认').split(',');
+  const groups = (q.get('group') || 'build').split(',');
+  const sizes = (q.get('sizes') || '865x645').split(',').map((s) => s.split('x').map(Number));
+  const g = document.getElementById('g');
+  let errs = [];
+  for (const skin of skins) for (const group of groups) for (const [w, h] of sizes) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `<b>${form} · ${skin} · ${group} · ${w}×${h}</b><div class="th-stage g-${group}" style="width:${w}px;height:${h}px">
+      <div class="th-hud mono"><span class="th-live"><i></i>LIVE</span><span class="th-place"></span><span class="th-now">—</span></div>
+      <div class="th-cap"></div><div class="th-say"></div>
+      ${q.get('ghost') ? '<div class="ghost"></div>' : ''}
+    </div>`;
+    g.appendChild(cell);
+    try {
+      const st = cell.querySelector('.th-stage');
+      THEATER.mount(st, { form, skin, group, chibi: () => null });
+      (q.get('state') || '').split(',').filter(Boolean).forEach((c) => st.classList.add(c));
+      if (q.get('closed')) THEATER.curtain(st, true, '换幕中');
+    } catch (e) { errs.push(skin + ': ' + e.message); cell.append(' ERR ' + e.stack); }
+  }
+  window.addEventListener('error', (e) => errs.push(e.message));
+  setTimeout(() => { document.title = errs.length ? 'ERR ' + errs.join(' | ') : 'DONE'; }, +(q.get('t') || 1200));
+</script>
+</body>
+</html>

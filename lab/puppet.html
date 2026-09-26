@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>puppet lab</title>
+<!--
+  原画分层绑定调试页（开发用）。参数：
+    key=alter-e0                   绑定（assets/puppet/<key>/）
+    frames=rest,tilt@1.1,tilt@1.1-,look@1.4,blink@0.09,cast@1.2
+                                   每格一个姿势：动作@时间（秒），末尾 “-” 表示反方向；rest 为静止
+                                   另有状态：happy@1 开心眯眼、talk@0.4 说话、sleepy@3 打盹、pet@2 摸头、wink@0.3 眨单眼
+    px=0.8&py=0                    鼠标视线（转头 + 眼神），-1..1
+    orig=1                         第一格放原图（对比用）
+    crop=x0,y0,x1,y1               只显示原画的某个区域（放大看细节）
+    cols=4  w=1600  h=900  bg=#dfe6f2
+  只用一个 WebGL 上下文逐格渲染，再拷贝到各格的 2D 画布。
+  完成后 document.title = 'DONE'；出错时为 'ERR ...'
+-->
+<style>
+  html, body { margin: 0; overflow: hidden; background: #dfe6f2; font: 12px/1.4 monospace; }
+  #grid { position: fixed; left: 0; top: 0; display: grid; }
+  .cell { position: relative; overflow: hidden; }
+  .cell canvas { position: absolute; left: 0; top: 0; }
+  .lbl { position: absolute; left: 4px; top: 4px; z-index: 3; color: #223; background: rgba(255,255,255,.75); padding: 1px 6px; border-radius: 4px; }
+  #stage { position: fixed; left: -100000px; top: 0; }
+  .puppet-canvas { position: absolute; }
+  pre.err { position: fixed; left: 0; top: 0; right: 0; color: #c00; background: #fff; white-space: pre-wrap; z-index: 9; margin: 0; padding: 8px; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="stage"></div>
+<script src="../js/puppet.js"></script>
+<script>
+(() => {
+  const fail = (e) => {
+    document.title = 'ERR ' + (e && e.message || e);
+    const p = document.createElement('pre');
+    p.className = 'err';
+    p.textContent = (e && e.stack) || String(e);
+    document.body.appendChild(p);
+  };
+  window.addEventListener('error', (e) => fail(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e) => fail(e.reason));
+  const q = new URLSearchParams(location.search);
+  (async () => {
+    const key = q.get('key') || 'alter-e0';
+    const W = +(q.get('w') || 1600), H = +(q.get('h') || 900);
+    const bg = q.get('bg') || '#dfe6f2';
+    document.body.style.background = bg;
+    const frames = (q.get('frames') || 'rest,tilt@1.1,look@1.5,blink@0.09').split(',');
+    const cells = (q.get('orig') ? ['orig'] : []).concat(frames);
+    const cols = +(q.get('cols') || Math.min(cells.length, 4));
+    const rows = Math.ceil(cells.length / cols);
+    const cw = Math.floor(W / cols), ch = Math.floor(H / rows);
+    const grid = document.getElementById('grid');
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, ${ch}px)`;
+    const rig = await (await fetch(`../assets/puppet/${key}/rig.json?v=${Date.now()}`)).json();
+    let crop = q.get('crop') ? q.get('crop').split(',').map(Number) : [0, 0, rig.w, rig.h];
+    // 把裁剪框扩成格子的宽高比（居中），避免拉伸
+    {
+      const cwh = cw / ch, w0 = crop[2] - crop[0], h0 = crop[3] - crop[1];
+      if (w0 / h0 < cwh) { const w1 = h0 * cwh, c = (crop[0] + crop[2]) / 2; crop = [c - w1 / 2, crop[1], c + w1 / 2, crop[3]]; }
+      else { const h1 = w0 / cwh, c = (crop[1] + crop[3]) / 2; crop = [crop[0], c - h1 / 2, crop[2], c + h1 / 2]; }
+    }
+    const px = +(q.get('px') || 0), py = +(q.get('py') || 0);
+    // 离屏舞台：只渲染裁剪区域，尺寸与格子一致
+    const stage = document.getElementById('stage');
+    stage.style.width = cw + 'px';
+    stage.style.height = ch + 'px';
+    const pp = PUPPET.create(stage, { preserve: true, maxDpr: 1, doze: false, region: crop, amp: +(q.get('amp') || 1) });
+    document.title = 'LOADING';
+    if (!(await pp.load(key, '../assets/puppet/'))) throw new Error('load failed ' + key);
+    document.title = 'RENDERING';
+    let origImg = null;
+    for (const spec of cells) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const c2 = document.createElement('canvas');
+      c2.width = cw; c2.height = ch;
+      cell.appendChild(c2);
+      const lbl = document.createElement('div');
+      lbl.className = 'lbl';
+      lbl.textContent = spec === 'orig' ? `${key} 原图` : `${key} ${spec}${px || py ? ` px=${px} py=${py}` : ''}`;
+      cell.appendChild(lbl);
+      grid.appendChild(cell);
+      const g = c2.getContext('2d');
+      if (spec === 'orig') {
+        origImg = origImg || await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = `../tools/puppet/.cache/${key}.png`; });
+        if (origImg) g.drawImage(origImg, crop[0], crop[1], crop[2] - crop[0], crop[3] - crop[1], 0, 0, cw, ch);
+        continue;
+      }
+      pp.reset();
+      pp.setIdle(false);
+      pp.setPointer(px, py);
+      let [name, tt] = spec.split('@');
+      let sign = 1;
+      if (tt && tt.endsWith('-')) { sign = -1; tt = tt.slice(0, -1); }
+      if (name === 'rest') pp.simulate(+(tt || 0.5));
+      else pp.simulate(+(tt || 1), name, sign);
+      const src = stage.querySelector('canvas');
+      g.drawImage(src, 0, 0, src.width, src.height, 0, 0, cw, ch);
+    }
+    document.title = 'DONE';
+  })().catch(fail);
+})();
+</script>
+</body>
+</html>
