@@ -266,7 +266,7 @@
   const HAIR = {
     caster: { c: '#9a7c6a', sh: '#6c5244', dk: '#523c32', lt: '#c8ab98', tip: '#dca0a2', ink: '#4a2e26' },
     alter: { c: '#9d7f6c', sh: '#6e5446', dk: '#553e34', lt: '#ceb4a2', tip: '#e97683', ink: '#4a2e26' },
-    child: { c: '#a8826a', sh: '#7a5a48', dk: '#5e4234', lt: '#d4b69e', tip: '#caa28c', ink: '#4e3024' },
+    child: { c: '#b28a6c', sh: '#86644e', dk: '#6a4c3a', lt: '#e4c29e', tip: '#d2ad8c', ink: '#553528' },
     magna: { c: '#8f604c', sh: '#633f31', dk: '#4b2e24', lt: '#bf8f76', tip: '#a06c56', ink: '#3e2218' },
     katia: { c: '#5e4034', sh: '#3e2a22', dk: '#2c1d17', lt: '#906c5a', tip: '#6a4a3c', ink: '#21140e' },
     fontaine: { c: '#8e929b', sh: '#60646d', dk: '#4a4d55', lt: '#cdd1d9', tip: '#9ca0a8', ink: '#303238' },
@@ -303,11 +303,11 @@
    *   nose：dot（小孩）| tick（少年 / 女性）| line（成年男性 / 长者）；noseTip 侧面鼻尖的前伸
    * ================================================================ */
   const FACE = {
-    child: { chin: 1.0, jaw: 0.82, eye: { psi: 0.44, y: 0.37, w: 0.38, h: 0.54, shape: 'round', lash: 1.15 }, brow: { y: 0.0, len: 0.14, w: 0.8, arch: 0.05 }, nose: 'dot', noseTip: 1.02, mouth: { y: 0.76, w: 0.068 } },
+    child: { chin: 1.0, jaw: 0.82, eye: { psi: 0.45, y: 0.39, w: 0.43, h: 0.6, shape: 'round', lash: 1.35 }, brow: { y: 0.0, len: 0.14, w: 0.8, arch: 0.05 }, nose: 'dot', noseTip: 1.02, mouth: { y: 0.78, w: 0.066 } },
     caster: { chin: 1.02, jaw: 0.8, eye: { psi: 0.43, y: 0.35, w: 0.36, h: 0.51, shape: 'round', lash: 1.08 }, brow: { y: -0.01, len: 0.15, w: 0.85, arch: 0.05 }, nose: 'dot', noseTip: 1.03, mouth: { y: 0.76, w: 0.066 } },
     alter: { chin: 1.04, jaw: 0.77, cheek: 0.04, eye: { psi: 0.43, y: 0.34, w: 0.35, h: 0.49, shape: 'almond', lash: 1.05 }, brow: { y: -0.02, len: 0.155, w: 0.85, arch: 0.05 }, nose: 'dot', noseTip: 1.04, mouth: { y: 0.77, w: 0.066 } },
     magna: { chin: 1.15, jaw: 0.68, cheek: 0.16, blushK: 0.7, eye: { psi: 0.4, y: 0.31, w: 0.3, h: 0.36, shape: 'soft', lash: 0.98 }, brow: { y: -0.04, len: 0.17, w: 0.8, arch: 0.06 }, nose: 'tick', noseTip: 1.06, mouth: { y: 0.85, w: 0.068 }, freckles: '#c98a72' },
-    katia: { chin: 1.2, jaw: 0.66, square: 0.5, cheek: 0.2, blushK: 0.3, eye: { psi: 0.39, y: 0.27, w: 0.3, h: 0.27, shape: 'calm', lash: 0.9 }, brow: { y: -0.03, len: 0.19, w: 1.2, arch: 0.02 }, nose: 'line', noseTip: 1.09, mouth: { y: 0.9, w: 0.078 } },
+    katia: { chin: 1.2, jaw: 0.66, square: 0.5, cheek: 0.2, blushK: 0.3, eye: { psi: 0.39, y: 0.28, w: 0.31, h: 0.31, shape: 'calm', lash: 1.05 }, brow: { y: -0.03, len: 0.19, w: 1.2, arch: 0.02 }, nose: 'line', noseTip: 1.09, mouth: { y: 0.9, w: 0.078 } },
     keller: { chin: 1.17, jaw: 0.66, cheek: 0.18, blushK: 0.4, eye: { psi: 0.4, y: 0.31, w: 0.29, h: 0.31, shape: 'calm', lash: 0.9 }, brow: { y: -0.04, len: 0.17, w: 0.8, arch: 0.03, tilt: 0.04 }, nose: 'tick', noseTip: 1.06, mouth: { y: 0.86, w: 0.06 }, age: 0.5 },
     fontaine: { chin: 1.07, jaw: 0.74, cheek: 0.08, blushK: 0.35, eye: { psi: 0.42, y: 0.34, w: 0.32, h: 0.4, shape: 'cool', lash: 0.82 }, brow: { y: -0.02, len: 0.16, w: 0.9, arch: 0.03 }, nose: 'tick', noseTip: 1.05, mouth: { y: 0.78, w: 0.058 } },
     liese: { chin: 1.0, jaw: 0.81, eye: { psi: 0.44, y: 0.36, w: 0.37, h: 0.52, shape: 'round', lash: 1.1 }, brow: { y: -0.01, len: 0.14, w: 0.85, arch: 0.06 }, nose: 'dot', noseTip: 1.02, mouth: { y: 0.76, w: 0.075 }, freckles: '#d9926e' },
@@ -341,7 +341,11 @@
     'adele-child': {
       body: 'child', face: FACE.child, skin: SKIN, eye: EYES.child, ear: 'sheep', ears: EARS.child, sheepEar: 1.05,
       horn: { style: 'spiral', pal: HORNS.adele, r: 0.3, turn: 1.3, out: 0.22, w: 0.22, psi: 1.05, y: -0.6 },
-      hair: HAIR_ADELE(HAIR.child, { cap: 1.16, back: { n: 7, top: -0.28, len: 2.0, w: 0.2, spread: 1.16, wave: 0.09, curl: 1.0, var: 0.2 }, sides: [{ psi: 1.38, y0: 0.2, len: 1.4, w: 0.14, wave: 0.07, curl: 0.95, out: 0.12 }], ahoge: { psi: 0.16, len: 0.62, curl: 1.3 } }),
+      hair: HAIR_ADELE(HAIR.child, { cap: 1.16, lobeAmp: 0.04,
+        bangs: [[-1.02, 0.28, 0.15, -0.4], [-0.72, 0.4, 0.16, -0.34], [-0.42, 0.22, 0.16, -0.24], [-0.12, 0.42, 0.15, -0.04], [0.18, 0.24, 0.16, 0.18], [0.48, 0.38, 0.16, 0.3], [0.8, 0.26, 0.15, 0.38], [1.06, 0.36, 0.13, 0.4]],
+        back: { n: 8, top: -0.28, len: 2.55, w: 0.2, spread: 1.24, wave: 0.11, curl: 1.1, var: 0.22 },
+        sides: [{ psi: 1.34, y0: 0.2, len: 1.95, w: 0.15, wave: 0.12, curl: 1.1, out: 0.1 }, { psi: 1.55, y0: 0.08, len: 1.6, w: 0.13, wave: 0.12, curl: 1.0, out: 0.26 }],
+        ahoge: { psi: 0.16, len: 0.62, curl: 1.3 } }),
       def: 'school',
       outfits: {
         school: {
@@ -456,14 +460,14 @@
     },
     katia: {
       body: 'man', face: FACE.katia, skin: SKIN, eye: EYES.katia, ear: 'sheep', ears: EARS.katia, sheepEar: 1.0,
-      horn: { style: 'bar', pal: HORNS.katia, r: 0.55, turn: 1.0, out: 0.9, w: 0.2, psi: 1.02, y: -0.66 },
-      glasses: { shape: 'hex', c: '#2a201c', thin: 1 },
+      horn: { style: 'bar', pal: HORNS.katia, r: 0.55, turn: 1.0, out: 0.9, w: 0.19, psi: 1.0, y: -0.62 },
+      glasses: { shape: 'hexround', c: '#2a201c', thin: 1 },
       hair: {
-        pal: HAIR.katia, cap: 1.16, lobes: 8, lobeAmp: 0.05, hl: -0.36, part: 0.3, curly: 1, messy: 1,
-        bangs: [[-1.06, 0.4, 0.12, -0.35], [-0.86, 0.5, 0.12, -0.4], [-0.64, 0.2, 0.11, -0.3], [-0.44, 0.06, 0.11, -0.2], [-0.22, 0.3, 0.11, -0.05], [-0.02, 0.42, 0.1, 0.15], [0.18, 0.26, 0.11, 0.3], [0.38, 0.06, 0.11, 0.35], [0.58, 0.18, 0.11, 0.38], [0.8, 0.5, 0.12, 0.4], [1.02, 0.38, 0.12, 0.32]],
-        temple: { y: 0.8, w: 0.14, curl: 0.5 },
-        sides: [{ psi: 1.36, y0: 0.2, len: 1.55, w: 0.15, wave: 0.1, curl: 0.6, out: 0.18 }],
-        back: { n: 8, top: -0.28, len: 2.05, w: 0.2, spread: 1.3, wave: 0.11, curl: 0.55, var: 0.3 },
+        pal: HAIR.katia, cap: 1.17, lobes: 9, lobeAmp: 0.05, hl: -0.34, part: 0.55, curly: 1,
+        bangs: [[-1.08, 0.46, 0.13, -0.45], [-0.86, 0.3, 0.13, -0.5], [-0.62, 0.12, 0.13, -0.45], [-0.38, 0.34, 0.13, -0.38], [-0.14, 0.18, 0.13, -0.3], [0.08, 0.4, 0.13, -0.22], [0.3, 0.2, 0.12, -0.12], [0.52, 0.06, 0.12, 0.05], [0.76, 0.3, 0.12, 0.25], [1.0, 0.5, 0.13, 0.35]],
+        temple: { y: 0.98, w: 0.16, curl: 0.45 },
+        sides: [{ psi: 1.3, y0: 0.15, len: 1.8, w: 0.16, wave: 0.15, curl: 0.75, out: 0.12 }, { psi: 1.52, y0: 0.05, len: 1.5, w: 0.14, wave: 0.14, curl: 0.95, out: 0.3 }],
+        back: { n: 9, top: -0.28, len: 2.25, w: 0.21, spread: 1.42, wave: 0.15, curl: 0.75, var: 0.3 },
         ahoge: { psi: 0.1, len: 0.52, curl: 1.4 }, pony: null, braid: null,
       },
       def: 'suit',
@@ -1391,18 +1395,26 @@
       hsph(H, psi, y, rho, T3);
       out.push(T3[2] < 0.02 ? edgeX(T3[1], T3[0] >= 0 ? 1 : -1) : T3[0], T3[1]);
     };
-    const PS = 1.2, SY = [0.34, 0.58, 0.82];
+    const PS = 1.2, SY = [0.3, 0.5, 0.68];
     const hlp = [];
     for (let k = 0; k <= 14; k++) { const psi = -PS + (k / 14) * 2 * PS; pt(psi, hlY(psi), 1.04, hlp); }
     const sA = [], sB = [];
     for (const y of SY) { pt(-PS, y, 1.02, sA); pt(PS, y, 1.02, sB); }
     const xa = sA[4], ya = sA[5], xb = sB[4], yb2 = sB[5];
-    const aA = Math.acos(clamp(xa / rc, -1, 1)), aB = Math.acos(clamp(xb / rc, -1, 1));
+    // 两鬓最下面那一点水平地接到发顶的圆上（不在下颌旁边留一条竖着的“耳片”）
+    const cxA = (xa >= 0 ? 1 : -1) * max(abs(xa), sqrt(max(0, rc * rc - (ya - cy0) * (ya - cy0)))), cxB = (xb >= 0 ? 1 : -1) * max(abs(xb), sqrt(max(0, rc * rc - (yb2 - cy0) * (yb2 - cy0))));
+    // 正面：水平接到圆上；侧面：从鬓角竖直往下接（鬓角前面是脸，不是头发）
+    const tw = abs(H.sy);
+    const pA = lerp(cxA, xa, tw), pB = lerp(cxB, xb, tw);
+    const yA = max(ya, cy0 + sqrt(max(0, rc * rc - pA * pA)) * (tw > 0.5 ? 1 : 0)), yB = max(yb2, cy0 + sqrt(max(0, rc * rc - pB * pB)) * (tw > 0.5 ? 1 : 0));
+    const aA = Math.atan2(yA - cy0, pA), aB = Math.atan2(yB - cy0, pB);
     dome.moveTo(xb, yb2);
-    dome.lineTo(cos(aB) * Rr(aB), cy0 + max(yb2 - cy0, sin(aB) * Rr(aB)));
-    const aEnd = aB > aA ? aA + TAU : aA - TAU;
+    dome.lineTo(pB, yB);
+    let aEnd = aA;
+    // 沿着远离脸的那一侧（经过头顶）绕过去
+    { const mid = (a0, a1) => (a0 + a1) / 2; let e1 = aA; while (e1 <= aB) e1 += TAU; let e2 = aA; while (e2 >= aB) e2 -= TAU; aEnd = sin(mid(aB, e1)) < sin(mid(aB, e2)) ? e1 : e2; }
     for (let i = 1; i < N; i++) { const a = lerp(aB, aEnd, i / N), r = Rr(a); dome.lineTo(cos(a) * r, cy0 + sin(a) * r); }
-    dome.lineTo(cos(aA) * Rr(aA), cy0 + max(ya - cy0, sin(aA) * Rr(aA)));
+    dome.lineTo(pA, yA);
     for (let i = 2; i >= 0; i--) dome.lineTo(sA[i * 2], sA[i * 2 + 1]);
     for (let i = 0; i < hlp.length; i += 2) dome.lineTo(hlp[i], hlp[i + 1]);
     for (let i = 0; i < 3; i++) dome.lineTo(sB[i * 2], sB[i * 2 + 1]);
@@ -1461,8 +1473,10 @@
           bw[i] = tp.w * (0.55 + 0.45 * abs(H.cy)) * lockWidth(u, 0) + 0.01;
         }
         ribbon(bangs, bx, by, bw, M);
-        ribbonShade(bandSh, bx, by, bw, M, lx, ly, 0.34, 0.1, 0.95);
-        ribbonStrand(strands, bx, by, bw, M, 0.2 * sd, 0.12, 0.7);
+        const one = new Path2D(); ribbon(one, bx, by, bw, M);
+        bangList.push({ p: one, x0: bx[0], y0: by[0], x1: bx[M - 1], y1: by[M - 1] });
+        ribbonShade(bandSh, bx, by, bw, M, lx, ly, 0.22, 0.2, 0.95);
+        ribbonStrand(bangLines, bx, by, bw, M, 0.2 * sd, 0.12, 0.7);
       }
     }
     // 从发旋到刘海的几道发丝
@@ -1474,6 +1488,7 @@
     addSheen(H, sheen, rc, false);
     const lockDark = new Path2D(), lockLight = new Path2D();
     capStripes(H, rc, lockDark, lockLight, false, part, hlY);
+    if (abs(H.sy) > 0.3) capStripes(H, rc, lockDark, lockLight, true, 0, null);
     return { dome, ink, bangs, strands, sheen, bandSh, bangList, bangHi, bangLines, lockDark, lockLight, ringSoft: ringBand(H, rc, false) };
   }
   /** 发顶上一绺一绺的明暗条：沿经线从分线 / 发旋流向发际线和两侧 */
@@ -1533,6 +1548,9 @@
   function hairGrad(pal) {
     return linG('hcap2:' + pal.c, 0, -1.2, 0, 1.0, [0, lt(pal.c, 0.16), 0.5, pal.c, 1, mix(pal.c, pal.sh, 0.55)]);
   }
+  /** 头发内部分界线的颜色：暖深棕（比轮廓线浅） */
+  const INNK = new Map();
+  function innerInk(pal) { let v = INNK.get(pal.c); if (!v) { v = mix(pal.ink, pal.sh, 0.45); INNK.set(pal.c, v); } return v; }
   function sideGrad(pal, len) {
     return linG('side2:' + pal.c + ':' + pal.tip, 0, -0.4, 0, len, [0, mix(pal.c, pal.lt, 0.12), 0.55, pal.c, 0.82, mix(pal.c, pal.tip, 0.6), 1, pal.tip]);
   }
@@ -1552,13 +1570,14 @@
   function hairGroupEnd(D, HG, grad, pal, inkK = 1, light = 0, sheet = null) {
     const g = D.g;
     g.lineJoin = 'round'; g.lineCap = 'round';
-    g.lineWidth = D.inkO * 2 * inkK; g.strokeStyle = D.sil || pal.ink; g.stroke(HG.p);
+    // light = 盖在别的头发上面的那一组（鬓发、马尾）：外线用浅一点、细一点的暖棕色（官方立绘里发束之间只有细细的深色分界）
+    g.lineWidth = D.inkO * 2 * inkK * (light ? 0.62 : 1); g.strokeStyle = D.sil || (light ? innerInk(pal) : pal.ink); g.stroke(HG.p);
     // 后面那一整片头发：不描边（背影时发旋下面不会出现一道“帽檐”）
     if (sheet) { g.fillStyle = D.sil || hairGrad(pal); g.fill(sheet); }
     g.fillStyle = D.sil || grad; g.fill(HG.p);
     if (D.sil) return;
     if (D.shade > 0 && D.lod >= 1) { g.globalAlpha = D.ga * (light ? 0.3 : 0.36) * D.shade; g.fillStyle = light ? pal.sh : pal.dk || pal.sh; g.fill(HG.sh); g.globalAlpha = D.ga; }
-    if (D.lod >= 1) { g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, light ? 0.35 : 0.5); g.stroke(HG.st); }
+    if (D.lod >= 1) { g.lineWidth = D.inkI * 0.8; g.strokeStyle = rgba(pal.ink, light ? 0.22 : 0.28); g.stroke(HG.st); }
     if (D.lod >= 2 || (light && D.lod >= 1)) { g.globalAlpha = D.ga * 0.5; g.fillStyle = pal.lt; g.fill(HG.hi); g.globalAlpha = D.ga; }
   }
   /** 一束会动的头发：给 3 个控制点（头部空间，已投影），生成中心线 → 摆动 → 卷 → 带子 */
@@ -1840,7 +1859,7 @@
       if (hs.style === 'bar') {
         // 卡提亚：先向后上方，再向下，角尖向外翘
         // 卡提亚：从头顶两侧向外、向后压下去，角尖在耳朵上方往外翘（像车把）
-        const P1 = [s0 + sd * 0.42, v0 - 0.08, f0 - 0.3], P2 = [s0 + sd * 0.7, v0 + 0.66, f0 - 0.5], P3 = [s0 + sd * 0.92, v0 + 0.5, f0 - 0.1];
+        const P1 = [s0 + sd * 0.42, v0 - 0.1, f0 - 0.52], P2 = [s0 + sd * 0.62, v0 + 0.78, f0 - 0.6], P3 = [s0 + sd * 1.0, v0 + 0.8, f0 - 0.08];
         for (let i = 0; i <= N; i++) {
           const u = i / N, a = (1 - u) ** 3, b = 3 * u * (1 - u) ** 2, c = 3 * u * u * (1 - u), d = u ** 3;
           hproj(H, a * s0 + b * P1[0] + c * P2[0] + d * P3[0], a * v0 + b * P1[1] + c * P2[1] + d * P3[1], a * f0 + b * P1[2] + c * P2[2] + d * P3[2], T3);
@@ -2036,7 +2055,7 @@
     round: { lid: [-0.54, 0.16, -0.44, -0.46, 0.36, -0.56, 0.66, -0.04], low: [0.6, 0.5, 0.02, 0.6, -0.46, 0.5], iris: [0.02, 0.1, 0.44, 0.53], flick: 1, pupil: 0.21 },
     almond: { lid: [-0.54, 0.12, -0.38, -0.42, 0.4, -0.5, 0.68, -0.08], low: [0.6, 0.46, 0.02, 0.56, -0.46, 0.44], iris: [0.03, 0.08, 0.41, 0.5], flick: 1, pupil: 0.19 },
     soft: { lid: [-0.52, 0.04, -0.3, -0.38, 0.42, -0.36, 0.68, 0.12], low: [0.6, 0.46, 0.02, 0.5, -0.46, 0.38], iris: [0.05, 0.1, 0.38, 0.46], flick: 0.55, pupil: 0.17 },
-    calm: { lid: [-0.54, 0.06, -0.3, -0.28, 0.38, -0.32, 0.68, 0.02], low: [0.6, 0.34, 0.02, 0.42, -0.46, 0.3], iris: [0.04, 0.1, 0.36, 0.43], flick: 0, pupil: 0.15, lidK: 0.16 },
+    calm: { lid: [-0.54, 0.06, -0.3, -0.28, 0.38, -0.32, 0.68, 0.02], low: [0.6, 0.34, 0.02, 0.42, -0.46, 0.3], iris: [0.04, 0.1, 0.39, 0.47], flick: 0.3, pupil: 0.15, lidK: 0.12 },
     sharp: { lid: [-0.52, 0.1, -0.3, -0.32, 0.38, -0.42, 0.68, -0.16], low: [0.6, 0.28, 0.02, 0.4, -0.46, 0.32], iris: [0.05, 0.07, 0.35, 0.41], flick: 0.35, pupil: 0.15 },
     cool: { lid: [-0.54, 0.08, -0.34, -0.36, 0.38, -0.42, 0.68, -0.02], low: [0.6, 0.42, 0.02, 0.48, -0.46, 0.36], iris: [0.05, 0.09, 0.39, 0.46], flick: 0, pupil: 0.17, lidK: 0.08 },
   };
@@ -2644,7 +2663,7 @@
     const g = D.g, cp = capParts(D, H), pal = hr.pal, sil = D.sil;
     g.lineWidth = D.inkO * 2; g.strokeStyle = sil || pal.ink;
     g.stroke(cp.ink || cp.dome);
-    if (cp.bangs) { g.lineWidth = D.inkH * 1.7; g.stroke(cp.bangs); }
+    if (cp.bangs) { g.lineWidth = D.inkH * 1.25; g.strokeStyle = sil || innerInk(pal); g.stroke(cp.bangs); }
     g.fillStyle = sil || hairGrad(pal); g.fill(cp.dome, 'evenodd');
     if (sil) { if (cp.bangs) g.fill(cp.bangs); return; }
     if (D.lod >= 1) {
@@ -2659,7 +2678,7 @@
       if (cp.ringSoft) { g.globalAlpha = D.ga * 0.3; g.fillStyle = pal.lt; g.fill(cp.ringSoft); }
       g.globalAlpha = D.ga * 0.85; g.fillStyle = mix(pal.lt, '#ffffff', 0.3); g.fill(cp.sheen);
       g.globalAlpha = D.ga; g.restore();
-      g.lineWidth = D.inkI * 0.9; g.strokeStyle = rgba(pal.ink, 0.3); g.stroke(cp.strands);
+      g.lineWidth = D.inkI * 0.8; g.strokeStyle = rgba(pal.ink, 0.2); g.stroke(cp.strands);
     }
     if (!cp.bangs) return;
     if (cp.bangList && D.lod >= 1) {
@@ -2675,7 +2694,7 @@
       if (D.shade > 0) { g.globalAlpha = D.ga * 0.3 * D.shade; g.fillStyle = pal.sh; g.fill(cp.bandSh); }
       if (cp.bangHi) { g.globalAlpha = D.ga * 0.55; g.fillStyle = mix(pal.lt, '#ffffff', 0.2); g.fill(cp.bangHi); }
       g.globalAlpha = D.ga;
-      if (cp.bangLines) { g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, 0.45); g.stroke(cp.bangLines); }
+      if (cp.bangLines) { g.lineWidth = D.inkI * 0.8; g.strokeStyle = rgba(pal.ink, 0.28); g.stroke(cp.bangLines); }
     }
   }
 

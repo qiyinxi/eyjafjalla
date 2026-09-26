@@ -115,16 +115,29 @@
   }
 
   /* ---------------------------------------------------------------- 网络（与 chibi.js 同一套：超时 + 重试） */
-  const TIMEOUT = 15000;
+  // 资源站冷启动时首字节偶尔要 7–14 秒（实测）：单个请求给 20 秒；同时最多 6 个请求（手机带宽 + 不让排队的请求白白耗掉超时）
+  const TIMEOUT = 20000;
   const retry = async (fn, times = 3) => {
     for (let i = 0; ; i++) {
       try { return await fn(i); } catch (e) { if (i >= times - 1) throw e; await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
     }
   };
-  const fetchT = (url) => fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT) : undefined, referrerPolicy: 'no-referrer' });
-  const getBin = (url) => retry(() => fetchT(url).then((r) => { if (!r.ok) throw new Error('skel ' + r.status); return r.arrayBuffer(); }));
-  const getText = (url) => retry(() => fetchT(url).then((r) => { if (!r.ok) throw new Error('atlas ' + r.status); return r.text(); }));
-  const getBlob = (url) => retry((i) => fetchT(i ? url + '?r=' + i : url).then((r) => { if (!r.ok) throw new Error('png ' + r.status); return r.blob(); }));
+  let inflight = 0;
+  const waiting = [];
+  const slot = () => (inflight < 6 ? (inflight++, Promise.resolve()) : new Promise((r) => waiting.push(r)));
+  const unslot = () => { const n = waiting.shift(); if (n) n(); else inflight--; };
+  /** 带超时的 fetch（超时从真正发出请求时算起，排队不算）；body 读完才算结束 */
+  async function fetchT(url, kind) {
+    await slot();
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT) : undefined, referrerPolicy: 'no-referrer' });
+      if (!r.ok) throw new Error(kind + ' ' + r.status);
+      return await (kind === 'meta' ? r.json() : kind === 'atlas' ? r.text() : kind === 'png' ? r.blob() : r.arrayBuffer());
+    } finally { unslot(); }
+  }
+  const getBin = (url) => retry(() => fetchT(url, 'skel'));
+  const getText = (url) => retry(() => fetchT(url, 'atlas'));
+  const getBlob = (url) => retry((i) => fetchT(i ? url + '?r=' + i : url, 'png'));
   let libP = null;
   function loadLib() {
     if (window.spine && window.spine.webgl) return Promise.resolve(true);
@@ -146,7 +159,7 @@
   function meta(char) {
     let p = metaCache.get(char);
     if (!p) {
-      p = retry(() => fetchT(ROOT + char + '/meta.json').then((r) => { if (!r.ok) throw new Error('meta ' + r.status); return r.json(); }));
+      p = retry(() => fetchT(ROOT + char + '/meta.json', 'meta'));
       metaCache.set(char, p);
       p.catch(() => metaCache.delete(char));
     }
@@ -360,22 +373,24 @@ void main(){
     if (window.createImageBitmap) {
       try {
         let bm = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+        const nat = [bm.width, bm.height];
         if (w && h && (bm.width !== w || bm.height !== h)) {
           const b2 = await createImageBitmap(bm, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high', premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
           bm.close(); bm = b2;
         }
-        return bm;
+        return { img: bm, nat };
       } catch (e) { /* 退回 <img> */ }
     }
     const url = URL.createObjectURL(blob);
     try {
       const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const nat = [im.naturalWidth, im.naturalHeight];
       if (w && h && (im.naturalWidth !== w || im.naturalHeight !== h)) {
         const c = document.createElement('canvas'); c.width = w; c.height = h;
         const q = c.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(im, 0, 0, w, h);
-        return c;
+        return { img: c, nat };
       }
-      return im;
+      return { img: im, nat };
     } finally { URL.revokeObjectURL(url); }
   }
   /** → true 成功；false 失败（按退避重试）；null 中途作废（上下文丢失、被 release） */
@@ -393,8 +408,10 @@ void main(){
     const dir = base.slice(0, base.lastIndexOf('/') + 1);
     const pages = atlasPages(atlasTxt);
     const imgs = {};
-    await Promise.all(pages.map(async (p) => { imgs[p.name] = await decode(await getBlob(dir + p.name), p.w, p.h); }));
+    const nat = {};
+    await Promise.all(pages.map(async (p) => { const r = await decode(await getBlob(dir + p.name), p.w, p.h); imgs[p.name] = r.img; nat[p.name] = r.nat; }));
     if (stale()) { for (const k in imgs) if (imgs[k] && imgs[k].close) imgs[k].close(); return null; }
+    R.nat = nat;
     const t1 = now();
     const S = window.spine, W = S.webgl;
     let bytes = 0;
@@ -414,7 +431,11 @@ void main(){
       }
       gl.bindTexture(gl.TEXTURE_2D, null);
     }
-    for (const k in imgs) if (imgs[k] && imgs[k].close) imgs[k].close();
+    // 贴图已经上传：放掉解码后的位图，只留尺寸（spine-ts 读网格的 UV 时要用 texture.getImage().width / height）
+    for (const tx of texs) {
+      const im = tx.getImage();
+      if (im && im.close) { const w = im.width, h = im.height; try { im.close(); } catch (e) { /* 无妨 */ } tx._image = { width: w, height: h }; }
+    }
     const sb = new S.SkeletonBinary(new S.AtlasAttachmentLoader(atlas));
     const data = sb.readSkeletonData(new Uint8Array(bin));
     if (stale()) { atlas.dispose(); return null; }
@@ -1097,7 +1118,7 @@ void main(){
         anims: R.data.animations.map((a) => [a.name, +a.duration.toFixed(3)]),
         bones: { head: I.head && I.head.data.name, handN: I.handN && I.handN.data.name, handF: I.handF && I.handF.data.name, footL: I.footL && I.footL.data.name, footR: I.footR && I.footR.data.name, chest: I.chest && I.chest.data.name, hip: I.hip && I.hip.data.name },
         gait: I.gait ? { speed: +I.gait.speed.toFixed(1), dur: +I.gait.dur.toFixed(3), perHeight: +(I.gait.speed / I.height).toFixed(3) } : null,
-        load: stats.loads[R.id] || null, bytes: R.bytes,
+        load: stats.loads[R.id] || null, bytes: R.bytes, tex: R.nat || null,
       };
     },
     release,

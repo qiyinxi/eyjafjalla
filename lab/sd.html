@@ -53,7 +53,12 @@
   const label = (g, s, x, y, c = '#223') => { g.font = '12px "JetBrains Mono"'; g.fillStyle = c; g.textAlign = 'left'; g.fillText(s, x, y); };
   async function ready(list) {
     const t0 = performance.now();
-    const ok = await S.load(list, 60000);
+    let ok = false;
+    // 资源站偶尔整条连接挂住：失败的模型按退避（10 秒）再试，最多三轮
+    for (let i = 0; i < 3 && !ok; i++) {
+      if (i) await new Promise((r) => setTimeout(r, 10500));
+      ok = await S.load(list, 70000);
+    }
     out.loadMs = Math.round(performance.now() - t0);
     out.loaded = list.map((k) => [k, S.ready(k)]);
     return ok;
