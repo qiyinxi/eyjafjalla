@@ -2131,6 +2131,9 @@
   });
   function libraryDyn(q, s, t) {
     const a = lp(0, 7.5, 14);
+    // 尽头拱窗照进来的柔边光束（后期工具箱），落在长桌和地毯上
+    const F = E.finish;
+    if (F && F.enabled) F.rays(q, s, { x: a[0], y: a[1] + 40, angle: PI / 2, spread: 1.25, n: 6, len: 1250, width: [70, 200], rgb: '255,226,170', a: 0.15, seed: 27 });
     q.save(); q.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 5; i++) {
       const ang = -0.5 + i * 0.25, fl = 0.55 + 0.3 * sin(t * 0.6 + i * 1.3) + 0.15 * s.lo;
@@ -3041,16 +3044,7 @@
     s.kit.rays(g, t, { x: sunX, y: sunY, n: 9, len: 1300, spread: 2.6, angle: PI * 0.62, rgb: '255,226,180', alpha: 0.12 * dawn, seed: 21 });
     s.kit.particles(g, t, 'dust', { n: 40, seed: 7, rgb: '255,236,200' });
     s.post.leak(g, t, { x: sunX, y: sunY, r: 900, rgb: '255,170,100', a: 0.3 * dawn });
-    // 标题（在宽银幕黑边里面）
-    const fade = 1 - up(t, 7.25, 7.75);
-    titleCard(g, s, 990, 385, 1.45, 3.776, { fade, beat: s.pulse(7) * up(t, 6.9, 7.1) });
-    const ca = up(t, 5.9, 6.7) * fade;
-    if (ca > 0) {
-      // 中文片名写在下面的宽银幕黑边里，小字在上面的黑边里（不压画面）
-      E.text(g, '夏 天 之 前', 960, 1030, { size: 50, weight: 700, color: '#fff4e4', spacing: 20, alpha: ca });
-      E.text(g, 'MV · 本页原创', 960, 84, { size: 24, weight: 600, color: '#e8d8c8', spacing: 10, alpha: ca * 0.85, font: 'sans' });
-    }
-    s.post.letterbox(g, 1);
+    // 标题与宽银幕黑边在影片的 overlay 里画（调色之后）：titlesOver / lbAt
   }
 
   /* ---------- 02 剖面房子：阳光一层层照进来 ---------- */
@@ -3091,7 +3085,6 @@
       q.restore();
     });
     s.kit.particles(g, t, 'dust', { n: 26, seed: 8 });
-    if (!night) s.post.letterbox(g, 1 - up(s.lt, 0, 0.9, easeIO));
   }
 
   /* ---------- 03 爸爸对着穿衣镜系领带（系紧的那一下，他朝镜子眨了下眼） ---------- */
@@ -3200,7 +3193,8 @@
     s.layer(g, cam, 1, (q) => {
       img(q, s, 'stairwell');
       // 爸爸在三楼门口挥手，妈妈在二楼递书包
-      who(q, 'katia', { x: 390, y: 1300, h: U, pose: t > 18.8 && t < 19.9 ? 'wave2' : 'hold', t, expr: t > 18.8 ? 'laugh' : 'smile', outfit: 'suit' });
+      // 爸爸站在穿衣镜前（x 300）：镜头在阁楼时他的脸在画面下沿，要在字幕底带（x ≈ 446 起）的左边，不被字幕压住
+      who(q, 'katia', { x: 300, y: 1300, h: U, pose: t > 18.8 && t < 19.9 ? 'wave2' : 'hold', t, expr: t > 18.8 ? 'laugh' : 'smile', outfit: 'suit' });
       const handed = t > 20.05;
       who(q, 'magna', { x: 430, y: 1940, h: HT('magna', U), pose: handed ? 'wave' : 'reach', aim: -0.1, t, expr: 'smile', outfit: 'home', prop: handed ? null : 'satchel' });
       const person = (name, P, o) => {
@@ -3412,13 +3406,14 @@
   function shotLookUp(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 23, 4);
-    sky(g, s, 'morning');
-    // 街景瓦片的上沿在世界 y = -220（再往上的屋顶被截平了）：镜头压低到 y 390，画面上沿（-210）正好在瓦片里面
-    streetScene(g, s, { x: 3900 + hh.sx * 0.5, y: 390, z: 0.9 }, 'morning');
+    // 背景：街（景深外，预先模糊一次、缓存）。街景瓦片的上沿在世界 y = -220：镜头压低到 y 390，画面上沿正好在瓦片里面
+    const bg = (q) => { sky(q, s, 'morning'); streetScene(q, s, { x: 3900, y: 390, z: 0.9 }, 'morning'); };
+    const F = E.finish;
+    if (F && F.enabled) F.dof(g, s, 'bs-lookup-bg', bg, { radius: 9, opaque: true, x: -hh.sx * 0.45 }); else { sky(g, s, 'morning'); streetScene(g, s, { x: 3900 + hh.sx * 0.5, y: 390, z: 0.9 }, 'morning'); }
     s.post.fill(g, '#fff3e0', 0.3);
     s.layer(g, { x: 960, y: 540, z: 1 + 0.04 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
       who(q, 'sheep-black', { x: 1420, y: 1120, h: 420, pose: 'look-up', t, flip: true, expr: 'surprise', shadow: false });
-      const A = { x: 830, y: 1080, h: 860, crop: 'bust', t, expr: 'surprise', outfit: 'school', wind: 0.3, look: [0.5, -1] };
+      const A = { x: 830, y: 1080, h: 860, crop: 'bust', t, expr: 'surprise', outfit: 'school', wind: 0.3, look: [0.5, -1], rim: '255,244,214', rimDir: -2.2, rimW: 0.7, rimGlow: 0 };
       who(q, 'adele-child', Object.assign(A, { shadow: false }));
       bang(q, 1230, 240, clamp((t - 32.9) / 0.35), 1.8);
     });
@@ -3936,6 +3931,7 @@
       if (pk > 0) who(q, 'sheep-black', { x: 1960 - pk * 330, y: 1230, h: 520, pose: 'eat', t, flip: true, expr: 'laugh', shadow: false });
     });
     s.kit.particles(g, t, 'sparkle', { n: 14, seed: 58 });
+    fgFrame(g, s, 'bs-fg-willow-r', -1, false, hh);
   }
   function shotGrass(g, s) {
     const t = s.t, lt = s.lt;
@@ -3967,6 +3963,31 @@
     const pt = up(lt, 0.6, 1.1, easeO);
     hand(g, 360 + pt * 60, 1150 - pt * 260, 1.5, -1.0, 'point', { sleeve: '#fbfaf6', cuff: '#fbfaf6', sleeveLen: 800 });
   }
+  /**
+   * 前景的失焦枝叶（给近景做框）：垂下来的柳枝 + 叶子，side = 1 在左上角、-1 在右上角；可选的右下角草丛。
+   * 用后期工具箱预先模糊一次（缓存），每帧只贴图；跟着手持镜头比背景晃得多一点（前景视差）
+   */
+  function fgFoliage(q, side, grass) {
+    q.save(); if (side < 0) { q.translate(VW, 0); q.scale(-1, 1); }
+    // 失焦以后细线会淡没：前景要画得“粗而实”（大叶片、浓一点的颜色），糊了才读得出是一簇叶子
+    const R = rng(505), C = ['#2f5a2c', '#3d6c36', '#284a26'];
+    q.lineCap = 'round';
+    q.fillStyle = '#284a26'; q.beginPath(); blob(q, 150, -40, 360, 150, 506, 9, 0.2); q.fill();
+    for (let i = 0; i < 8; i++) {
+      const x0 = -30 + i * 58 + R() * 30, L = 200 + R() * 240 - i * 12, bend = 50 + R() * 70;
+      q.beginPath(); q.moveTo(x0, -20); q.quadraticCurveTo(x0 + bend * 0.5, L * 0.5, x0 + bend, L);
+      q.lineWidth = 16 + R() * 8; q.strokeStyle = C[i % 3]; q.stroke();
+      for (let j = 0; j < 6; j++) { const u = (j + 1) / 7, lx = x0 + bend * u * u, ly = -20 + L * u; q.fillStyle = C[(i + j) % 3]; q.beginPath(); ell(q, lx + (j % 2 ? 22 : -22), ly, 38, 16, (j % 2 ? 0.9 : -0.9) + u * 0.4); q.fill(); }
+    }
+    q.restore();
+    if (grass) {
+      for (let i = 0; i < 30; i++) { const x = 1500 + R() * 460, h = 130 + R() * 170, lean = (R() - 0.3) * 60; q.beginPath(); q.moveTo(x - 16, 1100); q.quadraticCurveTo(x + lean * 0.3, 1100 - h * 0.6, x + lean, 1100 - h); q.quadraticCurveTo(x + lean * 0.3 + 10, 1100 - h * 0.5, x + 16, 1100); q.closePath(); q.fillStyle = C[i % 3]; q.fill(); }
+    }
+  }
+  function fgFrame(g, s, key, side, grass, hh, drift = 0) {
+    const F = E.finish;
+    if (F && F.enabled) F.dof(g, s, key, (q) => fgFoliage(q, side, grass), { radius: 7, x: hh.sx * 1.6 + drift, y: hh.sy * 1.6, alpha: 0.97 });
+  }
   function shotRecord(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 63, 3);
@@ -3983,6 +4004,7 @@
       who(q, 'adele-child', A);
     } });
     s.kit.particles(g, t, 'sparkle', { n: 12, seed: 64 });
+    fgFrame(g, s, 'bs-fg-willow-l', 1, true, hh, -40 * s.p);
   }
   function shotCello(g, s) {
     const t = s.t, lt = s.lt;
@@ -4278,8 +4300,8 @@
     riverScene(g, s, cam, 'sunset', { mid: (q) => {
       const rim = '255,190,130';
       const walker = (name, o, d) => { const w = o.pose === 'walk'; who(q, name, Object.assign(o, w ? stride(name, { h: o.h, pose: 'walk', t }, d) : {})); };
-      // 芳汀：走到 1.8 秒停下、回身挥手，2.1 秒起往右走（边走边挥手）
-      const fT = 280, fx = lt < 1.8 ? 320 + V * lt : lt < 2.1 ? 590 : 590 + fT * (lt - 2.1);
+      // 芳汀（走在最前面）：走到 1.8 秒停下、回身挥手，2.1 秒起往右走（边走边挥手）。不从阿黛尔身后穿过去
+      const fT = 280, fx = lt < 1.8 ? 730 + V * lt : lt < 2.1 ? 1000 : 1000 + fT * (lt - 2.1);
       walker('fontaine', { x: fx, y: 955, h: HT('fontaine', U), pose: lt < 1.8 || lt >= 2.1 ? 'walk' : 'stand', arms: lt >= 1.8 ? 'wave' : undefined, flip: lt >= 1.8 && lt < 2.1, t, expr: 'smile', sha: 0.6, rim }, lt < 1.8 ? V * lt : fT * (lt - 2.1));
       // 莉瑟：停下、转身，2.1 秒起往左走（面朝左，边走边挥手）
       const lT = 170, lx = lt < 1.8 ? V * lt : lt < 2.1 ? 270 : 270 - lT * (lt - 2.1);
@@ -4294,6 +4316,13 @@
   }
   function shotSunset(g, s) {
     const t = s.t, lt = s.lt;
+    // 镜头不死：极慢地往前推（画面四边都有东西铺满，放大不会露边）
+    const zp = 1 + 0.035 * easeS(s.p);
+    g.save(); g.translate(960, 560); g.scale(zp, zp); g.translate(-960, -560);
+    shotSunsetBody(g, s, t, lt);
+    g.restore();
+  }
+  function shotSunsetBody(g, s, t, lt) {
     sky(g, s, 'sunset');
     const sunY = 640 + lt * 60;
     glow(g, 960, sunY, 900, '255,150,80', 0.8, 'lighter', false);
@@ -4447,10 +4476,15 @@
   function shotSmile(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 113, 2);
-    s.layer(g, { x: 700, y: 560, z: 2.2, sx: hh.sx * 0.5, sy: hh.sy * 0.5 }, 1, (q) => { img(q, s, 'room-kitchen:night'); radio(q, DINNER_RADIO[0], 562, DINNER_RADIO[1], t, 1, 0.3, s.bp); });
+    // 背景：放大的厨房（景深外，预先模糊一次）+ 灯光的焦外光斑；她的脸被左上方的吊灯勾出一圈暖色的轮廓光
+    const F = E.finish, fin = F && F.enabled;
+    const bg = (q) => { q.translate(960, 540); q.scale(2.2, 2.2); q.translate(-700, -560); img(q, s, 'room-kitchen:night'); radio(q, DINNER_RADIO[0], 562, DINNER_RADIO[1], 0, 1, 0.3, 0); };
+    if (fin) F.dof(g, s, 'bs-smile-bg', bg, { radius: 12, opaque: true, x: hh.sx * 0.5, y: hh.sy * 0.5 });
+    else s.layer(g, { x: 700, y: 560, z: 2.2, sx: hh.sx * 0.5, sy: hh.sy * 0.5 }, 1, (q) => { img(q, s, 'room-kitchen:night'); radio(q, DINNER_RADIO[0], 562, DINNER_RADIO[1], t, 1, 0.3, s.bp); });
     s.post.fill(g, '#3a2830', 0.35);
+    if (fin) F.bokeh(g, s, { n: 11, seed: 23, a: 0.3, colors: ['255,200,140', '255,176,110', '255,226,180'], depth: [0.2, 1], size: [36, 120], rect: [0, 0, VW, 760], drift: [4, -3], twinkle: 0.3 });
     s.layer(g, { x: 960, y: 540, z: 1 + 0.03 * s.p, sx: hh.sx, sy: hh.sy }, 1, (q) => {
-      who(q, 'adele-child', { x: 960, y: 1080, h: 900, crop: 'bust', t, expr: lt < 1.2 ? 'smile' : 'content', outfit: 'school', shadow: false, look: lt < 1.2 ? [0, 0] : [0.2, 0.5] });
+      who(q, 'adele-child', { x: 960, y: 1080, h: 900, crop: 'bust', t, expr: lt < 1.2 ? 'smile' : 'content', outfit: 'school', shadow: false, look: lt < 1.2 ? [0, 0] : [0.2, 0.5], rim: '255,200,140', rimDir: -2.3, rimW: 0.8, rimGlow: 0 });
     });
     nightGrade(g, [[600, 200, 700, 0.35]]);
   }
@@ -4546,7 +4580,11 @@
     s.layer(g, cam, 0.08, (q) => { img(q, s, 'night-sky', -60, -60, VW + 120, VH + 120); s.kit.stars(q, s.t, { n: 60, seed: 181, h: 700, size: 2.6, tw: 0.8 }); });
     if (o.dawn > 0) s.layer(g, cam, 0.08, (q) => { q.globalAlpha = o.dawn; q.fillStyle = lg(q, 0, 300, 0, 1080, [[0, 'rgba(120,110,190,0)'], [0.6, 'rgba(230,150,160,.8)'], [1, 'rgba(255,200,160,1)']]); q.fillRect(-60, 300, VW + 120, 900); q.globalAlpha = 1; });
     if (o.sky) o.sky(g);
-    s.layer(g, cam, 0.5, (q) => { img(q, s, 'rooftops', -240, 40, 2400, 1080); townTwinkle(q, s.t); if (o.mid) o.mid(q); });
+    s.layer(g, cam, 0.5, (q) => { img(q, s, 'rooftops', -240, 40, 2400, 1080); townTwinkle(q, s.t); });
+    // 远处城里的灯：失焦的光斑（后期工具箱），在对面屋顶的后面
+    const F = E.finish;
+    if (F && F.enabled) F.bokeh(g, s, { n: 14, seed: 11, a: 0.3, colors: ['255,206,140', '255,180,120', '210,220,255'], depth: [0, 0.6], size: [16, 64], rect: [-40, 380, VW + 80, 380], cam, parallax: 0.5, drift: [5, -2], twinkle: 0.45 });
+    if (o.mid) s.layer(g, cam, 0.5, o.mid);
     s.layer(g, cam, 1, (q) => { img(q, s, 'roof-fg'); glow(q, 340, 700, 260, '255,190,110', 0.45); if (o.fg) o.fg(q); });
   }
   const PJ = 'pajama', MOON = '190,205,255';
@@ -4712,13 +4750,14 @@
     } });
     // 前景的路灯放在画面两边，别挡住门口的一家人
     s.layer(g, cam, 1.3, (q) => { const o = (cam.x - 960) * 1.3 + 960; for (const sx of [-760, 780]) lampPost(q, o + sx / cam.z, 1110, 1.3, 1); });
-    s.post.letterbox(g, up(lt, 0, 1.2, easeIO));
   }
   function shotHug(g, s) {
     const t = s.t, lt = s.lt;
     const hh = hand0(s, 205, 2);
-    sky(g, s, 'dawn2');
-    streetScene(g, s, { x: HOME_DOOR + 700, y: 420, z: 0.75 }, 'dawn2');
+    // 背景：家门口的街，景深外（预先模糊一次、缓存）；前景的三个人清晰
+    const bg = (q) => { sky(q, s, 'dawn2'); streetScene(q, s, { x: HOME_DOOR + 700, y: 420, z: 0.75 }, 'dawn2'); };
+    const F = E.finish;
+    if (F && F.enabled) F.dof(g, s, 'bs-hug-bg', bg, { radius: 9, opaque: true, x: -hh.sx * 0.3, y: -hh.sy * 0.3 }); else bg(g);
     s.post.fill(g, '#f0c0b8', 0.3);
     glow(g, 1750, 560, 700, '255,190,140', 0.7, 'lighter', false);
     const U = 1000;
@@ -4730,7 +4769,6 @@
       who(q, 'adele-child', { x: 860, y: 1160, h: HT('adele-child', U), pose: 'stand', arms: 'clasp', view: 'front', t, expr: 'closed', outfit: PJ, rim: DAWN_RIM, shadow: false });
     });
     s.post.leak(g, t, { x: 1900, y: 540, r: 900, rgb: '255,170,120', a: 0.45 });
-    s.post.letterbox(g, 1);
   }
   /** 走向日出的两个人（在右侧人行道，越走越小） */
   function walkers(q, t, Z, o = {}) {
@@ -4765,7 +4803,6 @@
     });
     s.kit.rays(g, t, { x: DP.vx, y: sunY, n: 12, len: 1500, spread: 3.2, angle: PI / 2, rgb: '255,220,190', alpha: 0.14, seed: 208 });
     flare(g, DP.vx, sunY, 0.55);
-    s.post.letterbox(g, 1);
   }
   function shotSunrise(g, s) {
     const t = s.t, lt = s.lt;
@@ -4787,7 +4824,6 @@
     s.kit.rays(g, t, { x: DP.vx, y: sunY, n: 14, len: 1600, spread: 3.4, angle: PI / 2, rgb: '255,230,200', alpha: 0.18 + 0.1 * s.p, seed: 209 });
     flare(g, DP.vx, sunY, 0.7 + 0.3 * s.p);
     s.post.fill(g, '#fffaf0', up(t, 210.6, 211.73, ease.in), 'source-over');
-    s.post.letterbox(g, 1 - up(t, 210.8, 211.7));
   }
   /* ---------- 61–64 书桌：写标签、放进盒子、磁带停下、片尾 ---------- */
   const rot2 = (x, y, a) => [x * cos(a) - y * sin(a), x * sin(a) + y * cos(a)];
@@ -4855,16 +4891,7 @@
     });
     s.kit.particles(g, t, 'dust', { n: 40, seed: 218, rgb: '255,240,210' });
     g.save(); g.globalAlpha = 0.35 * up(lt, 0, 1); g.fillStyle = rg(g, 960, 420, 100, 900, [[0, 'rgba(40,20,20,.55)'], [1, 'rgba(40,20,20,0)']]); g.fillRect(0, 0, VW, VH); g.restore();
-    titleCard(g, s, 1000, 360, 1.45, B(111) + 0.35, { fade: 1, beat: 0 });
-    const ca = up(t, 227.3, 228.3);
-    if (ca > 0) E.text(g, '夏 天 之 前', 960, 770, { size: 58, weight: 700, color: '#fff4e4', spacing: 20, alpha: ca, stroke: 'rgba(60,30,30,.45)', strokeW: 8 });
-    const cr = up(t, 229.6, 230.8);
-    if (cr > 0) {
-      const o = { size: 26, weight: 600, color: '#fff2e2', spacing: 3, alpha: cr, font: 'sans', stroke: 'rgba(40,20,20,.55)', strokeW: 6 };
-      E.text(g, '歌曲　Before Summer — 塞壬唱片-MSR / Adam Gubman / Matilda Stray', 960, 860, o);
-      E.text(g, 'MV　本页原创同人影像，与官方无关', 960, 904, o);
-      E.text(g, '角色与世界观 © Hypergryph', 960, 948, Object.assign({}, o, { alpha: cr * 0.9, size: 24 }));
-    }
+    // 片名、制作信息在 overlay 里画（调色之后）：titlesOver
   }
 
   const ST = (pal, a, b) => { const out = []; for (let i = a; i <= b; i++) out.push(`street:${pal}:${i}`); return out; };
@@ -4970,6 +4997,9 @@
     },    fadeIn: 1.2, fadeOut: 3,
     captions: CAPTIONS,
     shots: SHOTS,
+    // 后期工具箱（js/mv/finish.js）：分段调色、辉光、颗粒、景深。没载到时照样能放（退回原来的颗粒 + 暗角）
+    needs: ['finish'],
+    prepare() { const F = E.finish; if (F) F.warm(['grain', 'paper', 'dust', 'dirt']); },
     /** 播放器切走 / 离得很远时调用：丢掉本片自己的位图缓存（之后用到时再按需重画） */
     release() {
       for (const v of LRU.values()) v.c.width = v.c.height = 1;
@@ -4979,11 +5009,112 @@
     },
     overlay(g, s) {
       warm(s, SHOTS);
-      overlayFx(g, s);
+      // ① 成片（调色 + 辉光 + 暗角 + 颗粒）→ ② 宽银幕黑边 → ③ 片名（黑边和字不被调色、不被辉光糊掉）
+      const F = E.finish;
+      if (F && F.enabled) F.frame(g, s, lookAt(F, s.t)); else overlayFx(g, s);
+      s.post.letterbox(g, lbAt(s.t));
+      titlesOver(g, s);
     },
   });
   function overlayFx(g, s) {
     s.post.grain(g, s.t, 0.045);
     s.post.vignette(g, 0.4);
+  }
+
+  /* ---------------- 成片风格的时间线（每段一个“调子”，参考官方 MV 的分段调色） ----------------
+   * 白天：golden-hour（早晨 / 正午淡一些，下午的广场最浓）；桥上落日：siesta-sunset；晚饭的灯下：暖夜；
+   * 妈妈夹信：memory-sepia（回忆）；屋顶：night-blue；黎明：dawn；最后的书桌：golden-hour，盒子里空着的那一格带一点 sepia。
+   * [开始时间, 风格, 进入时的交叉淡化秒数]：硬切处为 0（调子跟着剪辑一起换），转场处等于转场时长 */
+  let LOOKT = null;
+  function lookTable(F) {
+    if (LOOKT) return LOOKT;
+    const L = F.LOOKS;
+    // 同一个风格的淡一点的版本：调色强度 k，辉光 / 漏光跟着减弱
+    const soft = (name, k, extra) => {
+      const b = L[name] || {}, o = Object.assign({}, b, { amount: k });
+      if (b.bloom) o.bloom = Object.assign({}, b.bloom, { strength: (b.bloom.strength ?? 0.5) * (0.5 + 0.5 * k) });
+      if (b.leak) o.leak = Object.assign({}, b.leak, { a: (b.leak.a ?? 0.25) * k });
+      return Object.assign(o, extra || {});
+    };
+    // 灯下的暖夜（厨房、书房）：人脸保持暖色，灯和烛光发一点光晕
+    const warmNight = { bloom: { strength: 0.42, threshold: 0.62, tint: '255,200,150', key: 'rgb', halation: 0.12 }, grade: 'golden-hour', amount: 0.4, vignette: { a: 0.44, rgb: '30,12,6' }, grain: 0.07 };
+    const day = (k) => soft('golden-hour', k);
+    // 黎明前的窗台：天还没亮透，不要泛白——辉光只给收音机的灯和朝阳，暗部保持深紫
+    const preDawn = { bloom: { strength: 0.3, threshold: 0.74, tint: '255,214,190', halation: 0.12 }, grade: 'dawn', amount: 0.42, vignette: { a: 0.42, rgb: '20,10,34' }, grain: 0.06 };
+    LOOKT = [
+      [0, preDawn, 0],                              // 黎明前的窗台
+      [B(3), day(0.45), 0],                         // 早晨的家
+      [B(11), day(0.55), 0],                        // 上学路
+      [B(19), day(0.45), 0],                        // 钟楼、庭院（正午，天空保持蓝）
+      [B(21), day(0.62), 0],                        // 讲堂
+      [B(27), day(0.8), 0],                         // 图书馆
+      [B(35), day(0.5), 0],                         // 河畔的午后
+      [B(51), day(0.85), 0],                        // 广场、集市、追逐（金色）
+      [B(58), day(0.7), 0],                         // 喷泉
+      [B(63), soft('siesta-sunset', 0.6), 0],       // 回家的路
+      [B(65), L['siesta-sunset'], 0],               // 桥上的落日
+      [B(66), soft('night-blue', 0.7), 1.2],        // 入夜的房子（淡入转场）
+      [B(69), warmNight, 0],                        // 晚饭、地图、约定
+      [B(77), soft('memory-sepia', 0.8), 0],        // 妈妈把信夹进资料
+      [B(78), warmNight, 0],                        // 书房
+      [B(79), soft('night-blue', 0.62), 0],         // 阁楼的窗、按下录音键
+      [B(82), soft('night-blue', 0.85), 0],         // 屋顶
+      [193.2, soft('dawn', 0.55), 2.6],             // 屋顶上天慢慢亮了
+      [B(97), soft('dawn', 0.85), 1.5],             // 黎明的门口（淡入转场）
+      [B(105), day(0.5), 0],                        // 写标签
+      [B(107), F.mixLook(day(0.5), L['memory-sepia'], 0.35), 0], // 收进盒子
+      [B(109), day(0.5), 0],                        // 磁带停下
+      [B(111), day(0.6), 1.5],                      // 片尾
+    ];
+    return LOOKT;
+  }
+  function lookAt(F, t) {
+    const C = lookTable(F);
+    let i = 0; while (i + 1 < C.length && C[i + 1][0] <= t) i++;
+    const [t0, cur, fd] = C[i];
+    if (i === 0 || !(fd > 0)) return cur;
+    const k = clamp((t - t0) / fd);
+    return k >= 1 ? cur : F.mixLook(C[i - 1][1], cur, easeS(k));
+  }
+  /** 宽银幕黑边（在调色之后画，保持纯黑）：开场、清晨的房子（收起）、黎明的离别 */
+  function lbAt(t) {
+    if (t < B(3)) return 1;
+    if (t < B(5)) return 1 - up(t - B(3), 0, 0.9, easeIO);
+    if (t >= B(97) && t < B(99)) return up(t - B(97), 0, 1.2, easeIO);
+    if (t >= B(99) && t < B(103)) return 1;
+    if (t >= B(103) && t < B(105)) return 1 - up(t, 210.8, 211.7);
+    return 0;
+  }
+  /** 片名（开场 / 片尾）：画在调色和黑边之后 */
+  function titlesOver(g, s) {
+    const t = s.t, F = E.finish, fin = F && F.enabled;
+    if (t < B(3)) {
+      const fade = 1 - up(t, 7.25, 7.75);
+      titleCard(g, s, 990, 385, 1.45, 3.776, { fade, beat: s.pulse(7) * up(t, 6.9, 7.1) });
+      const ca = up(t, 5.9, 6.7) * fade;
+      if (ca > 0) {
+        // 中文片名写在下面的宽银幕黑边里（衬线字 + 发丝线 + 小红印），小字在上面的黑边里（不压画面）
+        if (fin) F.title(g, s, { text: '夏天之前', style: 'serif', size: 46, y: 1004, t0: 5.9, dur: 1.0, out: 7.25, outDur: 0.5, seal: '夏' });
+        else E.text(g, '夏 天 之 前', 960, 1030, { size: 50, weight: 700, color: '#fff4e4', spacing: 20, alpha: ca });
+        E.text(g, 'MV · 本页原创', 960, 84, { size: 24, weight: 600, color: '#e8d8c8', spacing: 10, alpha: ca * 0.85, font: 'sans' });
+      }
+    }
+    if (t >= B(111)) {
+      // 片尾（这个镜头是淡入的：字跟着一起淡入）
+      const fi = easeS(clamp((t - B(111)) / 1.5));
+      titleCard(g, s, 1000, 360, 1.45, B(111) + 0.35, { fade: fi, beat: 0 });
+      const ca = up(t, 227.3, 228.3);
+      if (ca > 0) {
+        if (fin) F.title(g, s, { text: '夏天之前', style: 'serif', size: 70, y: 736, t0: 227.3, dur: 1.4, sub: 'I · BEFORE SUMMER', seal: '夏', alpha: fi });
+        else E.text(g, '夏 天 之 前', 960, 770, { size: 58, weight: 700, color: '#fff4e4', spacing: 20, alpha: ca * fi, stroke: 'rgba(60,30,30,.45)', strokeW: 8 });
+      }
+      const cr = up(t, 229.6, 230.8) * fi;
+      if (cr > 0) {
+        const o = { size: 26, weight: 600, color: '#fff2e2', spacing: 3, alpha: cr, font: 'sans', stroke: 'rgba(40,20,20,.55)', strokeW: 6 }, y0 = fin ? 884 : 860;
+        E.text(g, '歌曲　Before Summer — 塞壬唱片-MSR / Adam Gubman / Matilda Stray', 960, y0, o);
+        E.text(g, 'MV　本页原创同人影像，与官方无关', 960, y0 + 44, o);
+        E.text(g, '角色与世界观 © Hypergryph', 960, y0 + 88, Object.assign({}, o, { alpha: cr * 0.9, size: 24 }));
+      }
+    }
   }
 })();

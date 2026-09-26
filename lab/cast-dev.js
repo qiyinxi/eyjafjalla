@@ -326,7 +326,7 @@
    * ================================================================ */
   const ADELE_BANGS = [[-1.05, 0.22, 0.13, -0.28], [-0.85, 0.38, 0.12, -0.24], [-0.65, 0.12, 0.12, -0.18], [-0.45, 0.04, 0.11, -0.12], [-0.25, 0.3, 0.11, -0.06], [-0.05, 0.44, 0.1, 0.02], [0.15, 0.24, 0.11, 0.1], [0.34, 0.04, 0.11, 0.14], [0.54, 0.1, 0.12, 0.2], [0.76, 0.36, 0.12, 0.24], [0.98, 0.24, 0.13, 0.28]];
   const HAIR_ADELE = (pal, o = {}) => Object.assign({
-    pal, cap: 1.15, lobes: 11, lobeAmp: 0.032, hl: -0.4, part: 0.2, curly: 1,
+    pal, cap: 1.15, lobes: 11, lobeAmp: 0.045, hl: -0.4, part: 0.2, curly: 1,
     bangs: ADELE_BANGS,
     temple: { y: 0.7, w: 0.13, curl: 0.35 },
     sides: [{ psi: 1.36, y0: 0.2, len: 1.95, w: 0.14, wave: 0.07, curl: 1.0, out: 0.12 }, { psi: 1.56, y0: 0.08, len: 1.55, w: 0.125, wave: 0.08, curl: 0.9, out: 0.24 }],
@@ -1271,7 +1271,7 @@
       if (abs(H.sy) > 0.42) {
         // 侧脸的轮廓：只在脸的前表面上加一点点起伏（眉骨、鼻尖、嘴唇、下巴），不会变成“长嘴”
         const ny = noseY(F), my = F.mouth.y, nb = noseBump(F), A = c > 1.08 ? 1 : 0.55;
-        const cl = [[-0.35, 0], [0.02, 0], [F.eye.y - 0.1, 0.02 * A], [F.eye.y + 0.05, -0.01], [ny - 0.1, nb * 0.35], [ny, nb], [ny + 0.05, nb * 0.2], [my - 0.05, 0.035 * A], [my, 0.012], [my + 0.04, 0.03 * A], [my + 0.1, 0], [c - 0.07, 0.025 * (1 + sq)]];
+        const cl = [[-0.35, 0], [-0.05, 0.02], [F.eye.y - 0.14, 0.06], [F.eye.y - 0.02, 0.07], [F.eye.y + 0.1, 0.06], [ny - 0.1, max(0.05, nb * 0.4)], [ny, nb + 0.03], [ny + 0.05, nb * 0.3 + 0.02], [my - 0.05, 0.04 + 0.02 * A], [my, 0.022], [my + 0.04, 0.035 + 0.01 * A], [my + 0.1, 0.012], [c - 0.07, 0.025 * (1 + sq)]];
         prof = new Path2D();
         for (let i = 0; i < cl.length; i++) { const y = cl[i][0]; hproj(H, 0, y, faceFront(F, y) + cl[i][1], T3); if (i) prof.lineTo(T3[0], T3[1]); else prof.moveTo(T3[0], T3[1]); }
         for (const [y, f] of [[c, 0.5], [c - 0.1, 0.3], [0.0, 0.3]]) { hproj(H, 0, y, f, T3); prof.lineTo(T3[0], T3[1]); }
@@ -1377,38 +1377,34 @@
       addSheen(H, sheen, rc, true);
       return { dome, bangs: null, strands, sheen, bandSh: null };
     }
-    // 正面：发顶的外轮廓（右 → 头顶 → 左）+ 发际线（左 → 额头 → 右）
-    const side = hr.temple ? min(0.5, hr.temple.y - 0.2) : 0.5;
-    const yb = min(0.92, cy0 + rc * 0.98);
-    const a0 = Math.asin(clamp((yb - cy0) / rc, -1, 1));
-    const N = 26;
-    // 画外轮廓：角度从 a0（右下）逆时针经过顶部（-π/2）到 π - a0（左下）
-    for (let i = 0; i <= N; i++) {
-      const a = a0 - (i / N) * (PI + 2 * a0), r = Rr(a);
-      if (i) dome.lineTo(cos(a) * r, cy0 + sin(a) * r); else dome.moveTo(cos(a) * r, cy0 + sin(a) * r);
-    }
-    // 发际线的点（从 ψ>0 一侧到 ψ<0 一侧；转到脑后的点压到轮廓上）
+    // 正面 / 3/4 / 侧面：头发 = 发顶的圆，挖掉脸露出来的那一块（发际线以下、两鬓之间、朝镜头的部分）
+    // 做成一个简单多边形：+ψ 鬓边的下端 → 沿圆走远的那一圈 → -ψ 鬓边 → 发际线 → +ψ 鬓边
+    // 转到侧面时脸的前面不会被“头盔”盖住
+    const N = 36;
     const hl = hr.hl != null ? hr.hl : -0.38;
     const hlY = (psi) => hl + (0.12 - hl) * pow(min(1, abs(psi) / 1.16), 2);
-    const pts = [];
-    const push = (psi, y, rho) => {
+    const edgeX = (y, sgn) => sgn * sqrt(max(0, rc * rc - (y - cy0) * (y - cy0)));
+    const pt = (psi, y, rho, out) => {
       hsph(H, psi, y, rho, T3);
-      let x = T3[0], yy = T3[1];
-      if (T3[2] < 0.02) {
-        const rr = lerp(1.0, rc, sstep(0.15, 0.7, -y));
-        const edge = sqrt(max(0, rr * rr - (yy - cy0) * (yy - cy0)));
-        x = x >= 0 ? edge : -edge;
-      }
-      pts.push(x, yy);
+      out.push(T3[2] < 0.02 ? edgeX(T3[1], T3[0] >= 0 ? 1 : -1) : T3[0], T3[1]);
     };
-    push(1.2, side, 1.02); push(1.17, 0.12, 1.03);
-    for (let k = 0; k <= 12; k++) { const psi = 1.1 - (k / 12) * 2.2; push(psi, hlY(psi), 1.04); }
-    push(-1.17, 0.12, 1.03); push(-1.2, side, 1.02);
-    const xl = pts[0], yl = pts[1];
-    dome.quadraticCurveTo(-rc * 0.95, yb + 0.1, xl, yl);
-    for (let i = 2; i < pts.length; i += 2) dome.lineTo(pts[i], pts[i + 1]);
-    dome.quadraticCurveTo(rc * 0.95, yb + 0.1, cos(a0) * Rr(a0), cy0 + sin(a0) * Rr(a0));
+    const PS = 1.2, SY = [0.34, 0.58, 0.82];
+    const hlp = [];
+    for (let k = 0; k <= 14; k++) { const psi = -PS + (k / 14) * 2 * PS; pt(psi, hlY(psi), 1.04, hlp); }
+    const sA = [], sB = [];
+    for (const y of SY) { pt(-PS, y, 1.02, sA); pt(PS, y, 1.02, sB); }
+    const xa = sA[4], ya = sA[5], xb = sB[4], yb2 = sB[5];
+    const aA = Math.acos(clamp(xa / rc, -1, 1)), aB = Math.acos(clamp(xb / rc, -1, 1));
+    dome.moveTo(xb, yb2);
+    dome.lineTo(cos(aB) * Rr(aB), cy0 + max(yb2 - cy0, sin(aB) * Rr(aB)));
+    const aEnd = aB > aA ? aA + TAU : aA - TAU;
+    for (let i = 1; i < N; i++) { const a = lerp(aB, aEnd, i / N), r = Rr(a); dome.lineTo(cos(a) * r, cy0 + sin(a) * r); }
+    dome.lineTo(cos(aA) * Rr(aA), cy0 + max(ya - cy0, sin(aA) * Rr(aA)));
+    for (let i = 2; i >= 0; i--) dome.lineTo(sA[i * 2], sA[i * 2 + 1]);
+    for (let i = 0; i < hlp.length; i += 2) dome.lineTo(hlp[i], hlp[i + 1]);
+    for (let i = 0; i < 3; i++) dome.lineTo(sB[i * 2], sB[i * 2 + 1]);
     dome.closePath();
+    const ink = dome;
     // 刘海：从分线附近长出来，沿球面垂到额头
     const part = hr.part || 0;
     const bl = hr.bangs || [];
@@ -1464,7 +1460,7 @@
       if (T3[2] > 0 && T3c[2] > 0) { strands.moveTo(T3[0], T3[1]); strands.quadraticCurveTo((T3[0] + T3c[0]) / 2 + 0.04 * (psiT - part), (T3[1] + T3c[1]) / 2 - 0.05, T3c[0], T3c[1]); }
     }
     addSheen(H, sheen, rc, false);
-    return { dome, bangs, strands, sheen, bandSh };
+    return { dome, ink, bangs, strands, sheen, bandSh };
   }
   /** 头顶的高光：沿纬线的一圈短笔触（跟着头的弧度走） */
   function addSheen(H, p, rc, back) {
@@ -1482,6 +1478,9 @@
   function hairGrad(pal) {
     return linG('hcap2:' + pal.c, 0, -1.2, 0, 0.95, [0, lt(pal.c, 0.16), 0.42, pal.c, 1, pal.sh]);
   }
+  function sideGrad(pal, len) {
+    return linG('side2:' + pal.c + ':' + pal.tip, 0, -0.4, 0, len, [0, mix(pal.c, pal.lt, 0.12), 0.55, pal.c, 0.82, mix(pal.c, pal.tip, 0.6), 1, pal.tip]);
+  }
   function bangGrad(pal) {
     return linG('bang2:' + pal.c, 0, -0.55, 0, 0.5, [0, mix(pal.c, pal.sh, 0.3), 0.55, pal.c, 1, mix(pal.c, pal.lt, 0.18)]);
   }
@@ -1495,15 +1494,17 @@
     HG.p = new Path2D(); HG.sh = new Path2D(); HG.st = new Path2D(); HG.hi = new Path2D();
     return HG;
   }
-  function hairGroupEnd(D, HG, grad, pal, inkK = 1) {
+  function hairGroupEnd(D, HG, grad, pal, inkK = 1, light = 0, sheet = null) {
     const g = D.g;
     g.lineJoin = 'round'; g.lineCap = 'round';
     g.lineWidth = D.inkO * 2 * inkK; g.strokeStyle = D.sil || pal.ink; g.stroke(HG.p);
+    // 后面那一整片头发：不描边（背影时发旋下面不会出现一道“帽檐”）
+    if (sheet) { g.fillStyle = D.sil || hairGrad(pal); g.fill(sheet); }
     g.fillStyle = D.sil || grad; g.fill(HG.p);
     if (D.sil) return;
-    if (D.shade > 0 && D.lod >= 1) { g.globalAlpha = D.ga * 0.55 * D.shade; g.fillStyle = pal.dk || pal.sh; g.fill(HG.sh); g.globalAlpha = D.ga; }
-    if (D.lod >= 1) { g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, 0.5); g.stroke(HG.st); }
-    if (D.lod >= 2) { g.globalAlpha = D.ga * 0.45; g.fillStyle = pal.lt; g.fill(HG.hi); g.globalAlpha = D.ga; }
+    if (D.shade > 0 && D.lod >= 1) { g.globalAlpha = D.ga * (light ? 0.35 : 0.55) * D.shade; g.fillStyle = light ? pal.sh : pal.dk || pal.sh; g.fill(HG.sh); g.globalAlpha = D.ga; }
+    if (D.lod >= 1) { g.lineWidth = D.inkI; g.strokeStyle = rgba(pal.ink, light ? 0.35 : 0.5); g.stroke(HG.st); }
+    if (D.lod >= 2 || (light && D.lod >= 1)) { g.globalAlpha = D.ga * 0.5; g.fillStyle = pal.lt; g.fill(HG.hi); g.globalAlpha = D.ga; }
   }
   /** 一束会动的头发：给 3 个控制点（头部空间，已投影），生成中心线 → 摆动 → 卷 → 带子 */
   function hairLock(D, HG, x0, y0, x1, y1, x2, y2, len, wMax, k, o) {
@@ -1524,7 +1525,7 @@
     if (D.lod >= 1) {
       ribbonShade(HG.sh, xs, ys, ws, n, D.LcH[0], D.LcH[1], 0.3, 0.08, 0.92);
       ribbonStrand(HG.st, xs, ys, ws, n, (k % 2 ? 0.3 : -0.3), 0.14, 0.8);
-      if (D.lod >= 2) { const a = 1, b2 = min(n - 2, 4); HG.hi.moveTo(xs[a] + NXs[a] * ws[a] * 0.1, ys[a]); for (let i = a + 1; i <= b2; i++) HG.hi.lineTo(xs[i] + NXs[i] * ws[i] * 0.5, ys[i]); for (let i = b2; i >= a; i--) HG.hi.lineTo(xs[i] + NXs[i] * ws[i] * 0.15, ys[i]); HG.hi.closePath(); }
+      if (D.lod >= 2 || o.hl) { const a = 1, b2 = min(n - 2, o.hl ? 6 : 4); HG.hi.moveTo(xs[a] + NXs[a] * ws[a] * 0.1, ys[a]); for (let i = a + 1; i <= b2; i++) HG.hi.lineTo(xs[i] + NXs[i] * ws[i] * 0.5, ys[i]); for (let i = b2; i >= a; i--) HG.hi.lineTo(xs[i] + NXs[i] * ws[i] * 0.15, ys[i]); HG.hi.closePath(); }
     }
     return xs;
   }
@@ -1555,7 +1556,8 @@
     let ns = 0;
     for (let k = 0; k < n; k++) {
       const q = n > 1 ? -1 + (2 * k) / (n - 1) : 0;
-      hsph(H, PI + q * 1.38, bk.top + 0.12 * q * q, 1.03, T3);
+      // 根部从发旋附近扇形散开（背影时看不到接缝）
+      hsph(H, PI + q * 1.25, -0.8 + 0.34 * q * q, hr.cap * 0.97, T3);
       const rx = T3[0], ry = T3[1];
       const lenK = bk.len * (1 - bk.var * hash(k + 3, 11)) * (1 - 0.1 * q * q);
       // 根部在 ψ = π + 1.38q（s = -sin(1.38q)）：中段和发梢要在同一侧，发束才不会在脑后交叉
@@ -1565,18 +1567,19 @@
       const tx = -st * cyb + ft * syb, ty = lenK;
       const w = bk.w * 1.22 * (0.9 + 0.2 * hash(k, 5));
       const dir = (tx - rx) >= 0 ? 1 : -1;
-      const xs = hairLock(D, HG, rx, ry, mx, my, tx, ty, lenK, w, k, { wave: bk.wave, ph: k * 1.7, curl: bk.curl ? bk.curl * (0.75 + 0.5 * hash(k, 9)) : 0, curlDir: bk.curl < 0 ? -dir : dir, curlFrom: 0.62 });
+      const xs = hairLock(D, HG, rx, ry, mx, my, tx, ty, lenK, w, k, { wave: bk.wave, ph: k * 1.7, curl: bk.curl ? bk.curl * (0.75 + 0.5 * hash(k, 9)) : 0, curlDir: bk.curl < 0 ? -dir : dir, curlFrom: 0.62, thinRoot: 1 });
       // 记下根部与 60% 处，拼成后面那一整片头发（发束之间不会露出空隙）
       const nn = D.lod >= 2 ? 13 : D.lod >= 1 ? 10 : 7, im = Math.round(0.6 * (nn - 1));
       SH[ns * 4] = xs[0]; SH[ns * 4 + 1] = LYs[0]; SH[ns * 4 + 2] = xs[im]; SH[ns * 4 + 3] = LYs[im]; ns++;
     }
+    let sheet = null;
     if (ns >= 2) {
       const pts = BSP; pts.length = 0;
       for (let k = 0; k < ns; k++) pts.push(SH[k * 4], SH[k * 4 + 1]);
       for (let k = ns - 1; k >= 0; k--) pts.push(SH[k * 4 + 2], SH[k * 4 + 3]);
-      polySign(HG.p, pts, -1);
+      sheet = new Path2D(); polySign(sheet, pts, -1);
     }
-    hairGroupEnd(D, HG, hairTipGrad(hr.pal, bk.len), hr.pal);
+    hairGroupEnd(D, HG, hairTipGrad(hr.pal, bk.len), hr.pal, 1, 0, sheet);
   }
   const BSH = new Float64Array(96), BSP = [];
   /** 多边形（扁平数组），按指定方向加入：sign = -1 与发束带子同向（非零规则下取并集） */
@@ -1605,10 +1608,10 @@
       hproj(H, sd * (1.02 + lk.out * 0.5), lk.y0 + (lk.len - lk.y0) * 0.4, 0.22, T3b);
       hproj(H, sd * (0.86 + lk.out), lk.len, 0.34, T3c);
       const outward = T3c[0] - r0x >= 0 ? 1 : -1;
-      hairLock(D, HG, r0x, r0y, T3b[0], T3b[1], T3c[0], T3c[1], lk.len, lk.w * 1.1, 10 + k * 3 + (sd > 0 ? 0 : 1), { wave: lk.wave, ph: k * 2.1 + (sd > 0 ? 0 : 1.3), curl: lk.curl, curlDir: lk.curl < 0 ? -outward : outward, curlFrom: 0.6, swayK: 0.85, thinRoot: 1 });
+      hairLock(D, HG, r0x, r0y, T3b[0], T3b[1], T3c[0], T3c[1], lk.len, lk.w * 1.05, 10 + k * 3 + (sd > 0 ? 0 : 1), { wave: lk.wave * 1.6, ph: k * 2.1 + (sd > 0 ? 0 : 1.3), curl: lk.curl, curlDir: lk.curl < 0 ? -outward : outward, curlFrom: 0.6, swayK: 0.85, thinRoot: 1, hl: 1 });
       any++;
     }
-    if (any) hairGroupEnd(D, HG, hairTipGrad(hr.pal, 2.2), hr.pal);
+    if (any) hairGroupEnd(D, HG, sideGrad(hr.pal, 2.2), hr.pal, 1, 1);
   }
 
   /** 马尾：侧马尾（纯烬）/ 高马尾（野餐）/ 低马尾；orn：装饰 */
@@ -1627,9 +1630,9 @@
       for (let k = 0; k < n; k++) {
         const q = k - 1, spread = pn.w * 0.4 * q;
         const outward = c2[0] - x0 >= 0 ? 1 : -1;
-        hairLock(D, HG, x0 + spread * 0.2, y0, c1[0] + spread, c1[1], c2[0] + spread * 1.6, c2[1] - abs(q) * 0.15, pn.len, pn.w * 0.5, 20 + k, { wave: 0.09, ph: k * 1.9, curl: (pn.curl || 0) * (0.8 + 0.2 * k), curlDir: outward * (k === 1 ? -1 : 1), curlFrom: 0.58, swayK: 1.2 });
+        hairLock(D, HG, x0 + spread * 0.2, y0, c1[0] + spread, c1[1], c2[0] + spread * 1.6, c2[1] - abs(q) * 0.15, pn.len, pn.w * 0.5, 20 + k, { wave: 0.09, ph: k * 1.9, curl: (pn.curl || 0) * (0.8 + 0.2 * k), curlDir: outward * (k === 1 ? -1 : 1), curlFrom: 0.58, swayK: 1.2, hl: 1 });
       }
-      hairGroupEnd(D, HG, hairTipGrad(pal, pn.len + 0.4), pal);
+      hairGroupEnd(D, HG, sideGrad(pal, pn.len + 0.4), pal, 1, 1);
     }
     if (part === 'body') return;
     if (pn.orn === 'leaves') drawLeafOrnament(D, x0, y0, pn.psi >= 0 ? 1 : -1);
@@ -1749,6 +1752,29 @@
     fillC(D, pal.c); inkC(D, D.inkH * 0.7, pal.ink);
   }
 
+  /** 蓬松卷发边缘翘出来的几根碎发（打破“头盔”一样整齐的轮廓） */
+  function drawFlyaways(D, H, n, seed) {
+    const g = D.g, pal = D.hair.pal, rc = D.hair.cap, t = D.P.t;
+    const back = H.front ? 0 : 1;
+    g.beginPath();
+    for (let k = 0; k < n; k++) {
+      const a = (k % 2 ? -0.35 - 0.5 * hash(seed, k) : -PI + 0.35 + 0.5 * hash(seed, k)) + (back ? 0.2 : 0) - (k >> 1) * 0.55 * (k % 2 ? 1 : -1);
+      const x = cos(a) * rc * 0.97, y = -0.04 + sin(a) * rc * 0.97;
+      const side = cos(a) >= 0 ? 1 : -1;
+      const l = 0.26 + 0.18 * hash(seed, k, 2), w = 0.035 + 0.02 * hash(seed, k, 3);
+      const sw = 0.08 * sin(t * 1.9 + k * 1.3) + D.windX * 0.2 + (D.P.mv ? 0.08 * sin(2 * D.P.ph + k) : 0);
+      const a1 = a + side * 0.35 + sw, a2 = a + side * (1.25 + 0.4 * hash(seed, k, 4)) + sw;
+      const mx = x + cos(a1) * l * 0.6, my = y + sin(a1) * l * 0.6, ex = mx + cos(a2) * l * 0.5, ey = my + sin(a2) * l * 0.5;
+      const nx = -sin(a), ny = cos(a);
+      g.moveTo(x + nx * w, y + ny * w);
+      g.quadraticCurveTo(mx + nx * w * 0.6, my + ny * w * 0.6, ex, ey);
+      g.quadraticCurveTo(mx - nx * w * 0.5, my - ny * w * 0.5, x - nx * w, y - ny * w);
+      g.closePath();
+    }
+    g.lineWidth = D.inkH * 1.3; g.strokeStyle = D.sil || pal.ink; g.stroke();
+    g.fillStyle = D.sil || pal.c; g.fill();
+  }
+
   /* ---- 羊角 ---- */
   function hornPaths(D, H, hs, sd) {
     return pathCache('horn2:' + keyOf(hs) + ':' + sd + ':' + H.qk, () => {
@@ -1767,12 +1793,16 @@
           w.push(hs.w * (1 - 0.72 * pow(u, 1.1)) + 0.02);
         }
       } else {
-        const phi0 = -0.5, Phi = hs.turn * PI, r0 = hs.r;
-        const cF = f0 - r0 * cos(phi0), cV = v0 - r0 * sin(phi0);
+        // 卷曲所在的平面：竖直 × 水平方向 d（从正前方往外侧转 tilt）。卷先向上、向外后方，再绕到耳朵旁边向下、向前
+        // —— 正面看是包着头两侧的“C”，侧面看是一个螺旋
+        const phi0 = -0.5, Phi = hs.turn * PI, r0 = hs.r, T = hs.tilt != null ? hs.tilt : 0.8;
+        const ds = -sd * sin(T), df = cos(T), ns = sd * cos(T), nf = sin(T);
+        const c0 = r0 * cos(phi0), cV = v0 - r0 * sin(phi0);
         for (let i = 0; i <= N; i++) {
           const u = i / N, ph = phi0 - Phi * u, r = r0 * (1 - (hs.style === 'big' ? 0.62 : 0.52) * pow(u, 1.2));
-          const s = s0 + sd * (hs.out * pow(u, 0.5));
-          const f = cF + r * cos(ph), v = cV + r * sin(ph);
+          const c = r * cos(ph) - c0, drift = hs.out * pow(u, 0.5);
+          const s = s0 + ds * c + ns * drift;
+          const f = f0 + df * c + nf * drift * 0.3, v = cV + r * sin(ph);
           hproj(H, s, v, f, T3);
           cx.push(T3[0]); cyy.push(T3[1]); cz.push(T3[2]);
           w.push(hs.w * (1 - 0.78 * pow(u, 1.15)) + 0.02);
@@ -2032,11 +2062,20 @@
     const g = D.g, C = D.C, P = D.P, ey = C.eye, FE = D.F.eye;
     hsph(H, sd * FE.psi, FE.y, 1.0, T3);
     const z = T3[2];
-    if (z < 0.04) return;
+    if (z < 0.16) return;
     const fs = clamp(z / 0.87, 0.2, 1.12);
-    const ew = FE.w * pow(fs, 0.85) * (ex.big || 1), eh = FE.h * (ex.big || 1);
-    const cx = T3[0], cy = T3[1] + (ex.big ? -0.02 : 0);
+    let ew = FE.w * pow(fs, 0.85) * (ex.big || 1);
+    const eh = FE.h * (ex.big || 1);
+    let cx = T3[0];
+    const cy = T3[1] + (ex.big ? -0.02 : 0);
     const m = sd > 0 ? -1 : 1;
+    // 转过去的那只眼：整只眼留在脸的轮廓里（往里收、压扁），不会被脸的边缘切掉
+    {
+      const limb = sqrt(max(0, 1 - cy * cy)) * 0.96 - 0.03;
+      const outer = cx + m * ew * 0.7, sg = outer >= 0 ? 1 : -1;
+      const over = abs(outer) - limb;
+      if (over > 0 && sg === m) { cx -= sg * over * 0.8; ew = max(ew * 0.5, ew - over * 0.4); }
+    }
     tm(D.mE, D.mH, cx, cy, 0, ew * m, eh);
     setT(g, D.mE);
     const EP = eyePaths(FE.shape, FE.lash || 1), S = EP.S;
@@ -2150,8 +2189,10 @@
     else if (ex.angry) { inner = 0.06 * b; outer = -0.04 * b; }
     else { inner = -0.02 * b; outer = -0.02 * b; }
     outer -= (FB.tilt || 0);
-    const x0 = T3[0] - m * L, y0 = T3[1] + inner, x1 = T3[0] + m * L, y1 = T3[1] + outer;
-    const mx = T3[0], my = T3[1] - FB.arch + (inner + outer) * 0.3;
+    let bxc = T3[0];
+    { const limb = sqrt(max(0, 1 - T3[1] * T3[1])) * 0.97 - 0.02, ox = bxc + m * L; if (abs(ox) > limb && (ox >= 0 ? 1 : -1) === m) bxc -= (ox >= 0 ? 1 : -1) * (abs(ox) - limb); }
+    const x0 = bxc - m * L, y0 = T3[1] + inner, x1 = bxc + m * L, y1 = T3[1] + outer;
+    const mx = bxc, my = T3[1] - FB.arch + (inner + outer) * 0.3;
     const th = D.inkH * 1.1 * FB.w;
     const strong = abs(b) >= 0.75 || ex.angry ? 1 : 0;
     g.beginPath();
@@ -2470,7 +2511,7 @@
         const cp = capParts(D, H);
         g.save(); g.clip(fp.hull);
         // 刘海在额头上投下的影子
-        if (cp.bangs) { g.globalAlpha = D.ga * 0.5; g.fillStyle = C.skin.sh; g.translate(0.03, 0.1); g.fill(cp.bangs); g.fill(cp.dome); g.translate(-0.03, -0.1); }
+        if (cp.bangs) { g.globalAlpha = D.ga * 0.5; g.fillStyle = C.skin.sh; g.translate(0.03, 0.1); g.fill(cp.bangs); g.fill(cp.dome, 'evenodd'); g.translate(-0.03, -0.1); }
         if (D.lod >= 2 && D.shade > 0) {
           // 背光一侧的脸颊（很淡的一层）
           g.globalAlpha = D.ga * 0.22 * D.shade; g.fillStyle = C.skin.sh;
@@ -2490,14 +2531,15 @@
         setT(g, D.mH);
       }
     }
+    if (hr && hr.curly && D.lod >= 1) drawFlyaways(D, H, 4, 7);
     if (hr) {
       const cp = capParts(D, H), pal = hr.pal;
       g.lineWidth = D.inkO * 2; g.strokeStyle = D.sil || pal.ink;
-      g.stroke(cp.dome); if (cp.bangs) g.stroke(cp.bangs);
+      g.stroke(cp.ink || cp.dome); if (cp.bangs) g.stroke(cp.bangs);
       const hg = D.sil ? null : hairGrad(pal);
-      g.fillStyle = D.sil || hg; g.fill(cp.dome);
+      g.fillStyle = D.sil || hg; g.fill(cp.dome, 'evenodd');
       if (!D.sil && D.lod >= 1 && D.shade > 0) {
-        g.save(); g.clip(cp.dome);
+        g.save(); g.clip(cp.dome, 'evenodd');
         g.globalAlpha = D.ga * 0.5 * D.shade; g.fillStyle = pal.dk || pal.sh;
         g.beginPath(); g.rect(-3, -3, 6, 6);
         g.ellipse(D.LcH[0] * 0.26, -0.04 + D.LcH[1] * 0.26, hr.cap * 1.02, hr.cap * 1.02, 0, 0, TAU);
