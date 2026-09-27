@@ -3151,7 +3151,9 @@
           // 扑上去的小羊：从地上跳过去贴住漏洞
           const L = GANG[k % 7], u = clamp((a - 0.2) / 0.35), sx = 360 + k * 110, sy = FL + 20;
           const x = lerp(sx, lx, ease.out(u)), y = lerp(sy, ly + 30, ease.out(u)) - sin(PI * u) * 80;
-          lamb(q, s, x, y, 44 * L.sc, { id: 3151 * 16 + k, kind: L.k, pose: u < 1 ? 'jump' : 'push', rot: u < 1 ? 0 : (k % 2 ? 0.3 : -0.3), sq: u >= 1 ? 0.3 + 0.1 * sin(t * 20 + k) : 0, expr: u >= 1 ? 'closed' : 'determined', fx: u >= 1 ? ['sweat'] : null, flip: lx < sx });
+          // 落上去的那一下（a = 0.55 → 0.67）：跳 → 顶住交叉淡化，身子的歪斜和压扁也跟着慢慢出来（旧写法落地那一帧一起硬切）
+          const lk = sst(0.55, 0.67, a), on = a >= 0.55;
+          lamb(q, s, x, y, 44 * L.sc, { id: 3151 * 16 + k, kind: L.k, pose: on ? 'push' : 'jump', mixFrom: 'jump', mixK: lk, rot: (k % 2 ? 0.3 : -0.3) * lk, sq: (0.3 + 0.1 * sin(t * 20 + k)) * lk, expr: on ? 'closed' : 'determined', fx: on ? ['sweat'] : null, flip: lx < sx });
         }
       },
     });
