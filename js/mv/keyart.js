@@ -1373,6 +1373,8 @@ void main(){
       }
       const post = postOf(o, mag, ldx, ldy, rw / pw, Hc / 720);
       renderGL(R, o, +o.t || 0, vx0, vy0, vx1, vy1, rw, rh, post);
+      // 调试（lab/jitter.html）：MVE.keyart.trace = (rec) => {} 时报告构图、转头与表情（逐帧比较用）；平时为 null
+      if (API.trace) { try { const Bb = R.B, ex = {}; for (let i = 0; i < EXK.length; i++) ex[EXK[i]] = +(S[EXK[i]] || 0).toFixed(3); API.trace({ src: 'ka', key, cv: g.canvas, x: Ex, y: Fy, s: Math.sqrt(Math.abs(det)), turn0: Bb.turn0, turn1: Bb.turn1, blink: S.blink, talk: S.talk, ex, alpha: o.alpha ?? 1 }); } catch (e) { /* 调试用 */ } }
       // 贴回 2D 画布
       g.save(); saved = true;
       if (axis) g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1800,6 +1802,7 @@ void main(){
     };
   }
   const API = {
+    trace: null,
     credit: CREDIT,
     keys: Object.keys(INFO),
     grades: GRADES,

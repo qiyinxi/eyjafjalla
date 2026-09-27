@@ -31,6 +31,8 @@
   const { VW, VH, TAU, clamp, lerp, ease, hash, wobble, rng } = E;
   const PI = Math.PI;
   const { sin, cos, abs, min, max, floor, pow, sqrt, hypot, atan2 } = Math;
+  /** 换姿势交叉淡化（官方小人，js/mv/sd.js 的 mixFrom / mixK；手绘版忽略）：[t0, t0 + d] 秒里从 from 过渡过来；不在这段时间里返回 null */
+  const mixPose = (from, t0, d, t) => (t >= t0 && t < t0 + d ? { mixFrom: typeof from === 'string' ? { pose: from } : from, mixK: E.smooth(t0, t0 + d, t) } : null);
   const sstep = (a, b, x) => { const k = clamp((x - a) / (b - a)); return k * k * (3 - 2 * k); };
   const fract = (x) => x - floor(x);
 
@@ -2230,7 +2232,7 @@
     const kDrawn = (rigOn(s, 'keller') && kellerRig(g, s, {
       x: kx - 10, y: 900, h: 400, expr: [[b0 - 1, 1], [b0 + 1.2, 10], [landT + 0.2, 9]], wind: 0.35, windDir: 1,
       look: KP ? KP([[b0 + 0.6, [-0.15, -0.05]], [b0 + 1.6, [-0.75, -0.35]], [b0 + 3.0, [-0.5, 0.25]], [landT + 0.3, [-0.3, 0.55]]]) : [-0.4, 0.2],
-      tilt: (tt) => -0.4 * clamp((tt - landT) / 0.8), glint: (tt) => E.window01(tt, landT + 0.3, landT + 1.3, 0.25, 0.5),
+      tilt: (tt) => -0.4 * E.smooth(landT, landT + 0.8, tt), glint: (tt) => E.window01(tt, landT + 0.3, landT + 1.3, 0.25, 0.5),
       tint: ['#ffc8a8', 0.3], light: { color: '#ffc49a', dir: [-0.85, -0.3], rim: 0.55, wash: 0.08 },
     })) || (cardOn(s, 'keller') && E.sd.card(g, 'keller', { x: kx - 10, y: 900, h: 400, crop: 'upper', t, breath: 1, expr: [[b0, 1], [landT + 0.2, 9]], light: { color: '#ffc8a8', amount: 0.3 } }));
     if (kDrawn) {
@@ -2299,7 +2301,7 @@
       const pointing = t > bar(33);
       // 身后火山口的光从左上方照过来：一圈暖色的轮廓光
       // 讲到一半（第二小节）抬手招呼身后的火山（官方小人的 Interact：抬手）；面朝火山那边
-      adele(q, { x: 1420, y: 1000, h: 520, pose: pointing ? 'wave' : 'stand', t, flip: true, expr: 'smile', talk: 0.8, look: pointing ? [-1, -0.3] : [-0.2, 0], wind: 0.5, windDir: -1, rim: '255,168,110', rimDir: -2.6, rimGlow: 0.1 });
+      adele(q, Object.assign({ x: 1420, y: 1000, h: 520, pose: pointing ? 'wave' : 'stand', t, flip: true, expr: 'smile', talk: 0.8, look: pointing ? [-1, -0.3] : [-0.2, 0], wind: 0.5, windDir: -1, rim: '255,168,110', rimDir: -2.6, rimGlow: 0.1 }, mixPose('stand', bar(33), 0.25, t)));
     });
     s.kit.particles(g, t, 'embers', { n: 30, seed: 41 });
     const sec = floor(lt), fr = floor((lt % 1) * 24);
@@ -2728,7 +2730,7 @@
       const v = gaitSpeed('adele-alter', { h: 320, pose: 'walk', speed: STEP_SPD }, 110), u = 1 - max(0, arrive - t) * v / LA;
       const ax = lerp(A0[0], A1[0], u), ay = lerp(A0[1], A1[1], u), ah = lerp(290, 330, clamp(u));
       const pose = t < arrive ? 'walk' : t < hi || lookUp ? 'stand' : 'wave';
-      adele(q, { x: ax, y: ay, h: ah, pose, view: lookUp ? 'back' : undefined, t: t < arrive ? s.beat * BEAT : t, speed: STEP_SPD, flip: !lookUp, expr: 'smile', look: [-1, 0.1], wind: 0.25, shadow: 0.18 });
+      adele(q, Object.assign({ x: ax, y: ay, h: ah, pose, view: lookUp ? 'back' : undefined, t: t < arrive ? s.beat * BEAT : t, speed: STEP_SPD, flip: !lookUp, expr: 'smile', look: [-1, 0.1], wind: 0.25, shadow: 0.18 }, mixPose({ pose: 'walk', t: s.beat * BEAT }, arrive, 0.25, t) || mixPose('stand', hi, 0.25, t)));
       // 小黑羊跑在她前面，跳上第二级台阶，拿头去蹭孩子的胳膊
       const run0 = bar(41) + 0.2, hop0 = bar(41) + 1.9, hop1 = hop0 + 0.36;
       const B0 = [1330, 822], B1 = [900, 910], LB = hypot(B1[0] - B0[0], B1[1] - B0[1]);
@@ -3363,7 +3365,7 @@
         from: { crop: 'face', z: 1.0, x: -0.01, y: -0.02, look: [0.1, 0.12] }, to: { crop: 'face', z: 1.06, x: 0.01, y: -0.02, look: [0.3, -0.16] },
         eyes: 1 - sstep(open + BEAT * 1.6, open + BEAT * 2.6, t), blink: t > open + BEAT * 3 ? 'auto' : 0, saccade: 0.2,
         grade: { base: 'cool', tint: ['#f0f4ff', 0.16], light: { color: '#fff2dc', dir: [0.9, -0.45], rim: 0.9, wash: 0.06 }, bloom: 0.3 },
-        wind: 1.1, windDir: -1,
+        wind: 1, windDir: -1, // 绑定验证过的最大风力是 1（再大发梢后面会露出没补画的空洞）
         bg: (q, s2) => { sky(q, s2, 'sky-ridge'); E.glow(q, 1500, 200, 700, '255,244,220', 0.4, 'screen', false); },
         particles: [{ type: 'ash', n: 40 }], dof: 0.5, leak: { x: 1720, y: 160, r: 900, rgb: '255,240,214', a: 0.24 }, vignette: 0.32,
       })) {
@@ -4023,7 +4025,7 @@
       crop: 'upper', span: kaSpan, ease: 'out',
       from: { crop: 'upper', z: 0.96, y: -0.09, look: [0.1, -0.25] }, to: { crop: 'upper', z: 1.03, y: -0.1, look: [0.25, -0.4] },
       grade: { base: 'dream', light: { color: '#ffb0c8', dir: [0.3, -0.95], rim: 0.8, wash: 0.06 }, overlay: ['#ff7aa8', 0.06, 'soft-light'], bloom: 0.32 },
-      wind: 1.05, windDir: -1, cast: 0.55 + 0.35 * s.pulse(4), glow: 1.3 + 0.6 * s.lo, blink: 'auto',
+      wind: 1, windDir: -1, cast: 0.55 + 0.35 * s.pulse(4), glow: 1.3 + 0.6 * s.lo, blink: 'auto',
       bg: (q, s2) => {
         sky(q, s2, 'sky-aurora');
         s2.kit.stars(q, s2.t, { n: 70, seed: 452, h: 500, size: 2, tw: 0.6 });
@@ -4279,8 +4281,9 @@
       q.restore();
       // 她回过身（官方小人的背面），望着山顶；然后朝他们伸出手（背面的 Skill_3_Loop：一只手伸向右上方）
       // 山顶的光从右上方来：背影的一圈暖白的轮廓光
-      const waving = t > bar(116) + BEAT * 3;
-      adele(q, { x: 600, y: 1040, h: 560, pose: waving ? 'wave2' : 'look-up', view: 'back', sd: waving ? { anim: 'Skill_3_Loop', view: 'back' } : undefined, t, expr: 'smile', look: [1, -0.6], wind: 0.5, windDir: 1, rim: '255,244,220', rimDir: -0.9, rimGlow: 0.08 });
+      const wT = bar(116) + BEAT * 3, waving = t > wT;
+      // 抬手那一下从背面的站姿交叉淡化进施法动作（0.3 秒）
+      adele(q, Object.assign({ x: 600, y: 1040, h: 560, pose: waving ? 'wave2' : 'look-up', view: 'back', sd: waving ? { anim: 'Skill_3_Loop', view: 'back' } : undefined, t, expr: 'smile', look: [1, -0.6], wind: 0.5, windDir: 1, rim: '255,244,220', rimDir: -0.9, rimGlow: 0.08 }, mixPose({ pose: 'look-up', sd: undefined }, wT, 0.3, t)));
     });
     // 焦外的前景：右下角一丛花（视差 1.4）
     s.layer(g, cam, 1.4, (q) => q.drawImage(C(s, 'fg-flowers'), 1380, 800, 900, 520));

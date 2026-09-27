@@ -63,6 +63,8 @@
    * startle(t0) 让它从 t0 起从头播一次（官方小人不可用时退回手绘的站姿）
    */
   const startle = (t0) => ({ pose: 'stand', sd: { anim: 'Interact', view: 'build', loop: false, phase: -t0 } });
+  /** 换动作交叉淡化（官方小人的 mixFrom / mixK；手绘版忽略）：x 在 [x0, x0 + d) 里从 from（姿势名或 { pose, … }）过渡过来，其余时候 null */
+  const mixAt = (from, x0, d, x) => (x >= x0 && x < x0 + d ? { mixFrom: typeof from === 'string' ? { pose: from } : from, mixK: E.smooth(x0, x0 + d, x) } : null);
   /** 相对身高（katia = 1；羊的 h 是身长） */
   const SC = { 'adele-child': 0.6, magna: 0.94, katia: 1, fontaine: 0.74, liese: 0.7, 'sheep-black': 0.3, crowd: 0.95 };
   const HT = (name, base) => base * (SC[name] || 1);
@@ -3241,13 +3243,16 @@
   const STAIR_T0 = 18.12, STAIR_HOP = 0.25, STAIR_T1 = STAIR_T0 + (STAIR_HOPS.length - 1) * STAIR_HOP;
   /** tt 时刻在楼梯井里的位置：{ x, y, dir, mode: 'run' | 'hop', u（跳的进度）, d（在平地上跑过的路程）} */
   function stairPath(tt, arc = 50) {
-    if (tt < STAIR_T0) { const k = clamp((tt - 17.76) / (STAIR_T0 - 17.76)); return { x: lerp(380, 580, k), y: 660, dir: 1, mode: 'run', d: 200 * k, v: 200 / (STAIR_T0 - 17.76) }; }
+    // dd：官方小人跑步动画的“时钟路程”——跑 → 一级级跳下去 → 再跑，三段接成一条连续的数（旧写法跑的时候按路程、跳的时候按时间，
+    // 两种时钟在换段的那一帧对不上，腿一下子跳到另一个姿势）。跳的那几下每跳只记 60 像素（一次腾空大约半步，不会转成一团）
+    const HOPC = 60, NH = STAIR_HOPS.length - 1;
+    if (tt < STAIR_T0) { const k = clamp((tt - 17.76) / (STAIR_T0 - 17.76)); return { x: lerp(380, 580, k), y: 660, dir: 1, mode: 'run', d: 200 * k, dd: 200 * k, v: 200 / (STAIR_T0 - 17.76) }; }
     if (tt < STAIR_T1) {
       const H = hops(STAIR_HOPS, tt - STAIR_T0, STAIR_HOP, arc, true), i = min(STAIR_HOPS.length - 2, floor((tt - STAIR_T0) / STAIR_HOP));
-      return { x: H.x, y: H.y, yl: H.y + arc * 4 * H.u * (1 - H.u), dir: STAIR_HOPS[i + 1][0] >= STAIR_HOPS[i][0] ? 1 : -1, mode: 'hop', u: H.u };
+      return { x: H.x, y: H.y, yl: H.y + arc * 4 * H.u * (1 - H.u), dir: STAIR_HOPS[i + 1][0] >= STAIR_HOPS[i][0] ? 1 : -1, mode: 'hop', u: H.u, dd: 200 + clamp((tt - STAIR_T0) / STAIR_HOP, 0, NH) * HOPC };
     }
     const k = clamp((tt - STAIR_T1) / (21.76 - STAIR_T1));
-    return { x: lerp(575, 300, k), y: 2580, dir: -1, mode: 'run', d: 275 * k, v: 275 / (21.76 - STAIR_T1) };
+    return { x: lerp(575, 300, k), y: 2580, dir: -1, mode: 'run', d: 275 * k, dd: 200 + NH * HOPC + 275 * k, v: 275 / (21.76 - STAIR_T1) };
   }
   function shotStairs(g, s) {
     const t = s.t;
@@ -3266,9 +3271,11 @@
         if (P.mode === 'hop') {
           // 影子贴着台阶（两个落点之间的连线），跳得越高越淡
           shadow(q, P.x, P.yl, o.h * (name === 'sheep-black' ? 0.42 : 0.22), 0.42 * (1 - clamp((P.yl - P.y) / 120)));
+          // 官方小人（她）：腾空时仍用跑步动画，时钟接着跑的那一段走（见 stairPath 的 dd）；弧线已经在 P.y 里。手绘的小羊照旧用跳的姿势
+          if (name !== 'sheep-black') return who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'run', flip: P.dir < 0, t, shadow: false }, o, stride(name, { h: o.h, pose: 'run', t }, P.dd)));
           return who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'jump', air: 0.6 * sin(PI * P.u), flip: P.dir < 0, t, shadow: false }, o));
         }
-        who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'run', flip: P.dir < 0, t }, o, stride(name, { h: o.h, pose: 'run', t }, P.d)));
+        who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'run', flip: P.dir < 0, t }, o, stride(name, { h: o.h, pose: 'run', t }, P.dd)));
       };
       person('sheep-black', stairPath(t - 0.38), { h: HT('sheep-black', U) });
       person('adele-child', A, { h: HT('adele-child', U), expr: 'determined', outfit: 'school', prop: handed ? 'satchel' : null, wind: 0.6 });
@@ -3325,7 +3332,11 @@
       const k = clamp((t - 22.75) / 0.42);
       const [m1, m2] = at(sh, 'sheep', 'mouth');
       if (k >= 1) toast(q, m1 + 10, m2 + 8, 0.6, 0.4); // 叼在嘴里的吐司和小羊同一层（在阿黛尔后面）
-      who(q, 'adele-child', Object.assign({ x: ax, y: 905, h, pose, t, flip: t < 22.45, expr: t < 23.15 && t > 22.75 ? 'laugh' : 'determined', outfit: 'school', prop: 'satchel', wind: 0.4, look: [0.6, -0.8] }, gA));
+      // 再冲出去时从站姿交叉淡化进跑步（官方小人；朝向不变。停下那一刻同时转身，游戏里转身也是瞬间的，不淡化）
+      const mixOut = t >= 23.15 && t < 23.35 ? { mixFrom: { pose: 'look-up', speed: 1 }, mixK: E.smooth(23.15, 23.35, t) } : null;
+      // 跑进来停下那一刻（22.45）同时转身；转过来以后腿从跑姿（停下时按距离算的时钟）收成站姿，0.17 秒
+      const mixStop = mixAt(Object.assign({ pose: 'run' }, stride('adele-child', { h, pose: 'run', t }, 800)), 22.45, 0.17, t);
+      who(q, 'adele-child', Object.assign({ x: ax, y: 905, h, pose, t, flip: t < 22.45, expr: t < 23.15 && t > 22.75 ? 'laugh' : 'determined', outfit: 'school', prop: 'satchel', wind: 0.4, look: [0.6, -0.8] }, gA, mixStop || mixOut));
       img(q, s, 'kitchen-table');
       if (t >= 22.75 && k < 1) { const [x, y] = arc3(1650, 485, m1, m2, 260, k); toast(q, x, y, 0.8, k * 7); }
       if (t > 22.75 && t < 23.1) sparkle(q, 1650, 500, 40, 1 - (t - 22.75) / 0.35, t * 3);
@@ -3414,8 +3425,10 @@
       const JA = 23.9, LA = 24.26;
       if (t > JA) {
         const k = clamp((t - JA) / (LA - JA)), j = t < LA, [jx, jy] = arc3(HOME_DOOR - 6, GY + 2, xA(LA), SY, 24, k), h = HT('adele-child', US);
-        const o = { x: j ? jx : xA(t), y: j ? jy : SY, h, pose: j ? 'jump' : 'run', air: j ? 0.5 * sin(PI * k) : undefined, t, expr: 'determined', outfit: 'school', prop: 'satchel', wind: 0.6 };
-        if (!j) Object.assign(o, stride('adele-child', { h, pose: 'run', t }, xA(t) - xA(LA)));
+        // 蹦出门的那一跳也用跑步动画，时钟接着落地后的跑步走（旧写法跳的时候按时间、落地后按路程从 0 数起，落地那一帧腿跳到另一个姿势）；
+        // 腾空的弧线在 jy 里。跳这一下只记 60 像素路程（半步）
+        const o = { x: j ? jx : xA(t), y: j ? jy : SY, h, pose: 'run', t, expr: 'determined', outfit: 'school', prop: 'satchel', wind: 0.6 };
+        Object.assign(o, stride('adele-child', { h, pose: 'run', t }, j ? 60 * k : 60 + xA(t) - xA(LA)));
         fromDoor(q, j, () => who(q, 'adele-child', o));
       }
     } });
@@ -3988,14 +4001,15 @@
     riverScene(g, s, cam, 'afternoon', { mid: (q) => {
       willow(q, t, 60, 1000, 1.1);
       // 跑下河坡：先冲、后放慢、停住。腿的相位跟着跑过的路程（刚冲出来步子快，快停下时步子也慢下来，不会原地蹬腿 / 滑着走）
-      const run = (i) => { const k = clamp((lt - i * 0.25) / 3.3), e = easeO(k), x0 = -200 - i * 150, x1 = 1060 - i * 190, y1 = 900 + i * 10; return [lerp(x0, x1, e), lerp(1020, y1, e), k, e * hypot(x1 - x0, y1 - 1020)]; };
-      const [ax, ay, ak, ad] = run(0), [fx, fy, fk, fd] = run(1), [sx, sy, sk] = run(0.5);
-      const runner = (name, x, y, k, d, o) => { const h = HT(name, UR), tt = o.t ?? t; who(q, name, Object.assign({ x, y, h, pose: k < 1 ? 'run' : 'stand', t: tt }, o, k < 1 ? stride(name, { h, pose: 'run', t: tt }, d) : {})); };
-      runner('fontaine', fx, fy, fk, fd, { t: t + 0.3, expr: 'smile' });
+      const run = (i) => { const kr = (lt - i * 0.25) / 3.3, k = clamp(kr), e = easeO(k), x0 = -200 - i * 150, x1 = 1060 - i * 190, y1 = 900 + i * 10; return [lerp(x0, x1, e), lerp(1020, y1, e), k, e * hypot(x1 - x0, y1 - 1020), kr]; };
+      const [ax, ay, ak, ad, akr] = run(0), [fx, fy, fk, fd, fkr] = run(1), [sx, sy, sk] = run(0.5);
+      // 停住以后 0.26 秒里从跑姿（停下时的步相）交叉淡化到站姿 / 欢呼（旧写法停下那一帧硬切）
+      const runner = (name, x, y, k, d, o, kr) => { const h = HT(name, UR), tt = o.t ?? t, rs = stride(name, { h, pose: 'run', t: tt }, d); who(q, name, Object.assign({ x, y, h, pose: k < 1 ? 'run' : 'stand', t: tt }, o, k < 1 ? rs : {}, mixAt(Object.assign({ pose: 'run' }, rs), 1, 0.08, kr))); };
+      runner('fontaine', fx, fy, fk, fd, { t: t + 0.3, expr: 'smile' }, fkr);
       // 小黑羊一蹦一蹦地冲下坡（快的时候蹦得远），停下来就站着
       const sheepMove = sk < 0.9;
       who(q, 'sheep-black', Object.assign({ x: sx - 60, y: sy + 30, h: HT('sheep-black', UR), pose: 'stand', t }, sheepMove ? bound(0.25) : {}));
-      runner('adele-child', ax, ay, ak, ad, { pose: ak < 1 ? 'run' : 'cheer', expr: 'laugh', outfit: 'school', prop: 'satchel', wind: 0.6 });
+      runner('adele-child', ax, ay, ak, ad, { pose: ak < 1 ? 'run' : 'cheer', expr: 'laugh', outfit: 'school', prop: 'satchel', wind: 0.6 }, akr);
     } });
     flock(g, t, { period: 8, y: 210, n: 6, seed: 9, dir: -1, offset: 3 });
     s.kit.particles(g, t, 'petals', { n: 20, seed: 55, rgb: '255,250,240' });
@@ -4147,7 +4161,7 @@
       }
       const thrown = t > 96.95, cheer = t > 98.3;
       // 芳汀（官方小人）：站着瞄准 → 甩出去以后抬手（他的基建 Interact）；阿黛尔（官方小人）看着石头跳，跳到第三下高兴得原地蹦起来
-      who(q, 'fontaine', { x: 600, y: 970, h: HT('fontaine', U), pose: thrown ? 'wave' : 'stand', t, phase: thrown ? -96.95 : 0 });
+      who(q, 'fontaine', Object.assign({ x: 600, y: 970, h: HT('fontaine', U), pose: thrown ? 'wave' : 'stand', t, phase: thrown ? -96.95 : 0 }, mixAt({ pose: 'stand', phase: 0 }, 96.95, 0.15, t)));
       const jy = cheer ? 46 * abs(sin(PI * (t - 98.3) / 0.42)) : 0;
       shadow(q, 1030, 990, 70, 0.4 * (1 - jy / 90));
       who(q, 'adele-child', { x: 1030, y: 990 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false });
@@ -4378,10 +4392,11 @@
       // 两边被溅了一身水的小伙伴：先挡，再笑
       const shield = lt < 0.9, laugh = lt > 1.4;
       // 官方小人：水花溅起来时阿黛尔吓一跳、芳汀抬手挡；缓过来以后都笑了（芳汀抬手，阿黛尔原地蹦）
-      who(q, 'fontaine', { x: 130, y: 1040, h: HT('fontaine', U), pose: shield || laugh ? 'wave' : 'stand', t, phase: laugh ? -121.2 : -119.76 });
+      // 挡 → 站 → 笑着抬手：两次换动作都交叉淡化
+      who(q, 'fontaine', Object.assign({ x: 130, y: 1040, h: HT('fontaine', U), pose: shield || laugh ? 'wave' : 'stand', t, phase: laugh ? -121.2 : -119.76 }, mixAt({ pose: 'wave', phase: -119.76 }, 0.9, 0.2, lt) || mixAt({ pose: 'stand', phase: -119.76 }, 1.4, 0.15, lt)));
       const jy = laugh ? 40 * abs(sin(PI * (t - 121.2) / 0.45)) : 0;
       if (shield) who(q, 'adele-child', Object.assign({ x: 370, y: 1030, h: HT('adele-child', U), t, outfit: 'school' }, startle(119.76)));
-      else { shadow(q, 370, 1030, 80, 0.4 * (1 - jy / 80)); who(q, 'adele-child', { x: 370, y: 1030 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false }); }
+      else { shadow(q, 370, 1030, 80, 0.4 * (1 - jy / 80)); who(q, 'adele-child', Object.assign({ x: 370, y: 1030 - jy, h: HT('adele-child', U), pose: 'stand', t, outfit: 'school', shadow: false }, mixAt(startle(119.76), 0.9, 0.2, lt))); }
       // 溅在他们身上的水珠
       if (lt > 0.2 && lt < 2.5) for (let i = 0; i < 16; i++) { const x = [200, 330, 470][i % 3] + (hash(151, i) - 0.5) * 200, y = 520 + hash(152, i) * 380 + (lt - 0.2) * 60; q.globalAlpha = 0.8 * (1 - (lt - 0.2) / 2.3); q.fillStyle = '#eef8ff'; q.beginPath(); ell(q, x, y, 5, 8); q.fill(); }
       q.globalAlpha = 1;
@@ -4438,10 +4453,12 @@
       // （官方小人：停下时回身抬手 = 他的 Interact；走的时候就是走）
       // phase 只给挥手（Interact 从 1.8 秒起从头播）；走路的相位完全由走过的路程决定
       const fWalk = lt < 1.8 || lt >= 2.1;
-      walker('fontaine', { x: fx, y: 955, h: HT('fontaine', U), pose: fWalk ? 'walk' : 'wave', phase: fWalk ? 0 : -129.57, flip: lt >= 1.8 && lt < 2.1, t, sha: 0.6, rim }, lt < 1.8 ? V * lt : fT * (lt - 2.1));
+      // 停下回身挥手、再转身走：转身的那一帧起 0.12～0.15 秒交叉淡化（旧写法走 ↔ 挥手硬切）
+      const fMix = mixAt(Object.assign({ pose: 'walk', phase: 0 }, stride('fontaine', { h: HT('fontaine', U), pose: 'walk', t }, V * 1.8)), 1.8, 0.12, lt) || mixAt({ pose: 'wave', phase: -129.57 }, 2.1, 0.15, lt);
+      walker('fontaine', Object.assign({ x: fx, y: 955, h: HT('fontaine', U), pose: fWalk ? 'walk' : 'wave', phase: fWalk ? 0 : -129.57, flip: lt >= 1.8 && lt < 2.1, t, sha: 0.6, rim }, fMix), lt < 1.8 ? V * lt : fT * (lt - 2.1));
       // 阿黛尔：走到 TS 停下，回身挥手送芳汀
       const ax = 510 + V * min(lt, TS);
-      walker('adele-child', { x: ax, y: 965, h: HT('adele-child', U), pose: lt < TS ? 'walk' : 'wave2', t, outfit: 'school', prop: 'satchel', sha: 0.6, rim }, V * lt);
+      walker('adele-child', Object.assign({ x: ax, y: 965, h: HT('adele-child', U), pose: lt < TS ? 'walk' : 'wave2', t, outfit: 'school', prop: 'satchel', sha: 0.6, rim }, mixAt(Object.assign({ pose: 'walk' }, stride('adele-child', { h: HT('adele-child', U), pose: 'walk', t }, V * TS)), TS, 0.2, lt)), V * lt);
       // 小黑羊跟着她走（小碎步），她停下它也停下
       walker('sheep-black', { x: 370 + V * min(lt, TS), y: 968, h: HT('sheep-black', U), pose: lt < TS ? 'walk' : 'stand', t, sha: 0.6 }, V * lt);
     } });
@@ -4488,11 +4505,19 @@
   }
   const scr = (cam, x, y) => [960 + (x - cam.x) * cam.z, 540 + (y - cam.y) * cam.z];
   const DINNER_RADIO = [724, 0.34]; // 晚饭时收音机在窗台上的位置 / 缩放（晚饭、约定两个镜头共用）
-  /** 爸爸举过头顶挥的红领带：从近侧的拳头往上伸，像指挥棒一样左右挥，领带尖跟着甩（纯函数）。领带一直在头顶上方 */
+  /**
+   * 爸爸举过头顶挥的红领带：从近侧的拳头往上伸，像指挥棒一样左右挥，领带尖跟着甩（纯函数）。领带一直在头顶上方。
+   * [修] 背影里 'cheer' 的手在头发后面，领带像是从头发里长出来、悬在半空；现在把举起的前臂（白衬衫袖子）和拳头画在头发外侧，领带从拳头里伸出来
+   */
   function waveTie(q, K, t, U) {
     const C = E.cast, A = C && C.anchors ? C.anchors('katia', K) : null;
-    if (!A || !A.handN) return;
-    const [hx, hy] = A.handN, L = U * 0.21, ph = t * 6.8;
+    if (!A || !A.handN || !A.head || !A.top) return;
+    const R = A.headR || U * 0.1, dir = A.handN[0] >= A.head[0] ? 1 : -1, ph = t * 6.8;
+    // 拳头在头顶斜上方，跟着挥的节奏轻轻晃；袖子往下伸进头发边上（肩膀那边）
+    const fx = A.head[0] + dir * R * (1.72 + 0.05 * sin(ph)), fy = A.top[1] + R * (0.12 - 0.05 * cos(ph));
+    const sx = A.head[0] + dir * R * 1.12, sy = A.head[1] + R * 1.3;
+    const ha = atan2(fy - sy, fx - sx), fr = R * 0.27;
+    const [hx, hy] = [fx + cos(ha) * fr * 0.7, fy + sin(ha) * fr * 0.7], L = U * 0.21;
     const ang = -PI / 2 + 0.62 * sin(ph), lag = -0.55 * cos(ph);
     const c1x = hx + cos(ang) * L * 0.55, c1y = hy + sin(ang) * L * 0.55, ex = hx + cos(ang + lag) * L, ey = hy + sin(ang + lag) * L;
     const N = 10, Lft = [], Rgt = [];
@@ -4515,6 +4540,21 @@
     q.save(); q.globalAlpha = 0.5 * abs(cos(ph)); q.strokeStyle = '#fff4dc'; q.lineWidth = 4; q.lineCap = 'round';
     const sg = cos(ph) >= 0 ? 1 : -1;
     q.beginPath(); q.arc(hx, hy, L * 1.08, ang - 0.5 * sg, ang - 0.12 * sg, sg < 0); q.stroke(); q.restore();
+    // 握着领带的拳头和举起的前臂（白衬衫袖子，从头发侧边伸出来；盖在领带根部上）
+    // 袖子：肘这头粗、腕这头细的圆头梯形（沿 ha 方向的局部坐标里画）
+    const len = hypot(fx - sx, fy - sy) - fr * 0.7, w0 = R * 0.3, w1 = R * 0.22;
+    q.save(); q.translate(sx, sy); q.rotate(ha);
+    q.beginPath(); q.moveTo(0, -w0); q.lineTo(len, -w1); q.lineTo(len, w1); q.lineTo(0, w0); q.arc(0, 0, w0, PI / 2, PI * 1.5); q.closePath(); fs(q, '#f6f4ef', 3.5);
+    q.save(); q.clip(); q.fillStyle = 'rgba(120,80,70,.18)'; q.fillRect(-w0, (dir > 0 ? 0.25 : -1.25) * w0, len + w0, w0); q.restore();
+    q.strokeStyle = 'rgba(58,38,32,.4)'; q.lineWidth = 2.5; q.lineCap = 'round';
+    for (const u of [0.3, 0.55]) { q.beginPath(); q.moveTo(len * u, -w0 * 0.5); q.quadraticCurveTo(len * u - w0 * 0.3, 0, len * u + w0 * 0.1, w0 * 0.45); q.stroke(); }
+    q.beginPath(); q.rect(len - w1 * 0.9, -w1 - 2, w1 * 0.9, w1 * 2 + 4); fs(q, '#ffffff', 3); // 袖口
+    // 拳头：手背朝我们，四个指节
+    q.translate(len + fr * 0.55, 0);
+    q.beginPath(); q.ellipse(0, 0, fr * 0.95, fr, 0, 0, TAU); fs(q, SKIN, 3.5);
+    q.strokeStyle = INK; q.lineWidth = 2.2;
+    for (let i = -1; i <= 2; i++) { const yy = i * fr * 0.42 - fr * 0.2; q.beginPath(); q.arc(fr * 0.55, yy, fr * 0.22, -PI / 2, PI / 2); q.stroke(); }
+    q.restore();
   }
   function shotDinner(g, s) {
     const t = s.t, lt = s.lt;

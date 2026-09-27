@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>jitter lab</title>
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 "JetBrains Mono", Consolas, monospace; }
+  #wrap { padding: 12px; }
+  table { border-collapse: collapse; margin-top: 10px; }
+  td, th { border: 1px solid #333; padding: 2px 8px; text-align: right; vertical-align: top; }
+  td:first-child, th:first-child, td.l { text-align: left; }
+  .hot { color: #ff7a7a; } .ok { color: #8fdc8f; }
+</style>
+</head>
+<body>
+<!--
+  逐帧抖动测量（开发用）：连续渲染 t, t+dt, t+2dt …，记下每个角色（官方小人 MVE.sd.draw、立绘绑定 MVE.keyart.draw、
+  立绘卡片 MVE.sd.card、手绘角色库 MVE.cast.draw）这一帧的动画时间、位置与几根骨骼的坐标（1080p 设计像素），
+  相邻帧配对后找出：
+    phase  官方小人的动画时间没有按 speed × dt 前进（相位 / 速度逐帧跳变 → 抽搐、快进）
+    jerk   同一个角色的位置 / 骨骼在三帧里的二阶差分（加速度）过大（位置跳、姿势跳）
+    swap   同一个位置上，这一帧是官方模型、下一帧是手绘（或反过来）
+    anim   同一个角色这一帧和下一帧的动画名不同（没有交叉淡化的硬切）
+    expr   立绘表情 / 清晰度（512 ↔ 1024）在镜头中途跳变
+  用法：
+    ?film=effervescence&from=20&to=40&fps=60        连续帧（默认 w=640；&w=1280）
+    ?film=misty-memory-day&shots=walk,town&fps=60   只测这些镜头（整段）
+    ?film=…&all=1&fps=30                            整部影片
+    &thr=3（位置加速度阈值，设计像素）&keep=1（__out.frames 保留每一帧的原始记录）
+  结束后 document.title = DONE，结果在 window.__out：{ n, ms, issues: [...], byShot: {...} }
+-->
+<div id="wrap"></div>
+<script src="../js/mv/engine.js"></script>
+<script src="../js/mv/cast.js"></script>
+<script src="../js/mv/sd.js"></script>
+<script src="jitter-analyze.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const wrap = document.getElementById('wrap');
+  const out = (window.__out = {});
+  try {
+    const id = q.get('film') || 'effervescence';
+    const W = +(q.get('w') || 640), H = Math.round((W * 9) / 16), kk = W / 1920;
+    const film = await MVE.load(id, '../js/mv/films/');
+    const an = await MVE.analysis(`../assets/music/${film.analysisId || id}.json`);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const R = MVE.renderer(cv, film, an, {});
+    await R.prepare();
+    // 等官方资源都就绪（立绘绑定、卡片、小人），否则测到的是手绘替代
+    if (MVE.keyart && MVE.keyart.opts) MVE.keyart.opts.software = true;
+    await new Promise((r) => setTimeout(r, +(q.get('settle') || 1500)));
+    const fps = +(q.get('fps') || 60), dt = 1 / fps, thr = +(q.get('thr') || 3);
+    const dur = an.duration;
+    let spans = [];
+    if (q.has('shots')) {
+      const want = q.get('shots').split(',');
+      for (const s of film.shots) if (want.includes(s.id)) spans.push([s.t0, Math.min(Number.isFinite(s.t1) ? s.t1 : dur, dur)]);
+    } else if (q.has('all')) spans.push([0, dur]);
+    else spans.push([+(q.get('from') || 0), +(q.get('to') || (+(q.get('from') || 0) + 4))]);
+    // 预热一遍（建缓存、让中途加载的模型都就位，再过一次镜头切换以解除 gate）
+    for (const [a, b] of spans) for (let t = a; t < b; t += 1.0) R.render(t);
+    R.render(0); R.render(dur - 0.1);
+    for (const [a, b] of spans) for (let t = a; t < b; t += 1.0) R.render(t);
+    let cur = null, inCast = 0, castHit = false;
+    const put = (rec) => {
+      if (!cur || !rec.cv || rec.cv.width !== W || rec.cv.height !== H) return;
+      delete rec.cv;
+      rec.x /= kk; rec.y /= kk; if (rec.s != null) rec.s /= kk;
+      if (rec.pts) rec.pts = rec.pts.map((v) => v / kk);
+      if (inCast) castHit = true;
+      cur.recs.push(rec);
+    };
+    MVE.sd.trace = put;
+    if (MVE.keyart) MVE.keyart.trace = put;
+    const C0 = MVE.cast.draw;
+    MVE.cast.draw = function (g, who, o) {
+      inCast++; castHit = false;
+      try { return C0.apply(this, arguments); } finally {
+        inCast--;
+        if (!castHit && cur && g && g.canvas && g.canvas.width === W && g.canvas.height === H && o) {
+          const m = g.getTransform(), x = +o.x || 0, y = +o.y || 0;
+          cur.recs.push({ src: 'cast', key: who, x: (m.a * x + m.c * y + m.e) / kk, y: (m.b * x + m.d * y + m.f) / kk, s: (o.h || 300) * Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) / kk, pose: o.pose || 'stand', view: o.view || '', crop: o.crop || '', simple: !!o.simple, sil: !!o.sil, alpha: o.alpha ?? 1 });
+        }
+      }
+    };
+    const frames = [];
+    const t0 = performance.now();
+    for (const [a, b] of spans) {
+      const n = Math.floor((b - a) / dt + 1e-6);
+      for (let i = 0; i <= n; i++) {
+        const t = a + i * dt;
+        if (t >= b) break;
+        cur = { t, shot: R.shotAt(t).id, seg: a, recs: [] };
+        R.render(t);
+        frames.push(cur); cur = null;
+      }
+    }
+    out.ms = Math.round(performance.now() - t0); out.n = frames.length;
+    MVE.sd.trace = null; if (MVE.keyart) MVE.keyart.trace = null; MVE.cast.draw = C0;
+    // ---------------- 分析（lab/jitter-analyze.js；node 里也能对存下来的帧重新分析） ----------------
+    const A = jitterAnalyze(frames, { dt, thr, ptol: +q.get('ptol') || 0.006 });
+    const byShot = A.byShot;
+    out.issues = A.issues; out.byShot = byShot; out.counts = A.counts;
+    if (q.get('keep') === '1') out.frames = frames;
+    let html = `<p>${id} · ${frames.length} 帧 · ${out.ms}ms · ${JSON.stringify(out.counts)}</p><table><tr><th>shot</th><th>phase</th><th>jerk</th><th>swap</th><th>anim</th><th>pop</th><th>turn</th><th>expr</th><th>boneMax</th><th>draws</th></tr>`;
+    for (const [sh, b] of Object.entries(byShot)) html += `<tr><td>${sh}</td>${['phase', 'jerk', 'swap', 'anim', 'pop', 'turn', 'expr', 'boneMax'].map((k) => `<td class="${b[k] && k !== 'boneMax' ? 'hot' : ''}">${b[k] ? b[k].n + ' / ' + b[k].max.toFixed(3) : ''}</td>`).join('')}<td class="l">${JSON.stringify(b.draws || {})}</td></tr>`;
+    wrap.insertAdjacentHTML('beforeend', html + '</table>');
+    document.title = 'DONE';
+  } catch (e) {
+    wrap.textContent = 'ERR ' + (e.stack || e);
+    document.title = 'ERR ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

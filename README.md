@@ -120,7 +120,7 @@
 | `assets/puppet/<key>/` | 分层绑定的图集与绑定数据（由 `tools/puppet/build.py` 生成） |
 | `assets/official/` | 官方素材的本站副本（© Hypergryph，来源地址见其中的 README）：`spine/` 是 Spine 小人（`.skel` / `.atlas` / `.png` 与 `meta.json`，目录结构与 `torappu.prts.wiki/assets/` 一致：`char_spine/<干员>/…`、`enemy_spine/<敌人>/…`），`avg/` 是 MV 用的剧情立绘卡片（webp，512 宽与原尺寸两档） |
 | `tools/puppet/` | 绑定工具：`build.py`（切图、补画、打包）、`preview.py`（标注预览）、`rigs/*.json`（绑定源文件），说明见其中的 README |
-| `lab/` | 开发用：`puppet.html`（逐帧检查绑定）、`theater.html`（剧场布景一览：`?form=&skins=&group=&sizes=`）、`story.html`（故事区分层插画一览：`?form=&names=&x=状态类&w=`）、`shot.ps1`（截图）、`cdp.mjs`（截图、性能追踪、模拟鼠标）、`sound.html`（声景试听台：逐个场景与音效，也用来单独测声音的 CPU）、`mv.html`（MV 单帧 / 联系表 / 性能：`?film=&t=` `&strip=auto` `&perf=1`）、`cast.html`（MV 角色定妆照）、`keyart.html`（官方立绘特写预览 / 性能）、`sd.html`（官方 Q 版小人：模型 × 动画、走路配速、影片逐镜头审计 `?film=<id>&audit=1`）、`finish.html`（精修效果前后对比：`?sheet=<film>`）、`audio-analyze.html` + `analyze-songs.mjs`（歌曲结构分析，写出 `assets/music/*.json`）、`plot-songs.py`（结构图） |
+| `lab/` | 开发用：`puppet.html`（逐帧检查绑定）、`theater.html`（剧场布景一览：`?form=&skins=&group=&sizes=`）、`story.html`（故事区分层插画一览：`?form=&names=&x=状态类&w=`）、`shot.ps1`（截图）、`cdp.mjs`（截图、性能追踪、模拟鼠标）、`sound.html`（声景试听台：逐个场景与音效，也用来单独测声音的 CPU）、`mv.html`（MV 单帧 / 联系表 / 性能：`?film=&t=` `&strip=auto` `&perf=1`）、`cast.html`（MV 角色定妆照）、`keyart.html`（官方立绘特写预览 / 性能）、`sd.html`（官方 Q 版小人：模型 × 动画、走路配速、影片逐镜头审计 `?film=<id>&audit=1`）、`jitter.html` + `jitter-analyze.js`（逐帧抖动检查：官方小人 / 立绘的动画时间与位置有没有跳变、动画硬切、凭空出现、官方与手绘互换）、`finish.html`（精修效果前后对比：`?sheet=<film>`）、`audio-analyze.html` + `analyze-songs.mjs`（歌曲结构分析，写出 `assets/music/*.json`）、`plot-songs.py`（结构图） |
 
 ## 版权
 

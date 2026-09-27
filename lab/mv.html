@@ -23,7 +23,7 @@
     ?film=before-summer&t=42.5            单帧（默认 1280 宽；&w=1920 改分辨率；&debug=1 叠加时间 / 镜头 / 拍号）
     ?film=before-summer&strip=auto        联系表：每个镜头的开头、中间各一帧（&cols=6 &cw=384）
     ?film=before-summer&strip=every:8     每 8 秒一帧
-    ?film=before-summer&strip=12,13.5,15  指定时间
+    ?film=before-summer&strip=12,13.5,15  指定时间（&crop=x,y,w,h：只放大显示设计坐标里的这一块，看连续帧里一个角色的动作；&settle=3000：先等官方资源加载完再画）
     ?film=before-summer&perf=1            离线性能：每 1/15 秒渲染一帧，按镜头统计毫秒（&step=0.0667 &from= &to=）
     ?film=before-summer&play=1&from=40    实时播放（无声音），&speed=0.5
   结束后 document.title = DONE（或 ERR ...），结果在 window.__out
@@ -46,6 +46,8 @@
     const R = MVE.renderer(cv, film, an, { debug: q.get('debug') === '1' });
     window.__mv = R;
     await R.prepare();
+    // &sdopts=cacheFps:24,warmAhead:16（开发用：临时改 MVE.sd.opts 做对比）
+    if (q.has('sdopts') && MVE.sd && MVE.sd.opts) for (const kv of q.get('sdopts').split(',')) { const [k, v] = kv.split(':'); MVE.sd.opts[k] = +v; }
     if (q.get('captions') === '0') R.captions = false;
     const dur = an.duration;
     if (q.has('perf')) {
@@ -81,9 +83,22 @@
       else times = sp.split(',').map(Number);
       const grid = document.createElement('div'); grid.className = 'strip'; grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
       wrap.appendChild(grid);
+      // &crop=x,y,w,h（1920×1080 设计坐标）：每格只放大显示这一块（看连续几帧里一个角色的动作）
+      const crop = q.has('crop') ? q.get('crop').split(',').map(Number) : null, kx = W / 1920;
+      const chh = crop ? Math.round((cw * crop[3]) / crop[2]) : ch;
+      if (crop) grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+      // &settle=毫秒：先把每个时刻空画一遍、等官方模型 / 立绘加载完，再切一次镜头（解除“镜头中途加载好的不换上”），然后才正式画
+      if (q.has('settle')) {
+        for (const t of times) R.render(t);
+        await new Promise((r) => setTimeout(r, +q.get('settle') || 3000));
+        for (const t of times) R.render(t);
+        R.render(0); R.render(dur - 0.1);
+      }
       for (const t of times) {
         R.render(t);
-        const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.getContext('2d').drawImage(cv, 0, 0, cw, ch);
+        const c = document.createElement('canvas'); c.width = cw; c.height = chh;
+        if (crop) c.getContext('2d').drawImage(cv, crop[0] * kx, crop[1] * kx, crop[2] * kx, crop[3] * kx, 0, 0, cw, chh);
+        else c.getContext('2d').drawImage(cv, 0, 0, cw, ch);
         const cell = document.createElement('div'); cell.className = 'cell';
         const sh = R.shotAt(t);
         cell.innerHTML = `<b>${t.toFixed(1)}s · ${sh.id}</b>`; cell.prepend(c); grid.appendChild(cell);
