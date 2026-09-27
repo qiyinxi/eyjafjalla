@@ -46,6 +46,8 @@
     const R = MVE.renderer(cv, film, an, { debug: q.get('debug') === '1' });
     window.__mv = R;
     await R.prepare();
+    // &sdopts=cacheFps:24,warmAhead:16（开发用：临时改 MVE.sd.opts 做对比）
+    if (q.has('sdopts') && MVE.sd && MVE.sd.opts) for (const kv of q.get('sdopts').split(',')) { const [k, v] = kv.split(':'); MVE.sd.opts[k] = +v; }
     if (q.get('captions') === '0') R.captions = false;
     const dur = an.duration;
     if (q.has('perf')) {

@@ -54,7 +54,7 @@
  *   drawCached(g, key, o) → boolean  与 draw 相同的参数；画面上不大的（身高 ≤ opts.cacheMaxPx 设备像素）按“动画时间取整到 1/30 秒”
  *                                   的帧缓存贴图（按需生成、LRU，尺寸按半个八度分档、只缩小不放大）。一群小羊用它：每只每帧一次 drawImage，
  *                                   动作仍是 30 帧 / 秒。剪影 / 逆光 / 交叉淡化 / 混合模式、以及大的小人，自动改走 draw。
- *                                   o.warm = true：不画，只把这一圈要用的帧排进预热队列（影片切镜头前空跑下一个镜头时用），
+ *                                   o.warm = true：不画，只把镜头开头约半秒（opts.warmAhead 帧）要用的帧排进预热队列（影片切镜头前空跑下一个镜头时用），
  *                                   之后每次 frame() 花最多 opts.warmMs 毫秒生成；cacheStats() 给出命中 / 现生成 / 预热的帧数
  *     相位（phase）只能跟“这是谁”有关（序号、seed），不能跟位置、大小、朝向有关：动画时间 = (t + phase) × speed，
  *     phase 或 speed 每帧一变，动画就每帧跳（走动的人会“抽搐”）。速度会变的走路请按走过的距离锁步相（见 before-summer 的 stride）
@@ -131,8 +131,9 @@
   const localOf = (url) => (OFFICIAL && url.startsWith(TORAPPU) ? OFFICIAL + 'spine/' + url.slice(TORAPPU.length).split('?')[0] : '');
   // [/self-host]
   // cacheFps / cacheMaxPx / cacheMB：drawCached 的帧率（动画时间）、只缓存身高不超过多少设备像素的、缓存上限（0 = 桌面 24MB、触屏 12MB）
-  // warmMs：每帧最多花多少毫秒生成预热队列里的帧（见 drawCached 的 o.warm）
-  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5 };
+  // warmMs：每帧最多花多少毫秒生成预热队列里的帧（见 drawCached 的 o.warm）；warmAhead：每个动作预热从镜头开头起的多少帧（0 = 一整圈）。
+  //   一整圈在小羊多的片子里会把缓存顶到上限、把当前镜头要用的帧挤掉（第二部实测：最坏一帧 65ms → 半秒 16 帧时 27ms）
+  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5, warmAhead: 16 };
   const stats = { draws: 0, lastMs: 0, avgMs: 0, canvas: [1, 1], loads: {} };
   const OFF = /[?&]sd=off\b/.test(location.search);
 
@@ -973,6 +974,10 @@ void main(){
   function fcClear() { for (const c of FC.values()) { c.width = c.height = 0; } FC.clear(); fcPx = 0; FQ.length = 0; FQS.clear(); }
   /** 生成一帧缓存：key / 动画名 / 第几帧（共 nF 帧）/ 尺寸档 ts；失败返回 null */
   function fcBuild(key, R, an, fi, nF, d, ts, solo, tint, ck) {
+    const t0 = now();
+    try { return fcBuild0(key, R, an, fi, nF, d, ts, solo, tint, ck); } finally { FST.ms += now() - t0; }
+  }
+  function fcBuild0(key, R, an, fi, nF, d, ts, solo, tint, ck) {
     const a = R.anims && R.anims.get(an);
     if (!a) return null;
     const bx = animBounds(R, a, solo);
@@ -992,7 +997,7 @@ void main(){
   }
   // 预热队列：影片在切镜头前“空跑”下一个镜头时（o.warm），把要用到的整圈帧排进来；frame() 每帧花一点时间（opts.warmMs）生成，
   // 镜头开头就不必一口气现生成几十帧。只影响“什么时候生成”，画出来的东西不变
-  const FQ = [], FQS = new Set(), FST = { hit: 0, miss: 0, warm: 0 };
+  const FQ = [], FQS = new Set(), FST = { hit: 0, miss: 0, warm: 0, ms: 0 };
   function fcWarmStep(ms) {
     const t0 = now();
     while (FQ.length && now() - t0 < ms) {
@@ -1030,8 +1035,8 @@ void main(){
       const tk = o.tint ? (Array.isArray(o.tint) ? o.tint.join('/') : typeof o.tint === 'object' ? o.tint.color + '/' + o.tint.amount : String(o.tint)) : '';
       const ckOf = (f) => R.id + '|' + A.a.name + '|' + f + '|' + ts.toFixed(4) + '|' + (solo ? 1 : 0) + '|' + tk + '|' + R.gen;
       if (o.warm) {
-        // 预热：把这一圈的帧都排进队列（循环动画一整圈；不循环的从当前帧到结尾），不画
-        const n = loop ? nF : nF + 1;
+        // 预热：把镜头开头要用的帧排进队列（从当前帧起 opts.warmAhead 帧，0 = 一整圈；不循环的到结尾为止），不画
+        const n = Math.min(loop ? nF : nF + 1 - fi, opts.warmAhead > 0 ? opts.warmAhead : 1e9);
         for (let j = 0; j < n; j++) { const f = loop ? (fi + j) % nF : Math.min(nF, fi + j); const k2 = ckOf(f); if (!FC.has(k2) && !FQS.has(k2)) { FQS.add(k2); FQ.push({ id: R.id, key, an: A.a.name, fi: f, nF, d, ts, solo, tint: o.tint, ck: k2 }); } }
         if (FQ.length > 3000) { for (const it of FQ.splice(0, FQ.length - 3000)) FQS.delete(it.ck); }
         return true;
@@ -1685,7 +1690,7 @@ void main(){
     draw,
     drawCached,
     // 帧缓存的统计（开发用）：命中 / 现生成 / 预热生成的帧数、占用像素、预热队列长度
-    cacheStats: () => ({ hit: FST.hit, miss: FST.miss, warm: FST.warm, px: fcPx, n: FC.size, queue: FQ.length }),
+    cacheStats: () => ({ hit: FST.hit, miss: FST.miss, warm: FST.warm, buildMs: Math.round(FST.ms), px: fcPx, n: FC.size, queue: FQ.length }),
     anchors,
     gait,
     crowd,
