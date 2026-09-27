@@ -406,7 +406,7 @@
           <button class="btn ${theater.auto ? 'btn-primary' : 'btn-ghost'} th-auto" type="button" data-act="th-auto" aria-pressed="${theater.auto}">自由活动 · ${theater.auto ? '开' : '关'}</button>
           <div class="th-row th-pets"><span class="mono">DESK PETS · 桌宠（可多选，会沿屏幕四周溜达）</span><div class="th-petlist">${petVariants().map((v) => { const av = window.THEATER && THEATER.avatar ? THEATER.avatar(v.form, v.skin) : ''; return `<button type="button" class="th-pet${pets.has(v.id) ? ' on' : ''}${av ? ' has-av' : ''}" data-pet="${v.id}" aria-pressed="${pets.has(v.id)}">${av ? `<img src="${av}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}<span>${v.label}</span></button>`; }).join('')}</div></div>
           <button class="btn btn-ghost th-auto" type="button" data-act="pet-toggle">${pets.size ? '都回来吧' : '全员出动'}</button>
-          <p class="note">模型与动画来自游戏资源（经 PRTS 资源站在线加载），由 spine-ts 3.8 实时渲染。</p>
+          <p class="note">模型与动画来自游戏资源（© Hypergryph，本站自带副本，取自 PRTS 资源站），由 spine-ts 3.8 实时渲染。</p>
         </div>
       </div></div>`;
     theaterBg();

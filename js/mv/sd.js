@@ -2,6 +2,7 @@
  * MV · 官方 Q 版小人（游戏内 Spine 模型）渲染器   →  window.MVE.sd
  *
  * 用游戏里真正的 Spine 小人（PRTS 资源站 torappu.prts.wiki，与本页 js/chibi.js 的小剧场同源）代替手绘 Q 版角色，
+ * [self-host] 用到的模型与立绘都在本站 assets/official/ 里有副本，先取本地，本地没有才退回 PRTS（见 localOf / cardLocal）。
  * 画进 MV 的 Canvas 2D 画面。和 js/mv/keyart.js 同一套架构：共享的一张离屏 WebGL 画布、只渲染屏幕上看得见的那一块、
  * 按它在屏幕上的实际像素渲染，再 drawImage 贴回。姿势是 t 的纯函数（setToSetupPose + Animation.apply，从不步进
  * AnimationState），任意跳帧都一致。
@@ -104,7 +105,20 @@
   const LIB = 'https://cdn.jsdelivr.net/gh/EsotericSoftware/spine-runtimes@3.8/spine-ts/build/spine-webgl.js';
   const ROOT = 'https://torappu.prts.wiki/assets/char_spine/';
   const ROOT_E = 'https://torappu.prts.wiki/assets/enemy_spine/';
-  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true };
+  // [self-host] 本站自带官方资源（assets/official/：spine/ 镜像 torappu.prts.wiki/assets/ 的目录结构，avg/ 是立绘卡片）。
+  // 本地优先：地址按本脚本自己的位置解析（js/mv/sd.js → ../../assets/official/），首页、lab/ 实验页、GitHub Pages 的子路径下都对；
+  // 本地没有（404 / 出错）时静默退回 PRTS 原地址（之后这个文件直接走 PRTS）
+  const TORAPPU = 'https://torappu.prts.wiki/assets/';
+  const OFFICIAL = (() => {
+    try {
+      const me = document.currentScript || [...document.scripts].find((s) => /\/js\/mv\/sd\.js(?:[?#]|$)/.test(s.src));
+      return (me && me.src ? new URL('../../assets/official/', me.src) : new URL('assets/official/', location.href)).href;
+    } catch (e) { return ''; }
+  })();
+  const localMiss = new Set();
+  const localOf = (url) => (OFFICIAL && url.startsWith(TORAPPU) ? OFFICIAL + 'spine/' + url.slice(TORAPPU.length).split('?')[0] : '');
+  // [/self-host]
+  const opts ={ maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true };
   const stats = { draws: 0, lastMs: 0, avgMs: 0, canvas: [1, 1], loads: {} };
   const OFF = /[?&]sd=off\b/.test(location.search);
 
@@ -155,8 +169,17 @@
   const waiting = [];
   const slot = () => (inflight < 6 ? (inflight++, Promise.resolve()) : new Promise((r) => waiting.push(r)));
   const unslot = () => { const n = waiting.shift(); if (n) n(); else inflight--; };
-  /** 带超时的 fetch（超时从真正发出请求时算起，排队不算）；body 读完才算结束 */
+  // [self-host] 先取本地副本（assets/official/spine/…），失败再走原地址（下面的 fetchT0，照旧超时 + 重试）
   async function fetchT(url, kind) {
+    const lu = localOf(url);
+    if (lu && !localMiss.has(lu)) {
+      try { return await fetchT0(lu, kind); } catch (e) { localMiss.add(lu); }
+    }
+    return fetchT0(url, kind);
+  }
+  // [/self-host]
+  /** 带超时的 fetch（超时从真正发出请求时算起，排队不算）；body 读完才算结束 */
+  async function fetchT0(url, kind) {
     await slot();
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT) : undefined, referrerPolicy: 'no-referrer' });
@@ -173,14 +196,17 @@
     // 本页的小剧场（js/chibi.js）已经在加载同一个运行库：共用它的 Promise
     if (window.CHIBI && window.CHIBI.loadLib) return window.CHIBI.loadLib().then(() => !!(window.spine && window.spine.webgl));
     if (!libP) {
-      libP = new Promise((res, rej) => {
-        const old = [...document.scripts].find((s) => s.src === LIB);
+      // 运行库也用本站自带的副本（assets/vendor/），加载失败再退回 jsDelivr
+      const LIB_LOCAL = OFFICIAL ? OFFICIAL.replace(/official\/$/, 'vendor/spine-webgl-3.8.js') : '';
+      const one = (src) => new Promise((res, rej) => {
+        const old = [...document.scripts].find((s) => s.src === src);
         const s = old || document.createElement('script');
-        const to = setTimeout(() => { libP = null; rej(new Error('spine runtime timeout')); }, 25000);
+        const to = setTimeout(() => { rej(new Error('spine runtime timeout')); }, 25000);
         s.addEventListener('load', () => { clearTimeout(to); res(true); });
-        s.addEventListener('error', () => { clearTimeout(to); libP = null; if (!old) s.remove(); rej(new Error('spine runtime')); });
-        if (!old) { s.src = LIB; s.async = true; document.head.appendChild(s); }
+        s.addEventListener('error', () => { clearTimeout(to); if (!old) s.remove(); rej(new Error('spine runtime')); });
+        if (!old) { s.src = src; s.async = true; document.head.appendChild(s); }
       });
+      libP = (LIB_LOCAL ? one(LIB_LOCAL).catch(() => one(LIB)) : one(LIB)).catch((e) => { libP = null; throw e; });
     }
     return libP;
   }
@@ -1255,6 +1281,7 @@ void main(){
    *   }
    * card.load(key, expr | [exprs]) → Promise<boolean>；card.info(key) → { crops, n, ready }；card.url(key, expr, big)
    * 贴图按屏幕尺寸取 media.prts.wiki 的 webp 变体（512 或 1024），同一张图只下载一次；CORS 是 *。
+   * [self-host] 先取本站副本 assets/official/avg/<名字>.w512.webp / <名字>.webp（card.url 仍返回 PRTS 地址，作缓存的 key）。
    * ---------------------------------------------------------------- */
   const CARD_ALIAS = {
     keller: { base: 'avg_npc_999_1', n: 10 }, dolly: { base: 'avg_npc_1014_1', n: 0 }, snowsant: { base: 'avg_npc_1005_1', n: 11 },
@@ -1300,6 +1327,11 @@ void main(){
     const e = S.n > 0 ? Math.max(1, Math.min(S.n, Math.round(expr || 1))) : 0;
     return mediaUrl('Avg_' + S.base + (e ? '-' + e : '') + '$1.png') + q;
   }
+  // [self-host] PRTS 立绘地址 → 本地副本：Avg_<名字>$1.png 的 512 宽变体 = avg/<名字>.w512.webp，原尺寸变体 = avg/<名字>.webp
+  const cardLocal = (url) => {
+    const m = OFFICIAL && /^https:\/\/media\.prts\.wiki\/[0-9a-f]\/[0-9a-f]{2}\/Avg_(avg_[\w-]+)%241\.png\?image_process=(resize,w_512\/)?format,webp/.exec(url);
+    return m ? OFFICIAL + 'avg/' + m[1] + (m[2] ? '.w512' : '') + '.webp' : '';
+  };
   const cardImgs = new Map(), cardMeta = new Map();
   function cardImg(url) {
     let r = cardImgs.get(url);
@@ -1313,14 +1345,18 @@ void main(){
     if (r.ok) return Promise.resolve(true);
     if (r.p) return r.p;
     if (r.fails && now() < r.at) return Promise.resolve(false);
-    r.p = retry((i) => new Promise((res, rej) => {
+    const one = (src) => new Promise((res, rej) => {
       const im = new Image();
       im.crossOrigin = 'anonymous'; im.referrerPolicy = 'no-referrer'; im.decoding = 'async';
       const to = setTimeout(() => { im.src = ''; rej(new Error('card timeout')); }, TIMEOUT);
       im.onload = () => { clearTimeout(to); res(im); };
       im.onerror = () => { clearTimeout(to); rej(new Error('card')); };
-      im.src = i ? url + (url.includes('?') ? '&' : '?') + 'r=' + i : url;
-    }), 2).then((im) => { r.img = im; r.ok = true; r.p = null; return true; }, () => { r.p = null; r.fails++; r.at = now() + 15000 * r.fails; return false; });
+      im.src = src;
+    });
+    const remote = () => retry((i) => one(i ? url + (url.includes('?') ? '&' : '?') + 'r=' + i : url), 2);
+    // [self-host] 先取本地副本（assets/official/avg/…webp），失败再走 PRTS
+    const lu = cardLocal(url);
+    r.p = (lu && !localMiss.has(lu) ? one(lu).catch(() => { localMiss.add(lu); return remote(); }) : remote()).then((im) => { r.img = im; r.ok = true; r.p = null; return true; }, () => { r.p = null; r.fails++; r.at = now() + 15000 * r.fails; return false; });
     return r.p;
   }
   /** 构图预设：按立绘的不透明区域算（每个 key 一次，用第一张加载好的图） */

@@ -1,5 +1,5 @@
 /* =========================================================
- * 小剧场：游戏内 Spine 小人（在线加载 PRTS 资源站的骨骼动画）
+ * 小剧场：游戏内 Spine 小人（官方骨骼动画；本站 assets/official/ 自带副本，本地没有时在线加载 PRTS 资源站）
  *  - 作战模型：登场 / 待机 / 攻击 / 技能
  *  - 基建模型：放松 / 走动 / 坐下 / 睡觉 / 互动
  *  - 「自由活动」：她会自己走来走去、坐下、打盹、和你互动
@@ -8,18 +8,33 @@
 window.CHIBI = (() => {
   const LIB = 'https://cdn.jsdelivr.net/gh/EsotericSoftware/spine-runtimes@3.8/spine-ts/build/spine-webgl.js';
   const ROOT = 'https://torappu.prts.wiki/assets/char_spine/';
+  // [self-host] 本站自带官方模型（assets/official/spine/ 镜像 torappu.prts.wiki/assets/ 的目录结构，与 js/mv/sd.js 共用同一批文件）。
+  // 本地优先：地址按本脚本自己的位置解析（js/chibi.js → ../assets/official/）；本地没有（404 / 出错）时静默退回 PRTS 原地址
+  const TORAPPU = 'https://torappu.prts.wiki/assets/';
+  const OFFICIAL = (() => {
+    try {
+      const me = document.currentScript || [...document.scripts].find((s) => /\/js\/chibi\.js(?:[?#]|$)/.test(s.src));
+      return (me && me.src ? new URL('../assets/official/', me.src) : new URL('assets/official/', location.href)).href;
+    } catch (e) { return ''; }
+  })();
+  const localMiss = new Set();
+  const localOf = (url) => (OFFICIAL && url.startsWith(TORAPPU) ? OFFICIAL + 'spine/' + url.slice(TORAPPU.length).split('?')[0] : '');
+  // [/self-host]
   let libP = null;
+  // 运行库也用本站自带的副本（assets/vendor/），加载失败再退回 jsDelivr
+  const LIB_LOCAL = OFFICIAL ? OFFICIAL.replace(/official\/$/, 'vendor/spine-webgl-3.8.js') : '';
   function loadLib() {
     if (window.spine) return Promise.resolve();
     if (!libP) {
-      libP = new Promise((res, rej) => {
+      const one = (src) => new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = LIB;
-        const to = setTimeout(() => { libP = null; rej(new Error('spine runtime timeout')); }, 25000);
+        s.src = src;
+        const to = setTimeout(() => { s.remove(); rej(new Error('spine runtime timeout')); }, 25000);
         s.onload = () => { clearTimeout(to); res(); };
-        s.onerror = () => { clearTimeout(to); libP = null; rej(new Error('spine runtime')); };
+        s.onerror = () => { clearTimeout(to); s.remove(); rej(new Error('spine runtime')); };
         document.head.appendChild(s);
       });
+      libP = (LIB_LOCAL ? one(LIB_LOCAL).catch(() => one(LIB)) : one(LIB)).catch((e) => { libP = null; throw e; });
     }
     return libP;
   }
@@ -39,15 +54,30 @@ window.CHIBI = (() => {
   };
   // 资源站偶尔整条连接挂住（既不成功也不报错）：给每次请求设个上限，超时就当失败，交给 retry 重试
   const TIMEOUT = 15000;
-  const fetchT = (url) => fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT) : undefined });
-  const loadImage = (src) => retry((i) => new Promise((res, rej) => {
+  const fetchT0 = (url) => fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT) : undefined });
+  // [self-host] 先取本地副本，不成（404 / 出错）再走原地址
+  const fetchT = async (url) => {
+    const lu = localOf(url);
+    if (lu && !localMiss.has(lu)) {
+      try { const r = await fetchT0(lu); if (r.ok) return r; } catch (e) { /* 退回 PRTS */ }
+      localMiss.add(lu);
+    }
+    return fetchT0(url);
+  };
+  const img1 = (src) => new Promise((res, rej) => {
     const im = new Image();
     im.crossOrigin = 'anonymous';
     const to = setTimeout(() => { im.src = ''; rej(new Error('texture timeout')); }, TIMEOUT);
     im.onload = () => { clearTimeout(to); res(im); };
     im.onerror = () => { clearTimeout(to); rej(new Error('texture')); };
-    im.src = i ? `${src}?r=${i}` : src;
-  }));
+    im.src = src;
+  });
+  const loadRemote = (src) => retry((i) => img1(i ? `${src}?r=${i}` : src));
+  const loadImage = (src) => {
+    const lu = localOf(src);
+    return lu && !localMiss.has(lu) ? img1(lu).catch(() => { localMiss.add(lu); return loadRemote(src); }) : loadRemote(src);
+  };
+  // [/self-host]
   const getBin = (url) => retry(() => fetchT(url).then((r) => { if (!r.ok) throw new Error('skel'); return r.arrayBuffer(); }));
   const getText = (url) => retry(() => fetchT(url).then((r) => { if (!r.ok) throw new Error('atlas'); return r.text(); }));
 
@@ -535,7 +565,7 @@ window.CHIBI = (() => {
         const lines = txt.split(/\r?\n/);
         lines.forEach((l, i) => {
           const name = l.trim();
-          if (name && /\.png$/i.test(name) && (i === 0 || !lines[i - 1].trim())) { const im = new Image(); im.crossOrigin = 'anonymous'; im.src = dir + name; }
+          if (name && /\.png$/i.test(name) && (i === 0 || !lines[i - 1].trim())) { const im = new Image(); im.crossOrigin = 'anonymous'; im.src = (localMiss.has(localOf(dir + name)) ? '' : localOf(dir + name)) || dir + name; /* [self-host] */ }
         });
       });
     }).catch(() => pre.delete(key));

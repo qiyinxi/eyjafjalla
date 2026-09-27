@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>export</title>
+<style>body { margin: 0; background: #000; }</style>
+</head>
+<body>
+<!--
+  离线逐帧导出（开发用，配合 lab/export.mjs）：?film=misty-memory-night&w=1920
+  载入影片与全部官方素材（Q 版小人、立绘、剧情立绘卡片、字体）后 document.title = READY；
+  window.__frame(t) 画出 t 秒的那一帧并返回 JPEG（base64，不带前缀）。画面是 t 的纯函数，所以可以多开几页分段并行渲染。
+-->
+<script src="../js/mv/engine.js"></script>
+<script src="../js/mv/cast.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const id = q.get('film') || 'misty-memory-night';
+  const W = +(q.get('w') || 1920), H = Math.round((W * 9) / 16);
+  const quality = +(q.get('q') || 0.95);
+  try {
+    const film = await MVE.load(id, '../js/mv/films/');
+    const an = await MVE.analysis(`../assets/music/${film.analysisId || id}.json`);
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    if (MVE.finish) MVE.finish.quality = 'high';
+    const R = MVE.renderer(cv, film, an, { reduced: false });
+    await R.prepare();
+    // 官方素材全部载好再开始（导出不能有“还没加载好、先用手绘顶上”的镜头）
+    const S = MVE.sd;
+    if (S) {
+      const keys = new Set(Array.isArray(film.sd) ? film.sd : []);
+      try { if (S.scanFilm) for (const k of S.scanFilm(film) || []) keys.add(k); } catch (e) { /* 无妨 */ }
+      // PRTS 偶尔断连：没就绪的反复重试，最多 10 分钟；还不行就报错，不渲染“手绘顶替”的版本
+      const t0 = performance.now();
+      for (;;) {
+        for (const k of S._models ? S._models.keys() : []) keys.add(k);
+        const miss = [...keys].filter((k) => { const v = S._models && S._models.get(k); return !(v && v.ready); });
+        if (!miss.length) break;
+        if (performance.now() - t0 > 600000) throw new Error('models not ready: ' + miss.join(','));
+        for (const k of miss) { const v = S._models && S._models.get(k); if (v) v.retryAt = 0; }
+        await S.load(miss, 60000);
+      }
+      // 剧情立绘卡片（凯勒等）：十种表情都先载好
+      if (S.card && S.card.load) {
+        for (const key of ['keller', 'dolly', 'snowsant']) { try { await S.card.load(key, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]); } catch (e) { /* 这部片没用到 */ } }
+      }
+    }
+    if (MVE.keyart && MVE.keyart.load) await MVE.keyart.load(['alter-e0', 'base-e0', 'base-e2', 'base-s1', 'base-s2'].filter((k) => (film.keyart || ['alter-e0']).includes(k)), 60000);
+    if (document.fonts) await document.fonts.ready;
+    // 预热：每个镜头画一帧，建好缓存、让“中途才加载好”的闸门都过去
+    for (const s of film.shots) { R.render(s.t0 + 0.01); R.render(s.t0 + 0.5); }
+    window.__dur = an.duration;
+    window.__frame = (t) => { R.render(t); return cv.toDataURL('image/jpeg', quality).slice(23); };
+    window.__info = () => ({ dur: an.duration, sd: S && S._models ? [...S._models.entries()].map(([k, v]) => k + (v.ready ? '' : ':NOT READY')) : [] });
+    document.title = 'READY';
+  } catch (e) {
+    document.title = 'ERR ' + (e && e.message);
+    window.__err = String(e && (e.stack || e));
+  }
+})();
+</script>
+</body>
+</html>

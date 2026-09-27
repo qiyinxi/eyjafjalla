@@ -14,7 +14,8 @@
 - 也可以用 `python -m http.server 5173`（没有压缩与分段，MV 的音乐会整段下载完再播）
 - 也可以直接双击 `index.html`（未验证）：部分浏览器在 `file://` 下会限制跨域图片，此时粒子与「活」立绘会自动退化为静态立绘
 
-需要联网：立绘、语音、字体、Spine 模型与实景照片均为在线加载（PRTS 资源站、jsDelivr、Google Fonts、Wikimedia Commons 等）。
+需要联网：立绘、语音、字体与实景照片均为在线加载（PRTS 资源站、jsDelivr、Google Fonts、Wikimedia Commons 等）。
+小剧场、桌宠与 MV 用到的官方 Spine 小人和 MV 里的剧情立绘卡片随站点一起放在 `assets/official/`，先取本地，本地缺文件时才退回 PRTS 资源站。
 资源没加载出来时页面不显示错误提示，而是隐藏对应内容、在后台悄悄重试。
 在地址后加 `?skip` 可跳过加载页；加 `?debug` 会在控制台暴露调试对象（`__pets`、`__hero`…）。
 
@@ -89,7 +90,7 @@
 | `js/puppet.js` | 分层绑定运行时：网格变形、骨骼、弹簧摆动、表情图层与动作 |
 | `js/live.js` | 整图变形（没有分层绑定时的退路） |
 | `js/dyn.js` | 官方动态立绘播放器（纯烬），资源经 GitHub 镜像 isHarryh/Ark-Models 加载 |
-| `js/chibi.js` | Spine 小人播放器（小剧场 / 桌宠 / 职业演示），运行时 spine-ts 3.8 由 jsDelivr 加载 |
+| `js/chibi.js` | Spine 小人播放器（小剧场 / 桌宠 / 职业演示），运行时 spine-ts 3.8 由 jsDelivr 加载；模型先取 `assets/official/`，缺文件时退回 PRTS |
 | `js/pet.js` | 桌宠的行为：沿视口四边的路径、抛体、拖拽、探头、挥手（程序化 IK）、标题线台阶、睡觉、跟随 |
 | `js/theater.js` · `css/theater.css` | 小剧场的八个场景（布景、会动的小部件、可点的道具）、台口与幕布；桌宠的补充样式 |
 | `js/story.js` · `js/story-art.js` · `css/story.css` | 故事区：分篇渲染、章节互动、信笺浮层、章节导航条、全景烘焙；分层插画（十六章 + 两幅整屏场景） |
@@ -109,13 +110,15 @@
 | `js/mv/engine.js` | MV 引擎：镜头表、转场、旁白字幕、按拍点 / 小节的时间工具、缓存层、视差层、粒子、柔光精灵、后期（颗粒、暗角、黑边、调色、漏光） |
 | `js/mv/cast.js` | MV 角色库（全部角色、姿势、表情、道具、锚点） |
 | `js/mv/keyart.js` | MV 里的“官方立绘特写”：用 `assets/puppet/` 的分层绑定在 MV 画面里实时驱动官方原画（眨眼、呼吸、风、镜头推移、调色），完全由时间决定、可任意跳转；没有 WebGL 时影片自动换回角色库的画面 |
-| `js/mv/sd.js` | MV 里的官方 Q 版小人：游戏里的 Spine 骨骼动画（艾雅法拉两种形态、芳汀、「火山旅梦」的粉色小羊与多利、客串的汐斯塔干员），从 PRTS 资源站实时加载，姿势完全由时间决定、可任意跳转；角色库里能对应上的动作自动换成官方小人，对应不上的镜头退回手绘；另有官方剧情立绘卡片（凯勒、多利、雪雉） |
+| `assets/vendor/spine-webgl-3.8.js` | Spine 运行库（spine-ts 3.8，Esoteric Software）的本站副本；加载失败时退回 jsDelivr |
+| `js/mv/sd.js` | MV 里的官方 Q 版小人：游戏里的 Spine 骨骼动画（艾雅法拉两种形态、芳汀、「火山旅梦」的粉色小羊与多利、客串的汐斯塔干员），模型与立绘先取本站 `assets/official/`、缺文件时退回 PRTS 资源站，姿势完全由时间决定、可任意跳转；角色库里能对应上的动作自动换成官方小人，对应不上的镜头退回手绘；另有官方剧情立绘卡片（凯勒、多利、雪雉） |
 | `js/mv/finish.js` · `js/mv/FINISH.md` | MV 精修工具：泛光、分段调色（含只保留红色的去饱和、双色调）、纸张 / 水彩 / 涟漪 / 等高线纹理、漏光 / 镜头光晕、散景、雾气与光束、景深层、片名排版 |
 | `js/mv/films/*.js` | 五支影片：镜头、章节、旁白、片头片尾（影片用 `needs: ['keyart', 'finish']` 声明依赖，引擎按需加载） |
 | `js/mv/player.js` · `css/mv.css` | 「影像」区块、播放器、迷你播放条、导出视频 |
 | `js/mv/BIBLE.md` | MV 的创作圣经：故事总纲、美术方向、角色、技术要点与性能预算 |
 | `assets/music/` | 五首歌（mp3）与各自的节拍 / 结构分析（json） |
 | `assets/puppet/<key>/` | 分层绑定的图集与绑定数据（由 `tools/puppet/build.py` 生成） |
+| `assets/official/` | 官方素材的本站副本（© Hypergryph，来源地址见其中的 README）：`spine/` 是 Spine 小人（`.skel` / `.atlas` / `.png` 与 `meta.json`，目录结构与 `torappu.prts.wiki/assets/` 一致：`char_spine/<干员>/…`、`enemy_spine/<敌人>/…`），`avg/` 是 MV 用的剧情立绘卡片（webp，512 宽与原尺寸两档） |
 | `tools/puppet/` | 绑定工具：`build.py`（切图、补画、打包）、`preview.py`（标注预览）、`rigs/*.json`（绑定源文件），说明见其中的 README |
 | `lab/` | 开发用：`puppet.html`（逐帧检查绑定）、`theater.html`（剧场布景一览：`?form=&skins=&group=&sizes=`）、`story.html`（故事区分层插画一览：`?form=&names=&x=状态类&w=`）、`shot.ps1`（截图）、`cdp.mjs`（截图、性能追踪、模拟鼠标）、`sound.html`（声景试听台：逐个场景与音效，也用来单独测声音的 CPU）、`mv.html`（MV 单帧 / 联系表 / 性能：`?film=&t=` `&strip=auto` `&perf=1`）、`cast.html`（MV 角色定妆照）、`keyart.html`（官方立绘特写预览 / 性能）、`sd.html`（官方 Q 版小人：模型 × 动画、走路配速、影片逐镜头审计 `?film=<id>&audit=1`）、`finish.html`（精修效果前后对比：`?sheet=<film>`）、`audio-analyze.html` + `analyze-songs.mjs`（歌曲结构分析，写出 `assets/music/*.json`）、`plot-songs.py`（结构图） |
 
@@ -123,5 +126,6 @@
 
 《明日方舟》及相关角色、立绘、语音的著作权归上海鹰角网络科技有限公司所有；本页仅供个人欣赏与学习交流。
 数值参考 PRTS Wiki 与萌娘百科；火山实景照片来自 Wikimedia Commons（作者与许可证见页面标注）。
+`assets/official/` 里的官方 Spine 模型（Q 版小人）与剧情立绘同样 © Hypergryph（上海鹰角网络），取自 PRTS 资源站，未作修改；放在本站只是为了让小剧场与 MV 加载得稳定，仅作非商业的同人展示之用。权利方要求时即删除。
 小剧场使用 Esoteric Software 的 spine-ts 3.8 运行时，受 [Spine Runtimes License](https://esotericsoftware.com/spine-runtimes-license) 约束。
 「影像」里的五支 MV 是本页原创的同人影像，与官方无关；五首歌曲的著作权归 塞壬唱片-MSR / 鹰角网络，放在 `assets/music/` 里仅供个人欣赏，请勿把本页连同音乐公开发布。
