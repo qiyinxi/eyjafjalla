@@ -95,6 +95,16 @@ lab/puppet.html + lab/shot.ps1 ← 无头截图检查动作效果
 | fill `{ "poly", "cv": "telea" \| "ns" \| "patch" }` | fill | OpenCV 补画（可选，只在用到时导入）：`telea` / `ns` 沿等照度线延续，比推拉插值锐利；`patch` 从本层完好的区域整块复制纹理（布料褶皱、发丝），适合法杖挥开后露出的大片区域。可调 `radius`、`patch`、`search`、`guide`、`vote`、`stride` |
 | paint fill `{ "ellipse": [cx, cy, rx, ry, rot] }`、`"color2"`、`"axis"`、`"alpha"` | paint | 椭圆、线性渐变、半透明（腮红、张嘴） |
 
+### v3：剧情立绘（avg）绑定 —— keller / snowsant / dolly / lamb-black
+
+| 字段 | 位置 | 作用 |
+| --- | --- | --- |
+| `"overlay": { "src": "Avg_avg_npc_999_1-3$1.png", "within": "face", "ellipses": [[cx,cy,rx,ry]], "poly": …, "feather": 1.5 }` | 图层 | 表情差分覆盖层：从同构图的另一张官方立绘里取一块（`within` = 只取该图层认领的区域，跟它同一套形变，边界一致）。不认领像素、不遮挡下层。差分图按 PRTS 的 md5 路径自动下载到 `.cache/avg/`。配 `"show": "e3"` 由运行时的 `expr` 驱动；闭眼 / 张嘴的差分配 `show: blink / talk`，眨眼和说话的嘴型就是官方画的 |
+| `"select": { "lumMax": 0.5, "close": 4, "grow": 2, "largest": 1, "soft": 0.8 }` | 图层 | 按颜色自动选区：poly 圈大致范围，只认领亮度 / 饱和度在范围内的像素（多利粉云里的深色羊脸、王冠） |
+| `params.exprs` / `params.exprNoBlink` | params | 表情列表（实验页 `?sheet=<key>` 逐个出图）；这些表情本身闭着眼，出现时不再眨眼 |
+
+运行时（js/mv/keyart.js）：`expr: 3 | [[t, 3], [t, 9]]`（关键帧，交叉淡化 `xfade`）、`mouth: MVE.keyart.talk([[t0, t1]])`、`glint`（镜片反光）、`states: { 名字: 值 }`。
+
 表情需要的合成图层（原画里没有，要自己画）：
 - **闭眼线**（`show: blinkL/blinkR`）：沿下眼睑的弧线，颜色取睫毛色。
 - **开心眯眼**（`show: happy`，同时睁眼图层 `hide: happy`）：∩ 形弧线，下层要补好肤色。

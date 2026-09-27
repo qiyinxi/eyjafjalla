@@ -66,6 +66,10 @@
     if (q.has('tint')) { const [c, a] = q.get('tint').split(','); p.tint = [c, a == null ? 0.4 : +a]; }
     if (q.has('rim') || q.has('wash') || q.has('lcol') || q.has('ldir')) p.light = { color: q.get('lcol') || '#ffe2bc', rim: num('rim', 0.6), wash: num('wash', 0.1), dir: pair('ldir') || [0.7, -0.7] };
     if (q.get('flip') === '1') p.flip = true;
+    // [v3] 表情差分：&expr=3 或 &expr=0:1,1.5:3,3:8（关键帧 t:表情）；&glint=1
+    if (q.has('expr')) { const e = q.get('expr'); p.expr = e.includes(':') ? e.split(',').map((s) => s.split(':').map(Number)) : isNaN(+e) ? e : +e; }
+    if (q.has('glint')) p.glint = +q.get('glint');
+    if (q.has('talk')) { const [a, b] = q.get('talk').split(',').map(Number); p.mouth = K.talk([[a, b]]); }
     return p;
   }
   try {
@@ -226,7 +230,17 @@
       } else {
         const key = keys[0];
         const cr = K.crops(key) || {};
-        for (const c of Object.keys(cr)) cells.push({ key, label: `${key} · ${c}`, p: { crop: c, fit: c === 'full' ? 'contain' : 'cover' } });
+        for (const c of Object.keys(cr)) cells.push({ key, label: `${key} · ${c}`, p: { crop: c, fit: c === 'full' || c === 'figure' ? 'contain' : 'cover' } });
+        // [v3] 剧情立绘绑定：每个表情差分 + 说话 / 反光
+        const rp = (K._rig(key) && K._rig(key).rig && K._rig(key).rig.params) || {};
+        const ec = q.get('ecrop') || 'bust';
+        if (rp.exprs) {
+          cells.push({ key, label: `${ec} · expr 1（本体）`, p: { crop: ec, fit: 'cover', blink: 0 } });
+          for (const e of rp.exprs) cells.push({ key, label: `${ec} · expr ${e}`, p: { crop: ec, fit: 'cover', expr: e, blink: 0 } });
+          cells.push({ key, label: `${ec} · talk 0.3`, p: { crop: ec, fit: 'cover', mouth: 0.3, blink: 0 } });
+          cells.push({ key, label: `${ec} · talk 0.9`, p: { crop: ec, fit: 'cover', mouth: 0.9, blink: 0 } });
+          cells.push({ key, label: `${ec} · expr 8 + glint`, p: { crop: ec, fit: 'cover', expr: 8, glint: 1, blink: 0 } });
+        }
         cells.push({ key, label: 'face · look ←', p: { crop: 'face', fit: 'cover', look: [-1, 0] } });
         cells.push({ key, label: 'face · look → down', p: { crop: 'face', fit: 'cover', look: [1, 0.6] } });
         cells.push({ key, label: 'face · tilt', p: { crop: 'face', fit: 'cover', tilt: 1 } });

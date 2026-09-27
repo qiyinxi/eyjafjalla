@@ -98,7 +98,7 @@ window.MVP = (() => {
       ],
       cast: [
         { who: 'adele-alter', o: { outfit: 'coat' }, role: '主角 · 在博物馆睡着了' },
-        { who: 'sheep-pink', o: { glow: 0.8 }, role: '领她走进梦里' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1344_ddlamb' }, role: '领她走进梦里' },
         { who: 'dolly', role: '雾里的大粉羊' },
         { who: 'sheep-black', o: { tie: true }, role: '打着小红领带的小黑羊' },
         { who: 'sheep-black', o: { scarf: true }, role: '围着白围巾的小黑羊' },
@@ -117,9 +117,9 @@ window.MVP = (() => {
       ],
       cast: [
         { who: 'adele-alter', o: { outfit: 'coat', prop: 'staff' }, role: '主角 · 穿着母亲的外套' },
+        { who: 'sheep-black', role: '一路跟着她上山' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1345_tplamb' }, role: '夜里为她引路' },
         { who: 'keller', role: '收信的凯勒老师' },
-        { who: 'doctor', role: '她口中的“前辈”' },
-        { who: 'sheep-pink', o: { glow: 0.8 }, role: '夜里为她引路' },
         { who: 'magna', o: { outfit: 'field', sil: '#6a5a6e', rim: '255,236,214', rimGlow: 0.25 }, role: '母亲（回忆）' },
         { who: 'katia', o: { outfit: 'field', sil: '#5a5064', rim: '255,236,214', rimGlow: 0.25 }, role: '父亲（回忆）' },
       ],
@@ -138,7 +138,7 @@ window.MVP = (() => {
         { who: 'adele-alter', o: { outfit: 'coat' }, role: '主角 · 来汐斯塔帮忙' },
         { who: 'keller', role: '邀她来汐斯塔的凯勒老师' },
         { who: 'dolly', role: '提出交易的大粉羊' },
-        { who: 'sheep-pink', o: { glow: 0.8 }, role: '只有她看得见' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1350_mgcshp_2' }, role: '只有她看得见' },
       ],
     },
     {
@@ -192,7 +192,7 @@ window.MVP = (() => {
     ],
     dayNote: '番外可以单独看；按时间线接着看第二部，会发现那只箱子是怎么来的。',
     tech: '五支 MV 都是本页用代码即时画出来的动画（Canvas 2D），镜头随音乐的拍点与段落切换；角色用的是游戏里的官方 Q 版小人（Spine 骨骼动画，实时驱动），几个情绪最浓的特写用本站分层绑定好的官方立绘——她会眨眼、呼吸，头发随风飘。',
-    note: 'MV 为本页原创同人影像，与官方无关；Q 版小人与立绘为官方素材（© Hypergryph），在线加载；音乐版权归 塞壬唱片-MSR / 鹰角网络',
+    note: 'MV 为本页原创同人影像，与官方无关；Q 版小人与立绘为官方素材（© Hypergryph，本站自带副本）；音乐版权归 塞壬唱片-MSR / 鹰角网络',
   };
 
   /* ---------------------------------------------------- 模块状态 */
@@ -1325,67 +1325,167 @@ window.MVP = (() => {
     if (img && img.getAttribute('src') !== art[id].poster) { img.onload = () => img.classList.add('ok'); img.src = art[id].poster; }
     if (id === cur) { miniSync(); mediaSession(); }
   }
-  /** 人物小像：人物用角色库的胸像取景（240×300）；羊与多利画全身，按不透明像素裁切后缩进 120×150。都转成 PNG 的 Blob URL 缓存 */
-  function figure(c) {
-    const key = c.who + '|' + JSON.stringify(c.o || {});
+  /*
+   * 人物小像（240×300，4:5）：[v3] 全部用官方形象——
+   *   有官方 Q 版小人的角色（阿黛尔、芳汀……）→ 官方 Spine 小人的胸像；
+   *   凯勒、雪雉（夏装）、多利、小黑羊 → 官方剧情立绘的分层绑定（MVE.keyart）取胸像；
+   *   粉色小羊 → 官方敌人 Spine 的全身；父母 → 无脸的逆光剪影（没有官方形象，按用户的意思只给剪影）。
+   * 统一的取景（头顶留 6% 余量）、同一种柔和的底（本片主题色的光晕 + 渐变 + 轻暗角）；不再画角色库的手绘脸。
+   * 转成 PNG 的 Blob URL 缓存（key 含主题色）
+   */
+  const RIGFIG = {
+    keller: { key: 'keller', crop: [399, -16, 226, 282.5], o: { expr: 8, look: [-0.2, 0.05], blink: 0 } },
+    snowsant: { key: 'snowsant', crop: [364, -8, 228, 285], o: { expr: 8, look: [0.1, 0.05], blink: 0 } },
+    dolly: { key: 'dolly', crop: [322, 28, 540, 675], o: { look: [-0.25, 0.25], blink: 0 } },
+    'sheep-black': { key: 'lamb-black', crop: [22, -4, 350, 437.5], o: { look: [0.15, 0.1], blink: 0 } },
+  };
+  /** 官方剧情立绘剪纸（没有 WebGL 时的退路）：MVE.sd.card 的 key 与取景 */
+  const CARDFIG = { keller: ['keller', 'bust', 8], snowsant: ['snowsant', 'bust', 1], dolly: ['dolly', 'full', 0], 'sheep-black': ['lamb-black', 'full', 0] };
+  const SILHOUETTE = { magna: 1, katia: 1, doctor: 1, crowd: 1 };
+  const modP = {};
+  /** 按需载入 js/mv/<name>.js（sd：官方 Q 版小人；keyart：立绘绑定）；只 resolve */
+  function mod(name) {
+    if (window.MVE && window.MVE[name]) return Promise.resolve(true);
+    if (!modP[name]) modP[name] = loadScript(`js/mv/${name}.js`).then(() => !!(window.MVE && window.MVE[name]), () => { modP[name] = null; return false; });
+    return modP[name];
+  }
+  const rgbOf = (hex) => { const h = String(hex || '#ff8cc6').replace('#', ''); const v = parseInt(h.length === 3 ? h.replace(/./g, '$&$&') : h, 16) || 0; return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
+  /** 小像的底：主题色的柔光（头部后面）+ 上浅下深的渐变 + 轻暗角 */
+  function figBack(q, W, H, acc, dark) {
+    const [r, g, b] = rgbOf(acc);
+    const lg = q.createLinearGradient(0, 0, 0, H);
+    lg.addColorStop(0, dark ? 'rgba(18,14,30,1)' : `rgba(${Math.round(r * 0.18 + 28)},${Math.round(g * 0.18 + 22)},${Math.round(b * 0.18 + 38)},1)`);
+    lg.addColorStop(1, `rgba(${Math.round(r * 0.42 + 14)},${Math.round(g * 0.42 + 10)},${Math.round(b * 0.42 + 24)},1)`);
+    q.fillStyle = lg; q.fillRect(0, 0, W, H);
+    const rg = q.createRadialGradient(W * 0.5, H * 0.34, 0, W * 0.5, H * 0.34, W * 0.72);
+    rg.addColorStop(0, `rgba(${r},${g},${b},0.55)`); rg.addColorStop(0.45, `rgba(${r},${g},${b},0.2)`); rg.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    q.fillStyle = rg; q.fillRect(0, 0, W, H);
+    const hl = q.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, W * 0.36);
+    hl.addColorStop(0, 'rgba(255,248,240,0.22)'); hl.addColorStop(1, 'rgba(255,248,240,0)');
+    q.fillStyle = hl; q.fillRect(0, 0, W, H);
+  }
+  function figFinish(q, W, H) {
+    const vg = q.createRadialGradient(W * 0.5, H * 0.45, H * 0.35, W * 0.5, H * 0.5, H * 0.78);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.32)');
+    q.fillStyle = vg; q.fillRect(0, 0, W, H);
+  }
+  /** 不透明像素的包围盒（隔两个像素取样） */
+  function bbox(g, W, H) {
+    const im = g.getImageData(0, 0, W, H).data;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (im[(y * W + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    return x1 < 0 ? null : { x0, y0, x1, y1, im };
+  }
+  function figure(c, acc) {
+    const key = c.who + '|' + JSON.stringify(c.o || {}) + '|' + (acc || '');
     if (!figs.has(key)) figs.set(key, (async () => {
       await lib();
       const E = window.MVE;
-      if (!E.cast || !E.cast.draw) return null;
       await idleP();
-      const sheep = /sheep|dolly/.test(c.who);
-      // 有官方 Q 版小人（MVE.sd）的角色：画官方小人的全身，再按不透明像素取上半身做成胸像
-      if (!sheep && E.sd && E.sd.decide && E.sd.load && E.sd.draw) {
+      const PW = 240, PH = 300, out = E.mk(PW, PH), q = out.getContext('2d');
+      q.imageSmoothingQuality = 'high';
+      const who = c.who, o0 = c.o || {};
+      const sil = SILHOUETTE[who] || !!o0.sil;
+      figBack(q, PW, PH, acc, sil);
+      let ok = false;
+      // 1) 官方剧情立绘的分层绑定：直接按 4:5 的胸像取景画进来
+      const RF = RIGFIG[who];
+      if (!ok && RF && !sil) {
         try {
-          const oo = Object.assign({ pose: 'stand', t: 1.3 }, c.o || {});
-          const dd = E.sd.decide(c.who, oo);
-          if (dd && dd.key && (await E.sd.load(dd.key, 12000))) {
-            const W = 440, H = 600, cv = E.mk(W, H), g = cv.getContext('2d', { willReadFrequently: true });
-            if (E.sd.frame) E.sd.frame('figure:' + key);
-            if (E.sd.draw(g, dd.key, { x: W / 2, y: H - 16, h: 520, t: 1.3, anim: dd.anim || 'Relax', solo: true })) {
-              const im = g.getImageData(0, 0, W, H).data;
-              let x0 = W, y0 = H, x1 = -1, y1 = -1;
-              for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (im[(y * W + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-              if (x1 > 0) {
-                // 胸像：从头顶往下取整个人高度的 58%，宽高比 4:5，水平方向以头部附近的不透明像素为中心
-                const bh = (y1 - y0) * 0.58, bw = bh * 0.8;
-                let hx0 = W, hx1 = -1;
-                for (let y = y0; y < y0 + bh * 0.5; y += 2) for (let x = 0; x < W; x += 2) if (im[(y * W + x) * 4 + 3] > 24) { if (x < hx0) hx0 = x; if (x > hx1) hx1 = x; }
-                const cx = hx1 > 0 ? (hx0 + hx1) / 2 : (x0 + x1) / 2, sy = Math.max(0, y0 - bh * 0.04);
-                const out = E.mk(240, 300), q = out.getContext('2d');
-                q.imageSmoothingQuality = 'high';
-                q.drawImage(cv, cx - bw / 2, sy, bw, bh, 0, 0, 240, 300);
-                return toUrl(out, 'image/png');
+          if (await mod('keyart')) {
+            const K = E.keyart;
+            if (await K.load(RF.key, 15000)) {
+              const lay = E.mk(PW, PH), lq = lay.getContext('2d');
+              ok = K.draw(lq, RF.key, Object.assign({ t: 2.2, crop: RF.crop, fit: 'cover', box: [0, 0, PW, PH], wind: 0.15, sharpen: 0.6 }, RF.o, o0.tie ? { look: [0.25, 0.1] } : o0.scarf ? { look: [-0.2, 0.12], flip: true } : {}));
+              if (ok) {
+                // 画布坐标 = 设计坐标（1920×1080）× 当前变换：lay 是 240×300，box 直接给像素，所以先把变换设成 1:1
+                q.drawImage(lay, 0, 0);
+                if (who === 'sheep-black' && (o0.tie || o0.scarf)) lambProp(q, K, RF, o0, PW, PH);
               }
             }
           }
-        } catch (e) { dlog('figure sd', c.who, e); /* 退回手绘 */ }
+        } catch (e) { dlog('figure rig', who, e); ok = false; }
       }
-      // 人物：角色库的胸像取景（crop: 'bust'，y = 画面底边，h = 底边到头顶；角 / 呆毛 / 光环在上面留出余量）
-      if (!sheep) {
-        const PW = 240, PH = 300, pc = E.mk(PW, PH), pg = pc.getContext('2d');
-        const po = Object.assign({ x: PW / 2, y: PH + 2, h: PH * 0.74, t: 1.3, pose: 'stand', expr: 'smile', look: [0.3, -0.05] }, c.o || {}, { crop: 'bust' });
-        try { E.cast.draw(pg, c.who, po); } catch (e) { return null; }
-        return toUrl(pc, 'image/png');
+      // 2) 立绘剪纸（设备不支持 WebGL 时）
+      const CF = CARDFIG[who];
+      if (!ok && CF && !sil) {
+        try {
+          if ((await mod('sd')) && E.sd.card && (await E.sd.card.load(CF[0], CF[2] || 1))) {
+            const lay = E.mk(PW, PH), lq = lay.getContext('2d');
+            const hh = CF[1] === 'full' ? PH * 0.92 : PH * 1.12;
+            if (E.sd.card(lq, CF[0], { x: PW / 2, y: CF[1] === 'full' ? PH - 6 : PH * 1.04, h: hh, crop: CF[1], expr: CF[2] || undefined, t: 2, breath: 0, fade: 0 })) { q.drawImage(lay, 0, 0); ok = true; }
+          }
+        } catch (e) { dlog('figure card', who, e); }
       }
-      // 用官方模型的小羊 / 多利（o.sd）：先把模型载好，不然这一次会画成手绘版
-      if (E.sd && E.sd.decide && c.o && c.o.sd) {
-        try { const dd = E.sd.decide(c.who, Object.assign({ pose: 'stand' }, c.o)); if (dd && dd.key) { await E.sd.load(dd.key, 12000); if (E.sd.frame) E.sd.frame('figure:' + key); } } catch (e) { /* 退回手绘 */ }
+      // 3) 官方 Q 版小人（人物：胸像；粉色小羊：全身）
+      if (!ok && !sil && who !== 'dolly' && who !== 'sheep-black' && (await mod('sd')) && E.sd && E.sd.decide && E.sd.load && E.sd.draw) {
+        try {
+          const lamb = who === 'sheep-pink';
+          const oo = Object.assign({ pose: 'stand', t: 1.3 }, o0, lamb ? { sd: true, variant: o0.variant || 'enemy_1345_tplamb' } : {});
+          const dd = E.sd.decide(who, oo);
+          if (dd && dd.key && (await E.sd.load(dd.key, 12000))) {
+            const W = 440, H = 600, cv = E.mk(W, H), g = cv.getContext('2d', { willReadFrequently: true });
+            if (E.sd.frame) E.sd.frame('figure:' + key);
+            if (E.sd.draw(g, dd.key, { x: W / 2, y: H - 16, h: lamb ? 300 : 520, t: 1.3, anim: dd.anim || (lamb ? 'Idle' : 'Relax'), solo: true })) {
+              const B = bbox(g, W, H);
+              if (B) {
+                if (lamb) {
+                  // 小羊：整只放进来，底边留一点地面，左右居中
+                  const m = 0.8, bw = B.x1 - B.x0 + 8, bh = B.y1 - B.y0 + 8, s = Math.min((PW * m) / bw, (PH * 0.7) / bh);
+                  q.drawImage(cv, B.x0 - 4, B.y0 - 4, bw, bh, (PW - bw * s) / 2, PH * 0.9 - bh * s, bw * s, bh * s);
+                } else {
+                  // 胸像：从头顶往下取整个人高度的 58%，4:5，水平方向以头部附近的不透明像素为中心；头顶留 6%
+                  const bh = (B.y1 - B.y0) * 0.58, bw = bh * 0.8;
+                  let hx0 = W, hx1 = -1;
+                  for (let y = B.y0; y < B.y0 + bh * 0.5; y += 2) for (let x = 0; x < W; x += 2) if (B.im[(y * W + x) * 4 + 3] > 24) { if (x < hx0) hx0 = x; if (x > hx1) hx1 = x; }
+                  const cx = hx1 > 0 ? (hx0 + hx1) / 2 : (B.x0 + B.x1) / 2, sy = B.y0 - bh * 0.06;
+                  q.drawImage(cv, cx - bw / 2, sy, bw, bh, 0, 0, PW, PH);
+                }
+                ok = true;
+              }
+            }
+          }
+        } catch (e) { dlog('figure sd', who, e); }
       }
-      const W = 420, H = 520, cv = E.mk(W, H), g = cv.getContext('2d', { willReadFrequently: true });
-      const o = Object.assign({ x: W / 2, y: H - 24, h: c.who === 'dolly' ? 150 : sheep ? 150 : 420, t: 1.3, pose: 'stand', expr: 'smile', look: [0.3, 0] }, c.o || {});
-      try { E.cast.draw(g, c.who, o); } catch (e) { return null; }
-      const im = g.getImageData(0, 0, W, H).data;
-      let x0 = W, y0 = H, x1 = -1, y1 = -1;
-      for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (im[(y * W + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-      if (x1 < 0) return null;
-      x0 = Math.max(0, x0 - 6); y0 = Math.max(0, y0 - 6); x1 = Math.min(W, x1 + 8); y1 = Math.min(H, y1 + 8);
-      const out = E.mk(120, 150), q = out.getContext('2d'), s = Math.min(120 / (x1 - x0), 150 / (y1 - y0)), w = (x1 - x0) * s, h = (y1 - y0) * s;
-      q.imageSmoothingQuality = 'high';
-      q.drawImage(cv, x0, y0, x1 - x0, y1 - y0, (120 - w) / 2, 150 - h, w, h);
+      // 4) 剪影（父母、博士、路人；以及上面都不可用时）：只有轮廓与逆光，没有脸
+      if (!ok && E.cast && E.cast.draw) {
+        try {
+          const lay = E.mk(PW, PH), lq = lay.getContext('2d');
+          const [r, g, b] = rgbOf(acc);
+          // 全身的逆光剪影（像片中“回忆”里的父母那样站在光里），比胸像的一团轮廓更好认
+          const rim = o0.rim || `${Math.min(255, r + 70)},${Math.min(255, g + 60)},${Math.min(255, b + 60)}`;
+          const po = Object.assign({ x: PW / 2, y: PH * 0.97, h: PH * 0.86, t: 1.3, pose: 'stand', look: [0.3, -0.05] }, o0, { crop: undefined, sil: '#1e1828', rim, rimW: 1.4, rimGlow: 0.35 });
+          E.cast.draw(lq, who, po);
+          const gl = q.createRadialGradient(PW / 2, PH * 0.42, 0, PW / 2, PH * 0.42, PW * 0.5);
+          gl.addColorStop(0, `rgba(${rim},0.45)`); gl.addColorStop(1, `rgba(${rim},0)`);
+          q.fillStyle = gl; q.fillRect(0, 0, PW, PH);
+          q.drawImage(lay, 0, 0);
+          ok = true;
+        } catch (e) { return null; }
+      }
+      if (!ok) return null;
+      figFinish(q, PW, PH);
       return toUrl(out, 'image/png');
     })().catch(() => null));
     return figs.get(key);
+  }
+  /** 小黑羊（爸爸羊 / 妈妈羊）的小红领带 / 白围巾：画在官方立绘的脖子上（锚点 neck） */
+  function lambProp(q, K, RF, o0, PW, PH) {
+    const A = K.anchors(RF.key, Object.assign({ t: 2.2, crop: RF.crop, fit: 'cover', box: [0, 0, PW, PH] }, RF.o, o0.scarf ? { flip: true } : {}));
+    if (!A || !A.neck) return;
+    const [x, y] = A.neck, k = A.k || 0.6;
+    q.save(); q.translate(x, y); q.scale(k * 1.6, k * 1.6);
+    if (o0.tie) {
+      q.fillStyle = '#d8323c'; q.strokeStyle = '#6a1018'; q.lineWidth = 1.6;
+      q.beginPath(); q.moveTo(-9, -4); q.lineTo(9, -4); q.lineTo(4, 6); q.lineTo(-4, 6); q.closePath(); q.fill(); q.stroke();
+      q.beginPath(); q.moveTo(-4, 6); q.lineTo(4, 6); q.lineTo(9, 34); q.lineTo(0, 44); q.lineTo(-9, 34); q.closePath(); q.fill(); q.stroke();
+      q.fillStyle = 'rgba(255,255,255,0.25)'; q.fillRect(-2, 10, 3, 22);
+    } else {
+      q.fillStyle = '#f6f2ec'; q.strokeStyle = '#8a8490'; q.lineWidth = 1.6;
+      q.beginPath(); q.ellipse(0, 0, 34, 11, 0.06, 0, Math.PI * 2); q.fill(); q.stroke();
+      q.beginPath(); q.moveTo(12, 4); q.quadraticCurveTo(22, 20, 16, 40); q.lineTo(28, 38); q.quadraticCurveTo(30, 18, 22, 4); q.closePath(); q.fill(); q.stroke();
+    }
+    q.restore();
   }
 
   /* ---------------------------------------------------- 区块 HTML */
@@ -1526,7 +1626,7 @@ window.MVP = (() => {
         <dl class="mi-cr">
           <div><dt>歌曲</dt><dd>${esc(m.en)}<small>${esc(m.artists)}</small></dd></div>
           <div><dt>影像</dt><dd>本页原创<small>Canvas 2D 实时渲染 · 画面随音乐的拍点与段落生成</small></dd></div>
-          ${data[cur] && data[cur].own && Array.isArray(data[cur].def.needs) && data[cur].def.needs.includes('sd') ? '<div><dt>Q 版小人</dt><dd>官方 Spine 模型<small>© Hypergryph · 从 PRTS 资源站实时加载，按镜头逐帧驱动</small></dd></div>' : ''}
+          ${data[cur] && data[cur].own && Array.isArray(data[cur].def.needs) && data[cur].def.needs.includes('sd') ? '<div><dt>Q 版小人</dt><dd>官方 Spine 模型<small>© Hypergryph · 本站自带副本，按镜头逐帧驱动</small></dd></div>' : ''}
           ${data[cur] && data[cur].own && Array.isArray(data[cur].def.needs) && data[cur].def.needs.includes('keyart') ? '<div><dt>立绘特写</dt><dd>官方原画<small>© Hypergryph · 本页分层绑定，实时驱动</small></dd></div>' : ''}
           <div><dt>角色与世界观</dt><dd>《明日方舟》<small>© Hypergryph · 鹰角网络</small></dd></div>
         </dl>
@@ -1621,7 +1721,7 @@ window.MVP = (() => {
     if (!el.info || !cur || !(window.MVE && window.MVE.cast)) return;
     const m = meta(cur), id = cur;
     m.cast.forEach((c, i) => {
-      figure(c).then((url) => {
+      figure(c, m.accent).then((url) => {
         if (!url || id !== cur) return;
         const li = $(`.mi-c[data-fig="${i}"]`, el.info);
         const img = li && $('img', li);

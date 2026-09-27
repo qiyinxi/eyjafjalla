@@ -4416,7 +4416,8 @@
       onAdele: (q) => { if (fall > 0) blanket(q, back[0], back[1] - 20, t, fall, 300); },
       onDesk: (q) => {
         bottle(q, s, 1440, RM.desk[2] - 4, 120, 0); fizz(q, t, { t0: s.shot.t0 - 2, x: 1440, y: RM.desk[2] - 118, n: 16, dur: 12, speed: 30, r: 3.5, rise: 40, life: 2.4, spread: 0.3, seed: 401 }); labelCard(q, 1238, RM.desk[2] - 8, 0.9, s, 1, { hoof: true });
-        kellerCard(q, s, 1720, 1040, 580, [[s.shot.t0, 7], [s.shot.t0 + 2.2, 2]], ease.out(clamp(lt / 0.9)));
+        // 凯勒走进晨光里，低头看她（镜片上一闪阳光），轻轻合上眼笑
+        kellerCard(q, s, 1720, 1040, 580, [[s.shot.t0 - 1, 7], [s.shot.t0 + 2.2, 2]], ease.out(clamp(lt / 0.9)), { look: (tt) => { const u = clamp((tt - s.shot.t0 - 0.4) / 1.4); const e = u * u * (3 - 2 * u); return [lerp(-0.1, -0.55, e), lerp(0.05, 0.4, e)]; }, glint: (tt) => E.window01(tt - s.shot.t0, 0.7, 1.5, 0.25, 0.4), tilt: -0.35 });
       },
     });
     vig(g, s, 0.4);
@@ -4425,9 +4426,14 @@
    * 凯勒馆长：官方剧情立绘（MVE.sd.card，胸像）像剧情里那样站在画面右边（从右边滑进来 + 淡入）。
    * (x, y) 立绘底边中点（房间的世界坐标），h 高；expr 表情关键帧；k 进场 0..1。立绘没加载好时画角色库的凯勒（手绘）
    */
-  function kellerCard(q, s, x, y, h, expr, k = 1) {
+  function kellerCard(q, s, x, y, h, expr, k = 1, ro = {}) {
     const S = window.MVE && window.MVE.sd;
     if (k <= 0.01) return;
+    // [v3] 首选：凯勒立绘的分层绑定（眨眼、转头、官方差分表情与嘴型、镜片反光），构图与立绘卡片的 bust 一致
+    if (kellerRigOk(s)) {
+      const K = KA();
+      if (K.draw(q, 'keller', { t: s.t, crop: KR_BUST, x: x + (1 - k) * 160, y, h, ax: 0.5, ay: 1, alpha: k, expr, xfade: 0.25, look: ro.look, mouth: ro.mouth, glint: ro.glint, tilt: ro.tilt, wind: 0.12, tint: ['#fff0e0', 0.15] })) return;
+    }
     const o = { crop: 'bust', x: x + (1 - k) * 160, y, h, t: s.t, expr, alpha: k, breath: 1, light: { color: '#fff0e0', amount: 0.15 } };
     if (kellerOk(s, expr) && S.card(q, 'keller', o)) return;
     // 立绘没加载好（资源站连不上）：不画手绘的凯勒（和官方小人放在一起很粗糙），只画窗前一个逆光的、虚掉的剪影
@@ -4439,6 +4445,20 @@
    * 凯勒立绘用不用：进入镜头的那一刻（或跳着看时）立绘的几种表情都已经下载好才用，并且整个镜头都保持这个决定——
    * 立绘在镜头播放中途才下载好时，不会从剪影突然跳成立绘
    */
+  /** [v3] 凯勒的分层绑定用不用：同样是进入镜头时决定一次（绑定没准备好 → 立绘卡片 → 剪影），镜头中途准备好了也不换 */
+  const KR_BUST = [347, -20, 332, 369]; // 立绘卡片 bust 的同一块（原画像素）
+  const krGate = new Map();
+  function kellerRigOk(s) {
+    const K = KA(), id = s.shot.id;
+    let G = krGate.get(id);
+    if (!G || Math.abs(s.t - G.t) > 0.75) {
+      G = { ok: !!(K && K.ready && K.ready('keller')), t: s.t };
+      if (!G.ok && K && K.load) K.load('keller', 0);
+      krGate.set(id, G);
+    }
+    G.t = s.t;
+    return G.ok;
+  }
   const kcGate = new Map();
   let kcProbeC = null;
   function kellerOk(s, expr) {
@@ -4494,7 +4514,9 @@
         onAdele: (q) => blanket(q, back[0], back[1] - 20 + ease.inOut(clamp(u / 0.8)) * 90, t, 1, 300),
         onDesk: (q) => {
           bottle(q, s, 1440, RM.desk[2] - 4, 120, 0); fizz(q, t, { t0: s.shot.t0 - 2, x: 1440, y: RM.desk[2] - 118, n: 16, dur: 12, speed: 30, r: 3.5, rise: 40, life: 2.4, spread: 0.3, seed: 402 }); labelCard(q, 1238, RM.desk[2] - 8, 0.9, s, 1, { hoof: true });
-          kellerCard(q, s, 1700, 1040, 580, [[s.shot.t0, 9], [s.shot.t0 + BEAT * 4 + 1.6, 2]], 1);
+          // 她醒了：凯勒低头对她说了句什么（官方差分的嘴型），她看向窗外时，凯勒合上眼笑
+          const kt0 = s.shot.t0 + BEAT * 4;
+          kellerCard(q, s, 1700, 1040, 580, [[s.shot.t0 - 1, 9], [kt0 + 0.15, 8], [kt0 + 1.6, 2]], 1, { look: KA() && KA().path ? KA().path([[kt0, [-0.5, 0.35]], [kt0 + 1.3, [-0.35, 0.25]], [kt0 + 2.0, [-0.1, 0.1]]]) : [-0.4, 0.3], mouth: KA() && KA().talk ? KA().talk([[kt0 + 0.25, kt0 + 1.25]], { seed: 27 }) : 0, glint: (tt) => E.window01(tt - kt0, 1.9, 2.8, 0.3, 0.5), tilt: -0.3 });
         },
         after: (q) => {
           // 手心里的浮石在她腿上（被书桌挡着），暖光从桌沿后面透上来，几颗光点往上飘
@@ -4734,7 +4756,7 @@
       if (F && F.warm) { try { F.warm(['grain', 'dirt', 'paper']); } catch (e) { /* 用到时再生成 */ } }
       // 立绘在开播前预载好（图集上传显卡会卡一下，放在开播前）；只会 resolve(true / false)
       const K = KA();
-      const ka = ctx && ctx.keyart ? Promise.resolve(ctx.keyart(KA_KEY)).catch(() => false) : K && K.load ? K.load([KA_KEY], 6000).catch(() => false) : Promise.resolve(false);
+      const ka = ctx && ctx.keyart ? Promise.resolve(ctx.keyart([KA_KEY, 'keller'])).catch(() => false) : K && K.load ? K.load([KA_KEY, 'keller'], 6000).catch(() => false) : Promise.resolve(false);
       const fonts = document.fonts ? Promise.race([Promise.all(['900 150px "Noto Serif SC"', '700 50px Cinzel', '500 24px Cinzel', '500 24px "Noto Sans SC"', '700 44px "Noto Sans SC"'].map((f) => document.fonts.load(f, '雾中之忆汐斯塔火山博物馆易碎本页原创MISTYVOLCANO角色立绘官方原画分层绑定'))), new Promise((r) => setTimeout(r, 2500))]).catch(() => null) : null;
       // 小羊精灵的包围盒提前量好（避免第一次出场时卡一下）
       for (const [k, poses] of [['pink', ['stand', 'jump', 'sleep']], ['dad', ['stand', 'sit', 'walk', 'run', 'sleep', 'jump']], ['mom', ['stand', 'sit', 'walk', 'run', 'jump']]]) for (const pose of poses) castBox(LAMB[k][0], Object.assign({ pose }, LAMB[k][1]));

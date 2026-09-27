@@ -1,0 +1,92 @@
+{
+  "src": "5/5f/Avg_avg_npc_1005_1-1$1.png",
+  "band": 8,
+  "step": 16,
+  "params": {
+    "turnPx": 7,
+    "turnPxY": 3,
+    "tilt": 0.06,
+    "lean": 0.035,
+    "nod": 4,
+    "sway": 0.01,
+    "hop": 10,
+    "breath": 0.005,
+    "breathLift": 1.0,
+    "swayPx": 6,
+    "sphere": [478, 120, 72, 88],
+    "headHit": [478, 110, 70],
+    "exprs": ["e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10", "e11"],
+    "exprNoBlink": ["e2", "e6", "e11"],
+    "headBone": "head",
+    "chestBone": "chest",
+    "bodyBone": "body"
+  },
+  "bones": {
+    "body": {"pivot": [500, 1000]},
+    "chest": {"parent": "body", "pivot": [488, 380], "idle": {"ty": 0.5, "freq": 0.26, "phase": 1.57}},
+    "head": {"parent": "chest", "pivot": [478, 204]}
+  },
+  "anchors": {
+    "hand": {"bone": "chest", "p": [572, 200]}
+  },
+  "layers": [
+    {"id": "base", "rest": true, "bone": "body"},
+    {
+      "id": "skirt", "bone": "body", "feather": 0, "step": 14,
+      "poly": [[380, 388], [612, 388], [618, 470], [604, 562], [378, 562], [372, 470]],
+      "sway": {"root": [495, 392], "dir": [0, 170], "amp": 0.35, "freq": 0.7, "side": 1, "pow": 1.8, "wave": 1.4, "kick": 0.8, "phase": 0.5}
+    },
+    {
+      "id": "lockL", "bone": "head", "depth": -0.1, "feather": 0, "step": 12,
+      "poly": [[320, 150], [432, 150], [440, 176], [440, 215], [430, 260], [436, 360], [320, 360]],
+      "sway": {"root": [415, 160], "dir": [-30, 175], "amp": 0.7, "freq": 0.8, "side": 1, "pow": 1.7, "wave": 2.0, "kick": 1, "phase": 0.2}
+    },
+    {
+      "id": "lockR", "bone": "head", "depth": -0.1, "feather": 0, "step": 12,
+      "poly": [[535, 140], [600, 140], [640, 200], [700, 280], [700, 360], [560, 360], [548, 250], [538, 190]],
+      "sway": {"root": [548, 150], "dir": [70, 180], "amp": 0.8, "freq": 0.75, "side": -1, "pow": 1.7, "wave": 2.2, "kick": 1, "phase": 1.6}
+    },
+    {
+      "id": "torso", "bone": "chest", "feather": 0,
+      "poly": [[405, 188], [455, 190], [478, 203], [505, 197], [530, 183], [546, 172], [556, 166], [576, 163], [594, 172], [600, 200], [594, 240], [598, 300], [594, 348], [570, 355], [548, 348], [548, 388], [428, 390], [418, 340], [409, 300], [404, 250], [404, 214]],
+      "fill": [
+        {"poly": [[440, 150], [540, 150], [535, 175], [505, 200], [478, 206], [452, 196]], "cv": "telea", "radius": 4, "reach": 24, "feather": 1}
+      ]
+    },
+    {
+      "id": "hairBack", "bone": "head", "depth": -0.1, "feather": 0,
+      "poly": [[330, 0], [600, 0], [600, 140], [548, 150], [535, 170], [505, 196], [478, 203], [452, 194], [440, 176], [432, 150], [330, 150]],
+      "fill": [
+        {"poly": [[418, 40], [545, 40], [545, 160], [520, 185], [478, 200], [440, 180], [420, 130]], "cv": "telea", "radius": 6, "reach": 24, "feather": 1}
+      ]
+    },
+    {
+      "id": "face", "bone": "head", "depth": 0.25, "feather": 0, "step": 8,
+      "poly": [[414, 64], [448, 36], [500, 30], [534, 48], [545, 90], [542, 128], [536, 160], [522, 182], [501, 196], [478, 201], [457, 193], [442, 180], [430, 160], [420, 130], [414, 96]]
+    },
+    {"id": "e2", "bone": "head", "depth": 0.25, "step": 8, "show": "e2", "overlay": {"src": "Avg_avg_npc_1005_1-2$1.png", "within": "face", "feather": 0}},
+    {"id": "e3", "bone": "head", "depth": 0.25, "step": 8, "show": "e3", "overlay": {"src": "Avg_avg_npc_1005_1-3$1.png", "within": "face", "feather": 0}},
+    {"id": "e4", "bone": "head", "depth": 0.25, "step": 8, "show": "e4", "overlay": {"src": "Avg_avg_npc_1005_1-4$1.png", "within": "face", "feather": 0}},
+    {"id": "e5", "bone": "head", "depth": 0.25, "step": 8, "show": "e5", "overlay": {"src": "Avg_avg_npc_1005_1-5$1.png", "within": "face", "feather": 0}},
+    {"id": "e6", "bone": "head", "depth": 0.25, "step": 8, "show": "e6", "overlay": {"src": "Avg_avg_npc_1005_1-6$1.png", "within": "face", "feather": 0}},
+    {"id": "e7", "bone": "head", "depth": 0.25, "step": 8, "show": "e7", "overlay": {"src": "Avg_avg_npc_1005_1-7$1.png", "within": "face", "feather": 0}},
+    {"id": "e8", "bone": "head", "depth": 0.25, "step": 8, "show": "e8", "overlay": {"src": "Avg_avg_npc_1005_1-8$1.png", "within": "face", "feather": 0}},
+    {"id": "e9", "bone": "head", "depth": 0.25, "step": 8, "show": "e9", "overlay": {"src": "Avg_avg_npc_1005_1-9$1.png", "within": "face", "feather": 0}},
+    {"id": "e10", "bone": "head", "depth": 0.25, "step": 8, "show": "e10", "overlay": {"src": "Avg_avg_npc_1005_1-10$1.png", "within": "face", "feather": 0}},
+    {"id": "e11", "bone": "head", "depth": 0.25, "step": 8, "show": "e11", "overlay": {"src": "Avg_avg_npc_1005_1-11$1.png", "within": "face", "feather": 0}},
+    {"id": "happyEyes", "bone": "head", "depth": 0.25, "step": 8, "show": "happy", "overlay": {"src": "Avg_avg_npc_1005_1-6$1.png", "within": "face", "ellipses": [[447, 147, 21, 15], [508, 145, 21, 15]], "feather": 2}},
+    {"id": "closedEyes", "bone": "head", "depth": 0.25, "step": 8, "show": {"state": "blink", "lo": 0.3, "hi": 0.62}, "overlay": {"src": "Avg_avg_npc_1005_1-2$1.png", "within": "face", "ellipses": [[447, 147, 20, 14], [508, 145, 20, 14]], "feather": 1.6}},
+    {"id": "talkA", "bone": "head", "depth": 0.25, "step": 8, "show": {"state": "talk", "lo": 0.1, "hi": 0.26}, "overlay": {"src": "Avg_avg_npc_1005_1-4$1.png", "within": "face", "ellipses": [[476, 178, 11, 7.5]], "feather": 1.6}},
+    {"id": "talkB", "bone": "head", "depth": 0.25, "step": 8, "show": {"state": "talk", "lo": 0.55, "hi": 0.72}, "overlay": {"src": "Avg_avg_npc_1005_1-3$1.png", "within": "face", "ellipses": [[476, 178, 12, 8.5]], "feather": 1.6}},
+    {
+      "id": "earL", "bone": "head", "depth": -0.05, "feather": 0, "step": 8,
+      "poly": [[366, 98], [390, 92], [408, 100], [412, 132], [400, 146], [380, 146], [366, 130]],
+      "sway": {"root": [404, 118], "dir": [-34, 14], "amp": 0.35, "freq": 1.1, "side": 1, "pow": 1.5, "kick": 0.6, "phase": 0.9}
+    },
+    {
+      "id": "earR", "bone": "head", "depth": -0.05, "feather": 0, "step": 8,
+      "poly": [[540, 72], [580, 66], [616, 100], [614, 150], [586, 152], [548, 124]],
+      "sway": {"root": [548, 96], "dir": [64, 22], "amp": 0.35, "freq": 1.05, "side": -1, "pow": 1.5, "kick": 0.6, "phase": 2.3}
+    }
+  ]
+}

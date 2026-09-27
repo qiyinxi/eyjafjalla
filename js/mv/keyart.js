@@ -13,6 +13,13 @@
  *   'base-s1'   时装 夏卉 FA018（粉色黄昏的海边，自带画框）   2048²  full scene upper bust face eyes sheep
  *   'base-s2'   时装 绵绒小魔女（夜色钟面，自带画框）          2376²  full scene upper bust face eyes wand plush
  *   锚点（anchors）：都有 head face eyeL eyeR eyes mouth chest；另有 hand(s) staffTip feet crystal bell lava sheep plush clock（按图）
+ *   [v3] 剧情立绘（avg，1024² / 512²）的绑定——表情取自官方差分，眨眼 / 说话的嘴型也取自官方差分图：
+ *   'keller'      阿黛尔·凯勒（全身站姿，10 种表情 expr 1..10，镜片反光 glint） full figure upper bust face  ← 人小：特写最多到 upper / bust
+ *   'snowsant'    雪雉 · 夏装（全身，11 种表情 expr 1..11）                        full figure upper bust face
+ *   'dolly'       多利（粉色云团 + 黑色羊脸 + 王冠；飘浮的云团、耳朵、眨眼）         full figure upper bust face
+ *   'lamb-black'  小黑羊（512²，侧身站姿；摇尾巴、耳朵、眨眼；不会走路——动作戏仍用手绘 Q 版羊） full figure upper bust face
+ *   figure = 整个人的包围盒（非 16:9）：draw(g, key, { crop: 'figure', ax: 0.5, ay: 1, x: 脚底 x, y: 脚底 y, h: 身高 }) 按脚底摆
+ *   表情 expr: 3 | [[t, 3], [t, 9]]（关键帧，交叉淡化 xfade 秒）；说话 mouth: MVE.keyart.talk([[t0, t1], …])；glint: 0..1
  *
  * ---------------------------------------------------------------- 在影片里用（最常见的写法）
  *   E.film({
@@ -172,6 +179,28 @@
       w: 2376, h: 2376, label: '绵绒小魔女',
       crops: { full: [0, 0, 2376, 2376], scene: [220, 560, 1940, 1091], upper: [520, 600, 1330, 748], bust: [560, 640, 1240, 698], face: [830, 724, 676, 380], eyes: [1018, 820, 300, 169], wand: [1350, 950, 700, 394], plush: [600, 1000, 560, 315] },
       anchors: { head: ['head', 1150, 760, 0.26], face: ['head', 1165, 905, 0.3], eyeL: ['head', 1142, 884.5, 0.42], eyeR: ['head', 1194, 897, 0.42], mouth: ['head', 1163, 922, 0.3], chest: ['chest', 1215, 1050, 0], hand: ['parasol', 1266, 976, 0], staffTip: ['keyWand', 1822, 1166, 0], plush: ['plush', 878, 1150, 0.05], clock: ['sheepClock', 1705, 1090, 0] },
+    },
+    /* [v3 · 剧情立绘绑定] 官方剧情立绘（avg，1024²）做的分层绑定：表情差分图层 expr、说话的嘴型取自官方差分、眨眼取自闭眼差分。
+     * figure = 整个人（非 16:9，给 draw() 按脚底定位用）；wide 镜头里人很小，用 figure + h */
+    keller: {
+      w: 1024, h: 1024, label: '阿黛尔·凯勒（剧情立绘）',
+      crops: { full: [0, 0, 1024, 1024], figure: [330, 0, 330, 1004], upper: [290, 0, 440, 248], bust: [362, 0, 300, 169], face: [441, 44, 142, 80] },
+      anchors: { head: ['head', 512, 22, 0.3], face: ['head', 512, 88, 0.3], eyeL: ['head', 488.5, 85, 0.3], eyeR: ['head', 534, 84, 0.3], mouth: ['head', 512, 117, 0.3], glasses: ['head', 511, 84, 0.3], chest: ['chest', 510, 225, 0], hands: ['chest', 512, 318, 0], handR: ['bag', 392, 468, 0], books: ['chest', 565, 262, 0], feet: ['body', 505, 1000, 0] },
+    },
+    snowsant: {
+      w: 1024, h: 1024, label: '雪雉 · 夏装（剧情立绘）',
+      crops: { full: [0, 0, 1024, 1024], figure: [340, 0, 344, 1010], upper: [170, 0, 620, 349], bust: [248, 0, 460, 259], face: [397, 105, 160, 90] },
+      anchors: { head: ['head', 478, 40, 0.25], face: ['head', 477, 150, 0.25], eyeL: ['head', 447, 147, 0.25], eyeR: ['head', 508, 145, 0.25], mouth: ['head', 476, 178, 0.25], chest: ['chest', 488, 290, 0], hand: ['chest', 572, 200, 0], feet: ['body', 500, 1000, 0] },
+    },
+    'lamb-black': {
+      w: 512, h: 512, label: '小黑羊（剧情立绘）',
+      crops: { full: [0, 0, 512, 512], figure: [0, 0, 512, 506], upper: [-40, -10, 440, 248], bust: [20, 10, 380, 214], face: [90, 90, 250, 141] },
+      anchors: { head: ['head', 200, 40, 0.2], face: ['head', 205, 165, 0.2], eyeL: ['head', 154, 160, 0.3], eyeR: ['head', 251, 154, 0.3], mouth: ['head', 218, 215, 0.2], neck: ['head', 214, 250, 0.2], chest: ['chest', 300, 300, 0], feet: ['body', 330, 495, 0], tail: ['tail', 490, 160, 0] },
+    },
+    dolly: {
+      w: 1024, h: 1024, label: '多利（剧情立绘）',
+      crops: { full: [0, 0, 1024, 1024], figure: [40, 0, 980, 1024], upper: [270, 0, 680, 383], bust: [360, 150, 500, 281], face: [430, 290, 330, 186] },
+      anchors: { head: ['head', 590, 300, 0.25], face: ['head', 590, 430, 0.25], eyeL: ['head', 563, 427, 0.35], eyeR: ['head', 563, 427, 0.35], mouth: ['head', 610, 520, 0.25], crown: ['head', 575, 60, 0.25], chest: ['chest', 520, 600, 0], feet: ['body', 520, 1000, 0] },
     },
   };
   /** 没有预设的新绑定：按 params.sphere / headHit 推出脸、半身的构图 */
@@ -1052,11 +1081,69 @@ void main(){
     S.talk = clamp(+val(o.mouth, t, 0) || 0);
     S.blush = clamp(+val(o.blush, t, 0) || 0);
     S.cast = clamp(+val(o.cast, t, 0) || 0);
+    exprStates(R, o, t); // [v3] 表情差分、镜片反光、任意状态
     // 视线：默认跟着转头，加上细微扫动
     if (o.gaze != null) val2(o.gaze, t, GZ); else { val2(o.look, t, GZ); GZ[0] *= 1.0; GZ[1] *= 0.9; }
     const sa = o.saccade ?? 0.5;
     if (sa > 0) { const q = saccade(t, (o.seed ?? R.seed) + 17, sa); GZ[0] += q[0]; GZ[1] += q[1]; }
     GZ[0] = clamp(GZ[0], -1, 1); GZ[1] = clamp(GZ[1], -1, 1);
+  }
+  /* [v3 · 剧情立绘绑定] 表情差分（图层 show: 'e3' 之类）
+   *   expr: 3 | 'e3' | [[t, 3], [t, 8], …]（绝对秒的关键帧，换表情时交叉淡化 xfade 秒，默认 0.22）| { e3: 0.6 } | (t) => 以上任一
+   *         1 / 'e1' = 本体（原画默认表情，没有图层）
+   *   glint: 0..1 | (t) => 数   镜片反光（图层 show: 'glint'）
+   *   states: { 名字: 0..1 | (t) => 数 }   任意自定义状态
+   *   rig.params.exprNoBlink：这些表情本身闭着眼，出现时不再眨眼 */
+  const EXK = [];
+  function exprStates(R, o, t) {
+    for (let i = 0; i < EXK.length; i++) S[EXK[i]] = 0;
+    EXK.length = 0;
+    const put = (n, w) => {
+      if (n == null || !(w > 0)) return;
+      const k = typeof n === 'number' ? 'e' + Math.round(n) : String(n);
+      if (k === 'e1' || k === 'e0') return;
+      S[k] = Math.max(S[k] || 0, clamp(w));
+      EXK.push(k);
+    };
+    let v = typeof o.expr === 'function' ? o.expr(t) : o.expr;
+    if (Array.isArray(v)) {
+      let i = -1;
+      for (let j = 0; j < v.length; j++) if (v[j][0] <= t && (i < 0 || v[j][0] >= v[i][0])) i = j;
+      if (i >= 0) {
+        const xf = o.xfade ?? 0.22, dt = t - v[i][0];
+        let prev = null;
+        for (let j = 0; j < v.length; j++) if (v[j][0] < v[i][0] && (!prev || v[j][0] > prev[0])) prev = v[j];
+        if (prev && dt < xf) { const k = sm(dt / xf); put(prev[1], 1 - k); put(v[i][1], k); } else put(v[i][1], 1);
+      }
+    } else if (v && typeof v === 'object') { for (const n in v) put(n, +v[n]); }
+    else put(v, 1);
+    if (o.states) for (const n in o.states) { S[n] = clamp(+val(o.states[n], t, 0) || 0); EXK.push(n); }
+    if (o.glint != null) { S.glint = clamp(+val(o.glint, t, 0) || 0); EXK.push('glint'); }
+    const nb = R.P && R.P.exprNoBlink;
+    if (nb) {
+      let w = 0;
+      for (let i = 0; i < nb.length; i++) w = Math.max(w, S[nb[i]] || 0);
+      if (w > 0) { S.blinkL *= 1 - w; S.blinkR *= 1 - w; S.blink *= 1 - w; }
+    }
+  }
+  /** [v3] 说话的嘴型：spans = [[t0, t1], …]（绝对秒）→ (t) => 0..1。音节约 0.12–0.2 秒一个，开合由种子决定；句间闭嘴 */
+  function talk(spans, o) {
+    o = o || EMPTY;
+    const seed = o.seed ?? 11, amt = o.amt ?? 1, rate = o.rate ?? 6.5;
+    return (t) => {
+      for (let i = 0; i < spans.length; i++) {
+        const a = spans[i][0], b = spans[i][1];
+        if (t < a || t > b) continue;
+        const x = (t - a) * rate, n = Math.floor(x), f = x - n;
+        const lo = hash(seed + i * 31, n, 3), hi = hash(seed + i * 31, n, 4);
+        const env = sm((t - a) / 0.08) * sm((b - t) / 0.08);
+        // 一个音节：张开（大或小）再合上；偶尔整拍闭着（停顿）
+        if (lo < 0.12) return 0;
+        const open = hi > 0.55 ? 0.85 : 0.4;
+        return amt * env * open * Math.sin(Math.PI * f);
+      }
+      return 0;
+    };
   }
   const WD = [1, 0];
   function windDir(v) {
@@ -1557,6 +1644,7 @@ void main(){
       // 传给 draw 的参数（from / to 里的表情、转头按同一进度插值；look 等做成时间函数，头发才有惯性）
       const p = {
         t, crop: 'full', ax: (base[0] + base[2] / 2) / (info ? info.w : 1), ay: (base[1] + base[3] / 2) / (info ? info.h : 1), x: VW / 2, y: VH / 2, scale: S0,
+        expr: o.expr, xfade: o.xfade, glint: o.glint, states: o.states, // [v3]
         eyes: o.eyes, blink: o.blink, seed: o.seed, windDir: o.windDir, saccade: o.saccade, flip: o.flip, sharpen: o.sharpen, sweep: o.sweep, alpha: o.alpha,
         tint: o.tint !== undefined ? o.tint : gp.tint, sat: o.sat ?? gp.sat, contrast: o.contrast ?? gp.contrast, light: o.light !== undefined ? o.light : gp.light,
       };
@@ -1731,6 +1819,7 @@ void main(){
     },
     palette: (key) => { const R = rigs.get(key); return R && R.plate ? Object.assign({}, R.plate.pal) : null; },
     path,
+    talk, // [v3] talk([[t0, t1], …], { seed, amt, rate }) → mouth 函数
     release,
     /** 调试用（实验页）：内部状态 */
     _rig: (key) => rigs.get(key) || null,

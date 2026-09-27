@@ -1,0 +1,111 @@
+{
+  "src": "8/8c/Avg_avg_npc_999_1-1$1.png",
+  "band": 8,
+  "step": 16,
+  "params": {
+    "turnPx": 6.5,
+    "turnPxY": 2.5,
+    "tilt": 0.05,
+    "lean": 0.035,
+    "nod": 3,
+    "sway": 0.008,
+    "hop": 8,
+    "breath": 0.004,
+    "breathLift": 0.8,
+    "swayPx": 5,
+    "sphere": [512, 70, 62, 72],
+    "headHit": [512, 70, 60],
+    "exprs": ["e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"],
+    "exprNoBlink": ["e2", "e9"],
+    "headBone": "head",
+    "chestBone": "chest",
+    "bodyBone": "body"
+  },
+  "bones": {
+    "body": {"pivot": [512, 1000]},
+    "chest": {"parent": "body", "pivot": [500, 368], "idle": {"ty": 0.4, "freq": 0.25, "phase": 1.57}},
+    "head": {"parent": "chest", "pivot": [512, 138]},
+    "pendant": {"parent": "chest", "pivot": [498, 214], "idle": {"rot": 0.02, "freq": 0.42, "phase": 0.8}},
+    "bag": {"parent": "chest", "pivot": [390, 458], "idle": {"rot": 0.012, "freq": 0.31, "phase": 2.1}}
+  },
+  "anchors": {
+    "hand": {"bone": "chest", "p": [512, 318]},
+    "books": {"bone": "chest", "p": [565, 260]},
+    "glasses": {"bone": "head", "p": [511, 84]}
+  },
+  "layers": [
+    {"id": "base", "rest": true, "bone": "body"},
+    {
+      "id": "lanyard", "bone": "body", "feather": 0, "step": 8,
+      "poly": [[440, 376], [463, 376], [464, 492], [439, 492]],
+      "sway": {"root": [451, 378], "dir": [0, 112], "amp": 0.45, "freq": 0.8, "side": 1, "pow": 1.5, "wave": 1.2, "kick": 0.8, "phase": 0.4}
+    },
+    {
+      "id": "bag", "bone": "bag", "feather": 0, "step": 10,
+      "poly": [[362, 463], [398, 462], [412, 458], [428, 462], [431, 470], [431, 566], [400, 578], [360, 566]]
+    },
+    {
+      "id": "torso", "bone": "chest", "feather": 0,
+      "poly": [[320, 118], [704, 118], [704, 378], [598, 378], [592, 376], [540, 375], [500, 374], [470, 369], [436, 372], [434, 410], [430, 440], [424, 462], [412, 458], [398, 462], [362, 463], [320, 470]],
+      "fill": [
+        {"poly": [[482, 98], [554, 98], [552, 114], [532, 130], [512, 139], [494, 132], [484, 116]], "cv": "telea", "radius": 4, "reach": 30, "feather": 1},
+        {"poly": [[548, 98], [592, 94], [600, 130], [608, 158], [636, 184], [636, 196], [600, 176], [576, 168], [572, 200], [560, 200], [552, 150], [546, 120]], "cv": "telea", "radius": 5, "reach": 30, "feather": 1},
+        {"poly": [[436, 128], [488, 128], [490, 146], [480, 160], [462, 170], [446, 176], [432, 182], [432, 150]], "cv": "telea", "radius": 5, "reach": 30, "feather": 1}
+      ]
+    },
+    {
+      "id": "scarfTail", "bone": "chest", "feather": 0, "step": 8,
+      "poly": [[486, 216], [498, 228], [494, 258], [486, 286], [481, 318], [477, 333], [460, 333], [459, 300], [456, 262], [468, 240]],
+      "sway": {"root": [490, 222], "dir": [-22, 108], "amp": 0.4, "freq": 1.0, "side": 1, "pow": 1.7, "wave": 1.6, "kick": 0.7, "phase": 2.0}
+    },
+    {
+      "id": "pendant", "bone": "pendant", "feather": 0, "step": 6,
+      "poly": [[[494.5, 214], [501.5, 214], [501, 262], [494.5, 262]], [[497.5, 258.5], [505.3, 260.6], [511, 266.3], [513, 274], [511, 281.7], [505.3, 287.4], [497.5, 289.5], [489.7, 287.4], [484, 281.7], [482, 274], [484, 266.3], [489.7, 260.6]]]
+    },
+    {
+      "id": "hairBack", "bone": "head", "depth": -0.12, "feather": 0,
+      "poly": [[428, 0], [604, 0], [604, 98], [558, 98], [558, 127], [549, 114], [539, 118.5], [528, 126.5], [519.5, 132], [511.5, 133.5], [503, 127], [494, 119], [490, 128], [428, 128]],
+      "fill": [
+        {"poly": [[472, 40], [555, 40], [555, 100], [540, 118], [512, 133], [490, 120], [478, 100]], "cv": "telea", "radius": 6, "reach": 24, "feather": 1}
+      ]
+    },
+    {
+      "id": "face", "bone": "head", "depth": 0.3, "step": 8, "feather": 0,
+      "poly": [[462, 40], [470, 15], [490, 1], [520, 0], [548, 9], [560, 30], [558, 55], [553, 68], [551.5, 80], [550.5, 98], [548, 110], [539, 118], [528, 126], [519.5, 131.5], [511.5, 133], [503, 126.5], [494, 118.5], [486.5, 106.5], [480.5, 96], [477, 82], [470, 62]]
+    },
+    {"id": "e2", "bone": "head", "depth": 0.3, "step": 8, "show": "e2", "overlay": {"src": "Avg_avg_npc_999_1-2$1.png", "within": "face", "feather": 0}},
+    {"id": "e3", "bone": "head", "depth": 0.3, "step": 8, "show": "e3", "overlay": {"src": "Avg_avg_npc_999_1-3$1.png", "within": "face", "feather": 0}},
+    {"id": "e4", "bone": "head", "depth": 0.3, "step": 8, "show": "e4", "overlay": {"src": "Avg_avg_npc_999_1-4$1.png", "within": "face", "feather": 0}},
+    {"id": "e5", "bone": "head", "depth": 0.3, "step": 8, "show": "e5", "overlay": {"src": "Avg_avg_npc_999_1-5$1.png", "within": "face", "feather": 0}},
+    {"id": "e6", "bone": "head", "depth": 0.3, "step": 8, "show": "e6", "overlay": {"src": "Avg_avg_npc_999_1-6$1.png", "within": "face", "feather": 0}},
+    {"id": "e7", "bone": "head", "depth": 0.3, "step": 8, "show": "e7", "overlay": {"src": "Avg_avg_npc_999_1-7$1.png", "within": "face", "feather": 0}},
+    {"id": "e8", "bone": "head", "depth": 0.3, "step": 8, "show": "e8", "overlay": {"src": "Avg_avg_npc_999_1-8$1.png", "within": "face", "feather": 0}},
+    {"id": "e9", "bone": "head", "depth": 0.3, "step": 8, "show": "e9", "overlay": {"src": "Avg_avg_npc_999_1-9$1.png", "within": "face", "feather": 0}},
+    {"id": "e10", "bone": "head", "depth": 0.3, "step": 8, "show": "e10", "overlay": {"src": "Avg_avg_npc_999_1-10$1.png", "within": "face", "feather": 0}},
+    {"id": "happyEyes", "bone": "head", "depth": 0.3, "step": 8, "show": "happy", "overlay": {"src": "Avg_avg_npc_999_1-9$1.png", "within": "face", "ellipses": [[488.5, 85, 18, 15], [534, 84, 18, 15]], "feather": 2}},
+    {"id": "closedEyes", "bone": "head", "depth": 0.3, "step": 8, "show": {"state": "blink", "lo": 0.3, "hi": 0.62}, "overlay": {"src": "Avg_avg_npc_999_1-2$1.png", "within": "face", "ellipses": [[488.5, 86, 16.5, 12.5], [534, 85, 16.5, 12.5]], "feather": 1.6}},
+    {"id": "talkA", "bone": "head", "depth": 0.3, "step": 8, "show": {"state": "talk", "lo": 0.1, "hi": 0.26}, "overlay": {"src": "Avg_avg_npc_999_1-4$1.png", "within": "face", "ellipses": [[512, 116.5, 13, 7]], "feather": 1.6}},
+    {"id": "talkB", "bone": "head", "depth": 0.3, "step": 8, "show": {"state": "talk", "lo": 0.55, "hi": 0.72}, "overlay": {"src": "Avg_avg_npc_999_1-3$1.png", "within": "face", "ellipses": [[512, 117, 14, 8]], "feather": 1.6}},
+    {
+      "id": "glint", "bone": "head", "depth": 0.3, "step": 6, "show": "glint",
+      "paint": {
+        "fills": [
+          {"ellipse": [483, 81, 2.3, 10, 0.62], "color": "#ffffff", "alpha": 0.75, "feather": 1.3},
+          {"ellipse": [492, 89, 1.2, 5, 0.62], "color": "#ffffff", "alpha": 0.55, "feather": 1},
+          {"ellipse": [529, 80, 2.3, 10, 0.62], "color": "#ffffff", "alpha": 0.75, "feather": 1.3},
+          {"ellipse": [538, 88, 1.2, 5, 0.62], "color": "#ffffff", "alpha": 0.55, "feather": 1}
+        ]
+      }
+    },
+    {
+      "id": "lockL", "bone": "head", "depth": -0.12, "feather": 0, "step": 8,
+      "poly": [[440, 128], [488, 128], [488, 136], [476, 151], [457, 167], [436, 180], [431, 172], [438, 150]],
+      "sway": {"root": [466, 130], "dir": [-22, 48], "amp": 0.45, "freq": 0.9, "side": 1, "pow": 1.8, "wave": 1.8, "kick": 1, "phase": 0.3}
+    },
+    {
+      "id": "lockR", "bone": "head", "depth": -0.12, "feather": 0, "step": 10,
+      "poly": [[546, 98], [598, 94], [598, 130], [599, 152], [610, 162], [622, 172], [636, 184], [636, 192], [632, 194], [616, 186], [602, 172], [590, 163], [576, 163], [572, 170], [570, 185], [569, 199], [562, 199], [559, 180], [555, 160], [550, 140], [546, 120]],
+      "sway": {"root": [566, 104], "dir": [44, 92], "amp": 0.75, "freq": 0.85, "side": -1, "pow": 1.7, "wave": 2.2, "kick": 1, "phase": 1.7}
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "src": "3/3a/Avg_avg_npc_1004_1$1.png",
+  "band": 8,
+  "step": 12,
+  "params": {
+    "turnPx": 5,
+    "turnPxY": 2.5,
+    "tilt": 0.06,
+    "lean": 0.02,
+    "nod": 4,
+    "sway": 0.01,
+    "hop": 8,
+    "breath": 0.01,
+    "breathLift": 1.2,
+    "swayPx": 5,
+    "sphere": [205, 150, 110, 110],
+    "headHit": [200, 140, 100],
+    "headBone": "head",
+    "chestBone": "chest",
+    "bodyBone": "body"
+  },
+  "bones": {
+    "body": {"pivot": [330, 495]},
+    "chest": {"parent": "body", "pivot": [330, 330], "idle": {"ty": 0.6, "freq": 0.3, "phase": 1.57}},
+    "head": {"parent": "chest", "pivot": [215, 290], "idle": {"rot": 0.01, "freq": 0.21, "phase": 0.4}},
+    "tail": {"parent": "chest", "pivot": [446, 214], "idle": {"rot": 0.09, "freq": 1.35, "phase": 0.2}}
+  },
+  "anchors": {
+    "nose": {"bone": "head", "p": [218, 215]}
+  },
+  "layers": [
+    {"id": "base", "rest": true, "bone": "chest"},
+    {
+      "id": "tail", "bone": "tail", "feather": 0, "step": 8,
+      "poly": [[428, 196], [470, 170], [498, 140], [512, 132], [512, 250], [462, 248], [436, 238]],
+      "fill": []
+    },
+    {
+      "id": "head", "bone": "head", "depth": 0.2, "feather": 0, "step": 10,
+      "poly": [[0, 0], [340, 0], [340, 150], [304, 176], [292, 208], [276, 228], [248, 240], [210, 247], [170, 244], [132, 232], [96, 214], [68, 190], [0, 190]],
+      "fill": [
+        {"poly": [[122, 136], [186, 136], [186, 182], [122, 182]], "inpaint": true, "minLum": 0.72, "reach": 16, "feather": 1.2},
+        {"poly": [[225, 130], [274, 130], [274, 176], [225, 176]], "inpaint": true, "minLum": 0.72, "reach": 16, "feather": 1.2}
+      ]
+    },
+    {
+      "id": "earL", "bone": "head", "depth": 0.05, "feather": 0, "step": 6,
+      "poly": [[2, 150], [22, 120], [48, 122], [70, 140], [72, 160], [52, 176], [16, 178], [2, 168]],
+      "sway": {"root": [64, 150], "dir": [-58, 18], "amp": 0.5, "freq": 1.2, "side": 1, "pow": 1.5, "kick": 0.8, "phase": 0.3}
+    },
+    {
+      "id": "earR", "bone": "head", "depth": 0.05, "feather": 0, "step": 6,
+      "poly": [[284, 126], [306, 118], [330, 96], [336, 124], [330, 146], [296, 152], [284, 144]],
+      "sway": {"root": [288, 136], "dir": [44, -20], "amp": 0.45, "freq": 1.25, "side": -1, "pow": 1.5, "kick": 0.8, "phase": 2.1}
+    },
+    {
+      "id": "eyeL", "bone": "head", "depth": 0.3, "feather": 0, "step": 4, "eye": "L", "hide": "happy",
+      "squash": {"pivotY": 172},
+      "poly": [[126, 158], [134, 146], [150, 141], [167, 142], [178, 149], [182, 162], [175, 174], [158, 179], [140, 177], [129, 169]]
+    },
+    {
+      "id": "eyeR", "bone": "head", "depth": 0.3, "feather": 0, "step": 4, "eye": "R", "hide": "happy",
+      "squash": {"pivotY": 166},
+      "poly": [[229, 150], [237, 138], [252, 134], [265, 138], [270, 152], [267, 165], [255, 172], [240, 171], [231, 162]]
+    },
+    {
+      "id": "closedL", "bone": "head", "depth": 0.3, "step": 4, "show": "blinkL",
+      "paint": {"strokes": [{"pts": [[132, 163], [141, 168.5], [152, 171.5], [163, 171.5], [172, 168], [177, 163]], "width": 2.4, "color": "#3a2830"}]}
+    },
+    {
+      "id": "closedR", "bone": "head", "depth": 0.3, "step": 4, "show": "blinkR",
+      "paint": {"strokes": [{"pts": [[235, 158], [243, 163.5], [252, 165.5], [260, 163.5], [266, 158.5]], "width": 2.2, "color": "#3a2830"}]}
+    },
+    {
+      "id": "happyEyes", "bone": "head", "depth": 0.3, "step": 4, "show": "happy",
+      "paint": {"strokes": [{"pts": [[133, 168], [142, 161], [153, 158], [164, 159], [173, 163], [178, 168]], "width": 2.4, "color": "#3a2830"}, {"pts": [[236, 163], [244, 157], [253, 155], [261, 157], [266, 162]], "width": 2.2, "color": "#3a2830"}]}
+    }
+  ]
+}

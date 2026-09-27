@@ -445,6 +445,105 @@ def paint_layer(size, spec, orig):
     return np.dstack([rgb, alpha])
 
 
+def ellipse_poly(e, n=64):
+    cx, cy, rx, ry = e[:4]
+    rot = e[4] if len(e) > 4 else 0.0
+    pts = []
+    for i in range(n):
+        a = i / n * math.pi * 2
+        x, y = rx * math.cos(a), ry * math.sin(a)
+        pts.append([cx + x * math.cos(rot) - y * math.sin(rot), cy + x * math.sin(rot) + y * math.cos(rot)])
+    return pts
+
+
+def select_mask(orig, sp):
+    """按颜色自动选区（v3，可选）：poly 圈出大致范围，再只认领亮度 / 饱和度落在范围里的像素（例如粉色云里深色的羊脸与王冠）。
+    sp = { "lumMax": 0.5, "lumMin": 0, "satMin": 0, "satMax": 1, "alphaMin": 0.1,
+           "close": 5（闭运算，连起细缝）, "open": 0（开运算，去掉零星小点）, "fillHoles": true, "largest": 0（只留最大的 N 块）,
+           "grow": 2（外扩，把描线的半透明边也带上）, "soft": 1（边缘羽化） }"""
+    import cv2
+    rgb = orig[..., :3]
+    lum = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+    mx, mn = rgb.max(2), rgb.min(2)
+    sat = (mx - mn) / np.maximum(mx, 1e-3)
+    ok = (lum <= sp.get('lumMax', 1.0)) & (lum >= sp.get('lumMin', 0.0)) & (sat >= sp.get('satMin', 0.0)) & (sat <= sp.get('satMax', 1.0))
+    ok &= orig[..., 3] >= sp.get('alphaMin', 0.1)
+    m = ok.astype(np.uint8)
+    if sp.get('open'):
+        k = int(sp['open']) * 2 + 1
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    if sp.get('close', 5):
+        k = int(sp.get('close', 5)) * 2 + 1
+        m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    if sp.get('largest'):
+        n, lab, st, _ = cv2.connectedComponentsWithStats(m, 8)
+        if n > 1:
+            order = np.argsort(-st[1:, cv2.CC_STAT_AREA])[:int(sp['largest'])] + 1
+            m = np.isin(lab, order).astype(np.uint8)
+    if sp.get('fillHoles', True):
+        inv = (1 - m).astype(np.uint8)
+        n, lab, st, _ = cv2.connectedComponentsWithStats(inv, 4)
+        H, W = m.shape
+        for i in range(1, n):
+            x, y, w, h = st[i, :4]
+            if x > 0 and y > 0 and x + w < W and y + h < H and st[i, cv2.CC_STAT_AREA] < sp.get('holeMax', 4000):
+                m[lab == i] = 1
+    if sp.get('grow', 2):
+        k = int(sp.get('grow', 2)) * 2 + 1
+        m = cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    m = m.astype(np.float32)
+    if sp.get('soft', 0):
+        m = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(sp['soft']))).astype(np.float32) / 255.0
+    return m
+
+
+_VARIANTS = {}
+
+
+def load_variant(name):
+    """表情差分等“同构图的另一张官方立绘”：name 为 PRTS 媒体文件名（如 'Avg_avg_npc_999_1-3$1.png'），
+    缓存在 tools/puppet/.cache/avg/（'$' 换成 '_'），缺失时按 PRTS 的 md5 路径下载"""
+    if name not in _VARIANTS:
+        import hashlib
+        p = os.path.join(CACHE, 'avg', name.replace('$', '_'))
+        if not os.path.exists(p):
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            f = name.replace(' ', '_')
+            h = hashlib.md5(f.encode('utf-8')).hexdigest()
+            url = MEDIA + h[0] + '/' + h[:2] + '/' + urllib.parse.quote(f)
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            for attempt in range(4):
+                try:
+                    data = urllib.request.urlopen(req, timeout=120).read()
+                    break
+                except Exception as e:
+                    print('download retry', attempt, e)
+            else:
+                raise SystemExit('无法下载差分立绘：' + url)
+            with open(p, 'wb') as fo:
+                fo.write(data)
+        _VARIANTS[name] = np.asarray(Image.open(p).convert('RGBA')).astype(np.float32) / 255.0
+    return _VARIANTS[name]
+
+
+def overlay_layer(size, spec, own_by_id, S):
+    """表情覆盖层（v3）：从同一构图的另一张官方立绘（表情差分）里取一块，叠在本体上。
+    spec = { "src": "avg/xxx.png", "poly": [...] | 多个, "ellipses": [[cx,cy,rx,ry,rot], ...],
+             "within": "face"（只取该图层认领的区域，保证与它同一套形变、边界一致）, "feather": 1.5,
+             "diff": 0.0（>0：只保留与本体差异超过该阈值的像素并外扩 grow 像素，其余透明） }
+    不认领像素、不遮挡下层（与 paint 图层一样），静止时与本体无缝（差分图在区域外与本体相同）。"""
+    W, H = size
+    src = load_variant(spec['src'])
+    polys = [S(p) for p in as_polys(spec.get('poly'))] + [ellipse_poly(e) for e in spec.get('ellipses', [])]
+    m = poly_mask((W, H), polys, spec.get('feather', 1.5)) if polys else np.ones((H, W), np.float32)
+    if spec.get('within'):
+        for wid in ([spec['within']] if isinstance(spec['within'], str) else spec['within']):
+            if wid not in own_by_id:
+                raise SystemExit('overlay.within 找不到图层：' + wid)
+        m = m * sum(own_by_id[w] for w in ([spec['within']] if isinstance(spec['within'], str) else spec['within']))
+    return np.dstack([src[..., :3], src[..., 3] * np.clip(m, 0, 1)])
+
+
 def build(key, check=False):
     src_path = os.path.join(HERE, 'rigs', key + '.json')
     with open(src_path, encoding='utf-8') as f:
@@ -465,9 +564,11 @@ def build(key, check=False):
     own = [None] * n
     for i in reversed(range(n)):
         L = layers[i]
-        if L.get('rest') or L.get('paint'):
+        if L.get('rest') or L.get('paint') or L.get('overlay'):
             continue
         m = poly_mask((W, H), [S(p) for p in as_polys(L['poly'])], L.get('feather', 1.5))
+        if L.get('select'):
+            m = m * select_mask(orig, L['select'])
         if L.get('minus'):
             m *= 1 - poly_mask((W, H), [S(p) for p in as_polys(L['minus'])], L.get('feather', 1.5))
         m_eff = m * (1 - claimed)
@@ -482,11 +583,16 @@ def build(key, check=False):
     out_layers = []
     above = np.zeros((H, W), np.float32)
     rgba_layers = [None] * n
+    own_by_id = {L['id']: own[i] for i, L in enumerate(layers) if own[i] is not None and 'id' in L}
     for i in reversed(range(n)):
         L = layers[i]
         if L.get('paint'):
             # 合成图层：不参与切割，也不遮挡下层
             rgba_layers[i] = paint_layer((W, H), L['paint'], orig)
+            continue
+        if L.get('overlay'):
+            # 表情差分覆盖层：同上，不参与切割
+            rgba_layers[i] = overlay_layer((W, H), L['overlay'], own_by_id, S)
             continue
         m = own[i]
         vis = m > 0.5
@@ -633,7 +739,7 @@ def build(key, check=False):
         occ2[:-1, :] |= occ[1:, :]
         occ2[:, 1:] |= occ[:, :-1]
         occ2[:, :-1] |= occ[:, 1:]
-        entry = {k: v for k, v in L.items() if k not in ('poly', 'minus', 'fill', 'rest', 'feather', 'nofill', 'paint')}
+        entry = {k: v for k, v in L.items() if k not in ('poly', 'minus', 'fill', 'rest', 'feather', 'nofill', 'paint', 'overlay')}
         entry.update({
             'rect': [int(x0), int(y0), int(w), int(h)], 'at': [int(pos[i][0]), int(pos[i][1])],
             'step': step, 'cols': cols, 'rows': rows, 'occ': ''.join('1' if v else '0' for v in occ2.flatten()),
@@ -654,7 +760,7 @@ def build(key, check=False):
         # 静止合成（premultiplied over）应与原图一致
         comp = np.zeros((H, W, 4), np.float32)
         for i in range(n):
-            if rgba_layers[i] is None or layers[i].get('paint'):
+            if rgba_layers[i] is None or layers[i].get('paint') or layers[i].get('overlay'):
                 continue
             c = rgba_layers[i]
             a = c[..., 3:4]

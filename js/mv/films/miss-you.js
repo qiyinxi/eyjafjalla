@@ -110,6 +110,26 @@
     d.at = now; CARDDEC.set(id, d);
     return d.on;
   }
+  /**
+   * [v3] 官方剧情立绘的分层绑定（MVE.keyart：'keller' 眨眼、转头、官方差分表情与嘴型、镜片反光）用不用：
+   * 同样是每个镜头开头决定一次（绑定已上传显卡才用），没准备好就退回立绘剪纸（cardOn），再退回剪影
+   */
+  const RIGDEC = new Map();
+  function rigOn(s, key) {
+    const K = E.keyart;
+    if (!K || !K.ready) return false;
+    const id = ((s.shot && s.shot.id) || '') + '|' + key, now = performance.now();
+    let d = RIGDEC.get(id);
+    if (!d || now - d.at > 1500) { d = { on: !!K.ready(key) }; if (!d.on && K.load) K.load(key, 0); }
+    d.at = now; RIGDEC.set(id, d);
+    return d.on;
+  }
+  /** 凯勒的绑定按立绘剪纸 'upper'（膝上）同一块构图画：x, y 为这块的底边中点，h 为这块的高 */
+  const KR_UPPER = [227, -20, 572, 635];
+  function kellerRig(g, s, o) {
+    const K = E.keyart;
+    return !!(K && K.draw(g, 'keller', Object.assign({ t: s.t, crop: KR_UPPER, ax: 0.5, ay: 1, xfade: 0.25 }, o)));
+  }
   /** 这个角色、这组选项此刻会不会画成官方小人（模型已加载）：官方动作和手绘动作的落脚点不同时用来分别摆位 */
   function sdOn(who, o) {
     const S = E.sd;
@@ -2203,8 +2223,17 @@
     const k2 = clamp((t - bar(29) - 1.0) / 2.6);
     const kx = 1500 - lt * 6, ox = 880 - lt * 6; // ox：汐斯塔这张图的左边（阳台栏杆在图里 480 – 1040，栏杆顶 y 800，底 880）
     // 凯勒老师：官方剧情立绘做的剪纸（膝上构图，站在阳台栏杆后面，面朝左边飞来的纸鸟）；纸鸟落在她面前的栏杆上，她笑了。
-    // 立绘没加载好时（这一镜开头决定一次，镜头中间不换）画手绘版
-    if (cardOn(s, 'keller') && E.sd.card(g, 'keller', { x: kx - 10, y: 900, h: 400, crop: 'upper', t, breath: 1, expr: [[bar(29), 1], [bar(29) + 1.0 + 2.6 + 0.2, 9]], light: { color: '#ffc8a8', amount: 0.3 } })) {
+    // 首选立绘的分层绑定（她的头跟着飞来的纸鸟转、眨眼，纸鸟落下时笑了、镜片上一闪夕阳）；
+    // 没准备好时（这一镜开头决定一次，镜头中间不换）用立绘剪纸，再不行画逆光剪影
+    const b0 = bar(29), landT = b0 + 1.0 + 2.6;
+    const KP = E.keyart && E.keyart.path;
+    const kDrawn = (rigOn(s, 'keller') && kellerRig(g, s, {
+      x: kx - 10, y: 900, h: 400, expr: [[b0 - 1, 1], [b0 + 1.2, 10], [landT + 0.2, 9]], wind: 0.35, windDir: 1,
+      look: KP ? KP([[b0 + 0.6, [-0.15, -0.05]], [b0 + 1.6, [-0.75, -0.35]], [b0 + 3.0, [-0.5, 0.25]], [landT + 0.3, [-0.3, 0.55]]]) : [-0.4, 0.2],
+      tilt: (tt) => -0.4 * clamp((tt - landT) / 0.8), glint: (tt) => E.window01(tt, landT + 0.3, landT + 1.3, 0.25, 0.5),
+      tint: ['#ffc8a8', 0.3], light: { color: '#ffc49a', dir: [-0.85, -0.3], rim: 0.55, wash: 0.08 },
+    })) || (cardOn(s, 'keller') && E.sd.card(g, 'keller', { x: kx - 10, y: 900, h: 400, crop: 'upper', t, breath: 1, expr: [[b0, 1], [landT + 0.2, 9]], light: { color: '#ffc8a8', amount: 0.3 } }));
+    if (kDrawn) {
       // 栏杆在她前面：把她身前那一段栏杆（扶手、栏杆柱、底边）重画一遍
       const r0 = max(480, kx - ox - 230), r1 = min(1040, kx - ox + 230);
       g.save(); g.translate(ox, 0);
@@ -2218,7 +2247,8 @@
       if (k2 < 1) paperBird(g, lerp(900, kx - 70, ease.out(k2)), lerp(280, 790, ease.inOut(k2)) - sin(k2 * PI) * 90, 0.5, 1, t * 15 + 2, -0.1);
       else paperBird(g, kx - 70, 792, 0.34, 1, 0.5, 0);
     } else {
-      cast(g, 'keller', { shadow: 0.16, x: kx, y: 812, h: 280, pose: k2 >= 1 ? 'read' : 'reach', t, expr: k2 >= 1 ? 'smile' : 'neutral', flip: true });
+      // 官方立绘都不可用：只画一个逆光的剪影（不画手绘的脸）
+      cast(g, 'keller', { x: kx, y: 812, h: 280, pose: k2 >= 1 ? 'read' : 'reach', t, flip: true, sil: '#6a4450' });
       if (k2 < 1) paperBird(g, lerp(900, kx - 60, ease.out(k2)), lerp(280, 560, ease.inOut(k2)) - sin(k2 * PI) * 90, 0.5, 1, t * 15 + 2, -0.1);
     }
     g.restore();
@@ -2359,7 +2389,8 @@
     // 前景：越过医疗干员的肩膀看她（背对镜头、离镜头很近：只看得见后脑勺和白大褂的肩膀，逆着走廊尽头的光有一道轮廓光）。
     // 说话时轻轻点头，声波从她头边荡向阿黛尔、半路变灰断掉；镜头推进时这一层滑出画面
     s.layer(g, cam, 1.3, (q) => {
-      const no = { x: 330, y: 1520, h: 940, pose: 'hold', view: 'back3', t, seed: 4, color: '#e9eff7', rim: '255,255,250', rimGlow: 0.12, headPose: t < turn ? 'nod' : undefined, alpha: 1 - sstep(0.3, 0.7, walk) };
+      // [v3] 前景过肩的人只留一道失焦的冷灰剪影（没有手绘的头发与衣服细节）：焦点在她身上
+      const no = { x: 330, y: 1520, h: 940, pose: 'hold', view: 'back3', t, seed: 4, sil: '#8e9aae', rim: '255,255,250', rimGlow: 0.18, headPose: t < turn ? 'nod' : undefined, alpha: (1 - sstep(0.3, 0.7, walk)) * 0.92 };
       if (no.alpha > 0.01) cast(q, 'crowd', no);
       if (t < turn) soundRings(q, 520, 700, t, { n: 4, per: BEAT * 2, r: 460, dir: 0, spread: 0.5, rgb: '255,255,255', a: 0.5, muffle: 1 });
     });
@@ -2497,6 +2528,8 @@
     if (o.headPose) co.headPose = o.headPose;
     if (o.view) co.view = o.view;
     if (o.alpha != null) co.alpha = o.alpha;
+    // [v3] 本页原创的孩子没有官方形象：和助手们一样只画成带一点外套颜色的浅剪影（没有五官、没有手绘细节），逆光勾边
+    co.sil = o.sil || '#5f7f7c'; co.rim = '255,250,238'; co.rimGlow = 0.14; co.shadow = 0.12;
     cast(g, 'crowd', co);
   }
   skyDef('sky-una', [[0, '#3f86d8'], [0.45, '#86bdf0'], [0.75, '#cfe5f8'], [1, '#eef3f6']]);
@@ -4581,7 +4614,7 @@
       cast: [
         { who: 'adele-alter', o: { outfit: 'coat', prop: 'staff' }, role: '主角 · 穿着母亲的外套' },
         { who: 'sheep-black', role: '一路跟着她上山' },
-        { who: 'sheep-pink', o: { glow: 0.8 }, role: '夜里为她引路' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1345_tplamb' }, role: '夜里为她引路' },
         { who: 'keller', role: '收信的凯勒老师' },
         // 父母在片中只是没有五官的剪影：人物表里也画成剪影
         { who: 'magna', o: { outfit: 'field', sil: '#6a5a6e', rim: '255,236,214', rimGlow: 0.25 }, role: '母亲（回忆）' },
@@ -4603,7 +4636,7 @@
       const F = FIN(); if (F && F.warm) F.warm(['paper', 'grain', 'dirt', 'watercolor', 'memory-sepia']);
       // 凯勒老师的剧情立绘（汐斯塔那半边用；最多等 4 秒，加载不了就画手绘版）
       const S = E.sd, card = S && S.card && S.card.load ? Promise.race([S.card.load('keller', [1, 9]), new Promise((r) => setTimeout(r, 4000))]).catch(() => null) : null;
-      if (ctx && ctx.keyart) await ctx.keyart(KA_KEY);
+      if (ctx && ctx.keyart) await ctx.keyart([KA_KEY, 'keller']);
       if (card) await card;
     },
     overlay(g, s) {

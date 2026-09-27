@@ -115,7 +115,7 @@
    * 官方剧情立绘做的“人物剪纸”（MVE.sd.card）：凯勒老师（用户选的：对话与近景用她的官方立绘，10 种表情）、多利。
    * 每个镜头开头决定一次用不用（那时图已经加载好才用），同一个镜头里不会从手绘突然换成立绘
    */
-  const KEXPR = [1, 2, 3, 9];
+  const KEXPR = [1, 2, 3, 4, 9];
   const CARDDEC = new Map();
   function cardOn(s, key) {
     const S = E.sd;
@@ -170,9 +170,41 @@
     d.at = now; CARDDEC.set(id, d);
     return d.on;
   }
-  /** 凯勒老师：立绘剪纸（o: { x, y 构图块底边中点, h, crop, expr, flip, light, alpha }）；没有立绘时画手绘版（fb） */
+  /*
+   * [v3] 凯勒老师 / 多利：官方剧情立绘的分层绑定（MVE.keyart：眨眼、转头、头发与衣摆随风、官方差分的表情与嘴型、镜片反光）。
+   * 与立绘剪纸一样，每个镜头开头决定一次用不用（已上传显卡才用）；没准备好 → 立绘剪纸 → 剪影
+   */
+  const RIGDEC = new Map();
+  function rigOn(s, key) {
+    const K = E.keyart;
+    if (!K || !K.ready) return false;
+    const id = ((s.shot && s.shot.id) || '') + '|rig|' + key, now = performance.now();
+    let d = RIGDEC.get(id);
+    if (!d || now - d.at > 1500) { d = { on: !!K.ready(key) }; if (!d.on && K.load) K.load(key, 0); }
+    d.at = now; RIGDEC.set(id, d);
+    return d.on;
+  }
+  /** 与立绘剪纸同一块构图（原画像素）：upper = 膝上，full = 整个人（脚底在底边） */
+  const KR_CROP = { upper: [226, -20, 572, 635], bust: [347, -20, 332, 369], full: [330, 0, 330, 1004] };
+  /** 手绘版的表情名 → 官方差分编号（1 平常 2 闭眼 3 皱眉张嘴 4 担心 5 柔和 6 严肃 7 思索 8 微笑 9 眯眼笑 10 温和） */
+  const KEX = { laugh: 9, smile: 8, surprise: 4, talk: 8, neutral: 1, think: 7, closed: 2, content: 10, sad: 5 };
+  /** 说话的嘴型：spans 为绝对秒 */
+  const talkK = (spans, seed) => (E.keyart && E.keyart.talk ? E.keyart.talk(spans, { seed }) : 0);
+  /** 绑定版凯勒：o 同立绘剪纸（x, y 构图块底边中点，h，crop，expr，flip，light，alpha）+ look / mouth / glint / tilt / rim */
+  function kellerRig(q, s, o) {
+    const K = E.keyart;
+    if (!K) return false;
+    const L = o.light;
+    return !!K.draw(q, 'keller', {
+      t: s.t, crop: KR_CROP[o.crop] || (Array.isArray(o.crop) ? o.crop : KR_CROP.upper), x: o.x, y: o.y, h: o.h, ax: o.ax ?? 0.5, ay: 1,
+      flip: !!o.flip, alpha: o.alpha, expr: o.expr, xfade: 0.25, look: o.look, mouth: o.mouth, glint: o.glint, tilt: o.tilt, nod: o.nod,
+      wind: o.wind ?? 0.2, windDir: o.windDir, tint: Array.isArray(L) ? L : L ? [L.color || '#ffe8d0', L.amount ?? 0.3] : o.tint, light: o.rim, sat: o.sat,
+    });
+  }
+  /** 凯勒老师：绑定 → 立绘剪纸（o: { x, y 构图块底边中点, h, crop, expr, flip, light, alpha }）→ 手绘替代（fb：剪影） */
   function kellerCard(q, s, o, fb) {
-    if (cardOn(s, 'keller') && E.sd.card(q, 'keller', Object.assign({ t: s.t, breath: 1 }, o))) return true;
+    if (rigOn(s, 'keller') && kellerRig(q, s, o)) return true;
+    if (cardOn(s, 'keller') && E.sd.card(q, 'keller', Object.assign({ t: s.t, breath: 1 }, o, { expr: Array.isArray(o.expr) ? o.expr.map((e) => [e[0], e[1] === 8 || e[1] === 10 ? 1 : e[1]]) : o.expr }))) return true;
     if (fb) fb(q);
     return false;
   }
@@ -187,9 +219,23 @@
     q.drawImage(c, -w * 0.5, 0 - h * 0.05, w, h);
     q.restore();
   }
-  function keller(g, o) {
-    if (o.shadow !== false && !o.sil) groundShadow(g, o.x, o.y, (o.h || 300) * 0.25, 0.2 * (o.alpha ?? 1));
-    cast(g, 'keller', Object.assign({}, o, { shadow: false }));
+  /**
+   * 凯勒老师（远景，整个人；x, y 脚底，h 身高）：[v3] 分层绑定（站姿；o.rig = { expr, look, mouth, glint, flip, rim, light } 按镜头给）
+   * → 立绘剪纸（整身）→ 剪影。手绘的脸已经不画了；o.pose 等手绘参数只在剪影里用
+   */
+  function keller(g, o, s) {
+    const R = o.rig || {}, a = o.alpha ?? 1;
+    const expr = R.expr ?? KEX[o.expr] ?? 1;
+    if (s && !o.sil) {
+      const rig = rigOn(s, 'keller');
+      if (rig || cardOn(s, 'keller')) {
+        if (o.shadow !== false) groundShadow(g, o.x, o.y, (o.h || 300) * 0.25, 0.2 * a);
+        if (rig && kellerRig(g, s, { crop: 'full', ax: 0.545, x: o.x, y: o.y + (o.h || 300) * 0.004, h: (o.h || 300) * 1.004, alpha: a, flip: R.flip, expr, look: R.look, mouth: R.mouth, glint: R.glint, tilt: R.tilt, rim: R.rim, light: R.light, wind: R.wind })) return;
+        if (E.sd.card(g, 'keller', { t: s.t, crop: 'full', x: o.x, y: o.y + (o.h || 300) * 0.02, h: (o.h || 300) * 1.02, flip: R.flip, alpha: a, breath: 1, expr: typeof expr === 'number' && [1, 2, 3, 4, 9].includes(expr) ? expr : 1, light: R.light })) return;
+      }
+    }
+    // 官方立绘都不可用：逆光的剪影（不画手绘的脸）
+    cast(g, 'keller', Object.assign({}, o, { shadow: false, sil: o.sil || '#3c3650' }));
   }
   /** 手绘路人（只给远景的小剪影、以及官方小人不可用时的替代）；近一点的路人用 townsfolk() */
   function person(g, o) {
@@ -1986,8 +2032,10 @@
         // 排队的游客（在门口）：客串的干员们（官方 Q 版小人）排成一排，一个指着门口的彩旗
         const qpo = (i, tt) => { const x = 1110 - i * 190, y = 1092 + (i % 2) * 16; return { x, y, h: 330, seed: TOURISTS[(i * 3 + 1) % TOURISTS.length], pose: i === 3 ? 'point' : 'stand', aim: -0.4, t: tt + i * 0.7, flip: false, expr: i % 2 ? 'smile' : 'laugh', look: [1, -0.3], prop: i % 4 === 1 ? 'camera' : undefined }; };
         [0, 1, 2, 3].map((i) => [i, qpo(i, t)]).sort((a, b) => a[1].y - b[1].y).forEach(([i, po]) => townsfolk(q, s, po, i));
-        // 凯勒老师：门口，一拍一招手
-        keller(q, { x: 1330, y: 1034, h: 360 * KH(), pose: 'wave', t, expr: 'laugh', flip: true, look: [-1, 0.1] });
+        // 凯勒老师：站在门口，转过头看她走进来，笑了（绑定：转头、眨眼、官方差分表情）
+        const kt0 = s.shot.t0;
+        keller(q, { x: 1330, y: 1034, h: 360 * KH(), pose: 'wave', t, expr: 'laugh', flip: true, look: [-1, 0.1],
+          rig: { flip: true, expr: [[kt0 - 1, 1], [kt0 + 1.4, 8], [kt0 + 3.3, 9]], look: E.keyart && E.keyart.path ? E.keyart.path([[kt0 + 0.3, [0.1, 0]], [kt0 + 1.3, [0.75, 0.15]], [kt0 + 4, [0.55, 0.12]]]) : [0.5, 0.1], mouth: talkK([[kt0 + 3.5, kt0 + 4.4]], 7) } }, s);
         // 她：从左边走进来（匀速，脚底不打滑），走到广场上停下挥手
         const av = 140, ax = -170 + Math.min(lt, 3.9) * av;
         const ao = { x: ax, y: 1200, h: 400, pose: lt < 3.9 ? 'walk' : 'wave', speed: stepRate('adele-alter', 400, av), arms: lt < 3.9 ? 'carry' : undefined, prop: lt < 3.9 ? 'suitcase' : null, t, expr: 'laugh', look: [1, -0.2] };
@@ -2023,8 +2071,12 @@
         q.save(); q.translate(1500, 1052); q.drawImage(LC(s, 'suitcase-sp', 120, 110, suitcaseArt, 1.4), -150, -96, 108, 99); q.restore();
         // 凯勒老师：官方立绘的剪纸（膝上构图，站在画面左边）；说“欢迎！”时张嘴，徽章别上之后眯眼笑
         const t0 = s.shot.t0;
-        const useCard = kellerCard(q, s, { x: 1060, y: 1150, h: 520, crop: 'upper', flip: true, expr: [[t0, 3], [t0 + 1.6, 1], [t0 + 2.3, 9]] },
-          (qq) => keller(qq, { x: 1120, y: 1052, h: 380 * KH(), pose: lt < 1.6 ? 'wave' : lt < 2.4 ? 'reach' : 'clap', aim: -0.1, t, expr: 'laugh', look: [1, 0], talk: lt < 1.6 ? 1 : 0 }));
+        // [v3] 绑定：说“欢迎！”时是官方差分的张嘴，别徽章时低头看，别好之后眯眼笑、镜片一闪
+        const useCard = kellerCard(q, s, {
+          x: 1060, y: 1150, h: 520, crop: 'upper', flip: true, expr: [[t0 - 1, 8], [t0 + 1.55, 10], [t0 + 2.3, 9]],
+          mouth: talkK([[t0 + 0.12, t0 + 1.35]], 3), look: E.keyart && E.keyart.path ? E.keyart.path([[t0, [-0.45, 0.05]], [t0 + 1.5, [-0.55, 0.1]], [t0 + 2.0, [-0.5, 0.45]], [t0 + 2.6, [-0.4, 0.15]]]) : [-0.5, 0.1],
+          glint: (tt) => E.window01(tt, t0 + 2.45, t0 + 3.2, 0.2, 0.4), tilt: (tt) => -0.5 * clamp((tt - t0 - 2.3) / 0.6),
+        }, (qq) => keller(qq, { x: 1120, y: 1052, h: 380 * KH(), pose: lt < 1.6 ? 'wave' : lt < 2.4 ? 'reach' : 'clap', aim: -0.1, t, expr: 'laugh', look: [1, 0] }, s));
         adele(q, ao);
         // 徽章：从凯勒老师那边飞过来（立绘剪纸够不着她），“叮”地别在外套上
         const ch = anchor('adele-alter', ao, 'chest', [1400, 900]);
@@ -2475,7 +2527,8 @@
     inCam(g, cam, 1, (q) => q.drawImage(LC(s, 'dome', VW + 400, VH + 400, (qq) => { qq.translate(200, 200); domeArt(qq); }, 0.8), -200, -200, VW + 400, VH + 400));
     inCam(g, cam, 1, (q) => {
       // 凯勒老师在转圆顶的摇柄
-      kellerCard(q, s, { x: 1500, y: 1085, h: 540, crop: 'upper', expr: after ? 9 : 1 }, (qq) => keller(qq, { x: 1480, y: 1000, h: 400 * KH(), pose: 'point', aim: 0.8, t, flip: true, expr: 'smile', look: [-1, -0.6] }));
+      kellerCard(q, s, { x: 1500, y: 1085, h: 540, crop: 'upper', expr: after ? 9 : 10, look: after ? [-0.55, 0.25] : [-0.4, 0.35], mouth: after ? 0 : talkK([[s.shot.t0 + 0.3, s.shot.t0 + 1.4]], 21) },
+        (qq) => keller(qq, { x: 1480, y: 1000, h: 400 * KH(), pose: 'point', aim: 0.8, t, flip: true, expr: 'smile', look: [-1, -0.6], rig: { look: [-0.5, 0.3], expr: after ? 9 : 10 } }, s));
       telescope(q, 1010, 690, 0.9, 0.62);
       // 她：弯腰凑到目镜上；回过神来时往后一仰
       adele(q, { x: 880, y: 1000, h: 400, pose: after ? 'cover' : 'stand', t, expr: after ? 'surprise' : 'closed', look: after ? [0.4, -0.3] : [1, -0.2], headPose: after ? undefined : 'down', rot: after ? -0.08 * Math.exp(-(lt - pov1) * 3) : 0.06 });
@@ -2549,8 +2602,14 @@
         // 凯勒老师（左）：递过冰淇淋，然后自己也看海；回头时一脸问号
         // （官方立绘剪纸：凯勒老师一直笑着和她聊天，什么也没察觉；最后一脸问号）
         const b0 = s.shot.t0 + 6.4 * BEAT;
-        const kc = kellerCard(q, s, { x: 560, y: 1150, h: 620, crop: 'upper', flip: true, expr: [[s.shot.t0, 3], [s.shot.t0 + 1.2, 9], [b0, 4]] },
-          (qq) => keller(qq, { x: 600, y: 1060, h: 400 * KH(), pose: back ? 'think' : bt < 1.5 ? 'reach' : 'turn', turn: 0.9, aim: -0.1, t, expr: back ? 'surprise' : 'smile', look: back ? [1, 0.3] : bt < 1.5 ? [1, 0] : [0, -0.1], flip: false }));
+        const it0 = s.shot.t0, KP = E.keyart && E.keyart.path;
+        const kc = kellerCard(q, s, {
+          x: 560, y: 1150, h: 620, crop: 'upper', flip: true, expr: [[it0 - 1, 8], [it0 + 1.2, 9], [it0 + 2.6, 8], [b0, 4]],
+          // 一直笑着和她聊天（看着她 → 也转头看海），什么也没察觉；最后低头看着空甜筒，一脸问号
+          mouth: talkK([[it0 + 0.1, it0 + 1.1], [it0 + 2.7, it0 + 3.9]], 11),
+          look: KP ? KP([[it0, [-0.5, 0.1]], [it0 + 2.4, [-0.45, 0.1]], [it0 + 3.0, [0.35, -0.15]], [b0 - 0.2, [0.3, -0.15]], [b0 + 0.3, [-0.5, 0.45]]]) : [-0.4, 0.1],
+          tilt: (tt) => (tt > b0 ? 0.8 * clamp((tt - b0) / 0.4) : 0),
+        }, (qq) => keller(qq, { x: 600, y: 1060, h: 400 * KH(), pose: back ? 'think' : bt < 1.5 ? 'reach' : 'turn', turn: 0.9, aim: -0.1, t, expr: back ? 'surprise' : 'smile', look: back ? [1, 0.3] : bt < 1.5 ? [1, 0] : [0, -0.1], flip: false }, s));
         if (back) pop(q, '？', kc ? 640 : 560, kc ? 520 : 560, clamp((bt - 6.5) / 0.25), { size: 64, color: '#3a8ad0' });
         // 她：接过冰淇淋 → 转身看海（甜筒还举在身边）→ 转回来：只剩甜筒
         // （官方小人：转过去和凯勒老师说话——甜筒举在身边，小羊们在她背后一口一口地啃）
@@ -2927,7 +2986,10 @@
     // 多利本体：官方剧情立绘（avg_npc_1014_1：一大团粉云、黑脸、荆棘冠），雾团从它身后聚过来；没有立绘时用角色库的脸
     if (form > 0.25) {
       const ka = sst(0.3, 1, form) * (o.alpha ?? 1);
-      if (!(cardOn(s, 'dolly') && E.sd.card(g, 'dolly', { x: x - h * 0.02, y: y + h * 0.16, h: h * 1.18, t, breath: 1.6, bob: h * 0.012, alpha: ka, light: o.light })))
+      // [v3] 首选多利立绘的分层绑定（云团起伏、飘散的小云朵、王冠与耳朵、眨眼、转头看她）
+      const lk = o.look || [-0.4, 0.6];
+      const rigD = rigOn(s, 'dolly') && E.keyart.draw(g, 'dolly', { t, crop: 'full', ax: 0.5, ay: 1, x: x - h * 0.02, y: y + h * 0.16, h: h * 1.18, alpha: ka, eyes: o.expr === 'closed' ? 'closed' : 'open', look: [lk[0] * 0.7, lk[1] * 0.5], wind: 0.3, tint: o.light ? [o.light.color, o.light.amount ?? 0.3] : undefined });
+      if (!rigD && !(cardOn(s, 'dolly') && E.sd.card(g, 'dolly', { x: x - h * 0.02, y: y + h * 0.16, h: h * 1.18, t, breath: 1.6, bob: h * 0.012, alpha: ka, light: o.light })))
         cast(g, 'dolly', { x, y, h, t, glow: 0.6, form: 'cloud', fade: 1 - sst(0.3, 1, form), expr: o.expr || 'smile', look: o.look || [-0.4, 0.6], alpha: o.alpha ?? 1 });
     }
   }
@@ -3384,7 +3446,12 @@
       const give = clamp((bt - 1) / 1.2);
       const ko = { x: 760, y: 1010, h: 440 * KH(), pose: give < 1 ? 'hold' : 'point', aim: 0.1, t, expr: 'smile', flip: false, look: [1, 0], talk: bt < 2 ? 1 : 0 };
       // 凯勒老师：官方立绘剪纸（膝上构图，画面左边），说着话把种子递过来
-      const kc = kellerCard(q, s, { x: 760, y: 1105, h: 600, crop: 'upper', flip: true, expr: [[s.shot.t0, 3], [s.shot.t0 + 2.2, 9]] }, (qq) => keller(qq, ko));
+      const gt0 = s.shot.t0;
+      const kc = kellerCard(q, s, {
+        x: 760, y: 1105, h: 600, crop: 'upper', flip: true, expr: [[gt0 - 1, 8], [gt0 + 2.2, 9]], mouth: talkK([[gt0 + 0.1, gt0 + 1.0], [gt0 + 1.25, gt0 + 1.95]], 17),
+        look: E.keyart && E.keyart.path ? E.keyart.path([[gt0 + 0.2, [-0.45, 0.15]], [gt0 + 1.4, [-0.5, 0.25]], [gt0 + 2.4, [-0.45, -0.2]]]) : [-0.45, 0.1],
+        glint: (tt) => E.window01(tt, gt0 + 2.4, gt0 + 3.4, 0.25, 0.5),
+      }, (qq) => keller(qq, ko, s));
       const ao = { x: 1180, y: 1020, h: 440, pose: give >= 1 ? 'hold-up' : 'stand', t, expr: give >= 1 ? 'laugh' : 'smile', flip: true, look: [-1, give >= 1 ? -0.6 : 0.1] };
       adele(q, ao);
       const kh = kc ? [880, 800] : anchor('keller', ko, 'handN', [820, 740]), ah = anchor('adele-alter', ao, 'handN', [1150, 560]);
@@ -3977,8 +4044,12 @@
           else person(q, { x: 3050, y: 760, h: 300, seed: 4, pose: 'reach-up', t, flip: false, expr: 'smile' });
           lanternString(q, s, t, 2980, 540, 3500, 520, 50, 5, 31, { size: 44 });
           // 凯勒老师拿着单子指挥
-          kellerCard(q, s, { x: 3760, y: 1085, h: 560, crop: 'upper', expr: [[s.shot.t0, 3], [burst + 0.1, 4]] },
-            (qq) => keller(qq, { x: 3700, y: 1000, h: 420 * KH(), pose: 'point', aim: -0.3, prop: 'notebook', t, expr: 'talk', talk: 1, flip: true, look: [-1, -0.2] }));
+          // 凯勒老师拿着单子指挥（抬头看灯笼 → 转头招呼她）；箱子里冒出小羊时一愣
+          const pt0 = s.shot.t0;
+          kellerCard(q, s, {
+            x: 3760, y: 1085, h: 560, crop: 'upper', expr: [[pt0 - 1, 3], [pt0 + 1.0, 8], [burst + 0.1, 4]], mouth: talkK([[pt0 + 0.05, pt0 + 0.9], [pt0 + 1.1, burst - 0.15]], 5),
+            look: E.keyart && E.keyart.path ? E.keyart.path([[pt0, [-0.2, -0.45]], [pt0 + 0.9, [-0.3, -0.4]], [pt0 + 1.4, [-0.6, 0.1]], [burst, [-0.6, 0.1]], [burst + 0.3, [-0.5, 0.35]]]) : [-0.5, 0],
+          }, (qq) => keller(qq, { x: 3700, y: 1000, h: 420 * KH(), pose: 'point', aim: -0.3, prop: 'notebook', t, expr: 'talk', flip: true, look: [-1, -0.2] }, s));
           // 她：抱着一箱灯笼走过来；第 5 拍，箱子里“噗”地冒出一群小羊，每只抢一个灯笼
           const ax = lerp(3160, 3380, clamp(lt / 1.7));
           const ao = { x: ax, y: 1030, h: 440, pose: lt < 1.7 ? 'walk' : t < burst ? 'hold' : 'cover', speed: stepRate('adele-alter', 440, 220 / 1.7), arms: lt < 1.7 ? 'hold' : undefined, t, expr: t < burst ? 'smile' : 'surprise', flip: false, look: [1, 0.3] };
@@ -4063,8 +4134,12 @@
             }
             pop(q, '哗啦', 3660, 620, clamp(a / 0.2) * (1 - clamp((a - 1) / 0.3)), { size: 46, color: '#3a8ad0' });
           }
-          kellerCard(q, s, { x: 3830, y: 1110, h: 580, crop: 'upper', expr: [[s.shot.t0, 1], [snap + 0.1, 4], [snap + 0.7, 9]] },
-            (qq) => keller(qq, { x: 3800, y: 1030, h: 420 * KH(), pose: a > 0.6 ? 'clap' : 'point', aim: -0.5, t, expr: a > 0.6 ? 'laugh' : 'surprise', flip: true, look: [-1, -0.3] }));
+          // 彩旗绳“啪”地断了：她抬头 → 一愣 → 看着撒了她一身彩旗的阿黛尔笑出来
+          kellerCard(q, s, {
+            x: 3830, y: 1110, h: 580, crop: 'upper', expr: [[s.shot.t0 - 1, 10], [snap + 0.1, 4], [snap + 0.7, 9]],
+            look: E.keyart && E.keyart.path ? E.keyart.path([[s.shot.t0, [-0.35, -0.5]], [snap, [-0.4, -0.5]], [snap + 0.35, [-0.6, 0.15]]]) : [-0.5, 0],
+            tilt: (tt) => (tt > snap + 0.7 ? -0.6 * clamp((tt - snap - 0.7) / 0.5) : 0), glint: (tt) => E.window01(tt, snap + 0.8, snap + 1.7, 0.2, 0.5),
+          }, (qq) => keller(qq, { x: 3800, y: 1030, h: 420 * KH(), pose: a > 0.6 ? 'clap' : 'point', aim: -0.5, t, expr: a > 0.6 ? 'laugh' : 'surprise', flip: true, look: [-1, -0.3] }, s));
         });
       },
     });
@@ -4742,9 +4817,10 @@
       sea: (q) => { skyLanterns(q, s, t, { t0: t0 - 8, spread: 10, x0: -200, w: 2300, y0: 700, rise: 700, sc: 0.8, n: 28 }); for (let i = 0; i < 6; i++) { const x = 200 + i * 300 + Math.sin(t * 0.3 + i) * 20, y = 640 + (i % 2) * 40; q.fillStyle = '#140e2a'; q.beginPath(); q.ellipse(x, y, 40, 8, 0, 0, TAU); q.fill(); E.glow(q, x, y - 10, 30, '255,190,120', 0.7); } },
       town: (q) => { q.fillStyle = `rgba(${F[1]},${0.12 * F[0]})`; q.fillRect(-400, 500, VW + 800, 500); },
       terrace: (q) => {
-        // 背影：她和凯勒老师靠着栏杆；栏杆上一排小羊
-        // 凯勒老师侧过脸来看她（正背面的后脑勺在夜里只是一团白，读不出是谁）
-        keller(q, { x: 760, y: 1010, h: 380 * KH(), pose: 'turn', turn: 0.85, t, expr: 'smile', flip: false, shadow: false });
+        // 她靠着栏杆看海湾（背影）；凯勒老师背靠栏杆站在她身边，侧过脸看着她笑（官方立绘绑定：烟花在她身后，轮廓被照亮）
+        const bt0 = s.shot.t0;
+        keller(q, { x: 760, y: 1010, h: 380 * KH(), pose: 'turn', turn: 0.85, t, expr: 'smile', flip: false, shadow: false,
+          rig: { flip: false, expr: [[bt0 - 1, 10], [bt0 + 2.2, 9]], look: [0.7, 0.2], tilt: 0.3, glint: (tt) => 0.8 * F[0], light: { color: '#c4bcf0', amount: 0.4 }, rim: { color: F[1], dir: [0.1, -1], rim: 0.5 + 0.6 * F[0], wash: 0.02 }, wind: 0.3 } }, s);
         adele(q, { x: 1000, y: 1010, h: 380, pose: 'turn', turn: 0.15 + 0.2 * clamp((lt - 2) / 1), t, flip: false, shadow: false });
         for (let i = 0; i < 5; i++) lamb(q, s, 1200 + i * 80, 822, 58, { pose: 'sit', expr: 'happy', flip: false, glow: 0.8 });
       },
@@ -4767,7 +4843,13 @@
         const SDk = SDON();
         const ao = { x: SDk ? 990 : 1060, y: 1060, h: 440, pose: SDk ? 'wave' : clinkOn ? 'reach' : 'hold', aim: -0.15, t, expr: bt > 4 ? 'laugh' : 'smile', flip: true, look: [-1, -0.1], rim: F[1], rimGlow: 0.1 * F[0] };
         // 凯勒老师：官方立绘剪纸（膝上构图）——汽水瓶握在她胸前那只手里；碰杯时两只瓶子往中间一凑
-        const kc = kellerCard(q, s, { x: 700, y: 1170, h: 700, crop: 'upper', flip: true, expr: [[s.shot.t0, 3], [s.shot.t0 + BEAT * 3.8, 9]], light: { color: '#c8b8f0', amount: 0.28 } }, (qq) => keller(qq, ko));
+        const ct0 = s.shot.t0;
+        const kc = kellerCard(q, s, {
+          x: 700, y: 1170, h: 700, crop: 'upper', flip: true, expr: [[ct0 - 1, 8], [ct0 + BEAT * 3.8, 9]], light: { color: '#c8b8f0', amount: 0.28 },
+          // 递汽水时说了句什么，碰杯时眯眼笑；烟花一亮，镜片上跟着一闪、轮廓被照亮
+          mouth: talkK([[ct0 + 0.15, ct0 + BEAT * 3.1]], 13), look: [-0.5, 0.12], tilt: (tt) => -0.4 * clamp((tt - ct0 - BEAT * 3.8) / 0.5),
+          glint: (tt) => Math.max(0.7 * F[0], E.window01(tt, ct0 + BEAT * 4, ct0 + BEAT * 5.6, 0.15, 0.5)), rim: { color: F[1], dir: [0.3, -1], rim: 0.35 + 0.6 * F[0], wash: 0.03 },
+        }, (qq) => keller(qq, ko, s));
         adele(q, ao);
         const kh0 = kc ? [845, 850] : anchor('keller', ko, 'handN', [860, 800]), ah0 = anchor('adele-alter', ao, 'handN', [960, 800]);
         const ce = kc || SDk ? ease.inOut(clinkOn ? clamp((bt - 3.3) / 0.6) : 0) : 0, m0 = lerp(kh0[0], ah0[0], kc ? 0.38 : 0.5);
@@ -4937,7 +5019,9 @@
       },
       sea: (q) => skyLanterns(q, s, t, { t0: 238, spread: 10, x0: -200, w: 2300, y0: 700, rise: 700, sc: 0.8, n: 24, seed: 405 }),
       terrace: (q) => {
-        keller(q, { x: 700, y: 1010, h: 380 * KH(), pose: a > 0.2 ? 'cheer' : 'turn', turn: 0.8, t, expr: 'laugh', flip: false, shadow: false });
+        // 凯勒老师背靠栏杆，看着她和小羊们跳起来，笑出了声（官方立绘绑定；烟花在身后，轮廓被照亮）
+        keller(q, { x: 700, y: 1010, h: 380 * KH(), pose: a > 0.2 ? 'cheer' : 'turn', turn: 0.8, t, expr: 'laugh', flip: false, shadow: false,
+          rig: { expr: [[big - 3, 8], [big + 0.2, 9]], look: (tt) => [0.65, tt - big > 0.2 ? -0.25 : 0.15], mouth: talkK([[big + 0.3, big + 1.1]], 19), glint: () => 0.8 * F[0], light: { color: '#c4bcf0', amount: 0.4 }, rim: { color: F[1], dir: [0.1, -1], rim: 0.5 + 0.6 * F[0], wash: 0.02 }, wind: 0.3 } }, s);
         adele(q, { x: 1000, y: 1010, h: 380, pose: a > 0.2 ? 'cheer' : 'turn', turn: 0.3, t, expr: 'laugh', flip: false, shadow: false });
         for (let i = 0; i < 5; i++) lamb(q, s, 1220 + i * 80, 822 - (a > 0.2 ? hop(fract(s.beat + i * 0.2))[0] * 30 : 0), 58, { pose: a > 0.2 ? 'jump' : 'sit', expr: 'happy', flip: false, glow: 0.8 });
       },
@@ -4975,11 +5059,27 @@
       mid: (q) => {
         // 门灯亮着
         for (const lx of [1150, 1350]) { E.glow(q, lx, 747, 90, '255,200,130', 0.7); E.glow(q, lx, 747, 20, '255,240,210', 0.9); }
-        // 凯勒老师提着灯往台阶下走，回头挥手
-        const kv = 70, kx = 1500 + Math.max(0, lt - 2) * kv;
-        const ko = { x: kx, y: 1140, h: 400 * KH(), pose: lt < 2 ? 'wave' : 'walk', speed: stepRate('keller', 400 * KH(), kv), t, flip: lt < 2, expr: 'smile', look: [-1, 0], prop: 'lantern' };
-        keller(q, ko);
-        const lp = anchor('keller', ko, 'prop', [kx + 40, 900]); E.glow(q, lp[0], lp[1], 120, '255,200,130', 0.6); E.glow(q, lp[0], lp[1], 26, '255,244,220', 0.9);
+        // 凯勒老师提着灯站在台阶下，对她说了声“晚安”，笑着转身走进夜色里（官方立绘绑定：人淡出，灯还往前走了一段才看不见）
+        const gt = s.shot.t0, kgo = clamp((lt - 2.0) / 1.3), kh = 400 * KH();
+        const kx = 1500 + ease.inOut(kgo) * 40, ky = 1140 + ease.inOut(kgo) * 14;
+        const ko = { x: kx, y: ky, h: kh, pose: 'wave', t, flip: true, expr: 'smile', look: [-1, 0], prop: 'lantern', alpha: 1 - ease.in(kgo),
+          rig: { flip: true, expr: [[gt - 1, 8], [gt + 1.1, 9]], look: [0.6, 0.1], mouth: talkK([[gt + 0.25, gt + 1.0]], 23), light: { color: '#b8b0e8', amount: 0.45 }, rim: { color: '255,200,130', dir: [0.9, 0.2], rim: 0.7, wash: 0.1 }, wind: 0.25 } };
+        if (kgo < 1) keller(q, ko, s);
+        let lp = null;
+        const KA0 = E.keyart;
+        if (KA0 && KA0.anchors && rigOn(s, 'keller')) { const A = KA0.anchors('keller', { t, crop: KR_CROP.full, ax: 0.545, ay: 1, x: kx, y: ky + kh * 0.004, h: kh * 1.004, flip: true }); if (A && A.handR) lp = [A.handR[0], A.handR[1] + kh * 0.05]; }
+        if (!lp) lp = anchor('keller', ko, 'prop', [kx + 40, 900]);
+        // 提灯：细绳 + 纸灯笼；她走远时灯先往前晃着走，再慢慢暗下去
+        const lx = lp[0] + ease.inOut(kgo) * 150, ly = lp[1] + ease.inOut(kgo) * 40 + Math.sin(t * 2.2) * 3, la = 1 - clamp((lt - 2.6) / 1.4);
+        if (la > 0) {
+          withAlpha(q, la, (qq) => {
+            qq.strokeStyle = 'rgba(40,30,50,0.8)'; qq.lineWidth = 2; qq.beginPath(); qq.moveTo(lx, ly - 44); qq.lineTo(lx + Math.sin(t * 2.2) * 2, ly - 18); qq.stroke();
+            qq.fillStyle = '#ffb35c'; qq.beginPath(); qq.ellipse(lx, ly, 17, 21, 0, 0, TAU); qq.fill();
+            qq.fillStyle = '#6a3a2a'; qq.fillRect(lx - 9, ly - 24, 18, 5); qq.fillRect(lx - 9, ly + 19, 18, 5);
+            qq.strokeStyle = 'rgba(160,80,40,0.55)'; qq.lineWidth = 1.5; for (const d of [-8, 0, 8]) { qq.beginPath(); qq.ellipse(lx, ly, Math.abs(d) + 1, 20, 0, 0, TAU); qq.stroke(); }
+            E.glow(qq, lx, ly, 120, '255,200,130', 0.6); E.glow(qq, lx, ly, 26, '255,244,220', 0.9);
+          });
+        }
         // 她：在门口挥手，然后回头找小羊（它们都不见了）
         adele(q, { x: 1180, y: 1034, h: 400, pose: lt < 2.2 ? 'wave' : 'look-up', t, flip: false, expr: lt < 2.2 ? 'smile' : 'neutral', look: lt < 2.2 ? [1, 0] : [-1, 0.2] });
         if (lt > 2.8) pop(q, '？', 1110, 560, clamp((lt - 2.8) / 0.25), { size: 50, color: '#c8b8ff', stroke: 'rgba(30,20,60,0.8)' });
@@ -5652,7 +5752,7 @@
         { who: 'adele-alter', o: { outfit: 'coat' }, role: '主角 · 来汐斯塔帮忙' },
         { who: 'keller', role: '邀她来汐斯塔的凯勒老师' },
         { who: 'dolly', role: '提出交易的大粉羊' },
-        { who: 'sheep-pink', o: { glow: 0.8 }, role: '只有她看得见' },
+        { who: 'sheep-pink', o: { sd: true, variant: 'enemy_1350_mgcshp_2' }, role: '只有她看得见' },
       ],
       poster: 92.2, thumbs: [57.6, 101.5, 186.2, 220.8],
       accent: '#3fcfbf',
@@ -5670,7 +5770,7 @@
       if (F && F.warm) try { F.warm(['grain', 'dirt']); } catch (e) { /* 用到时再生成 */ }
       // 立绘在开播前预载好（图集上传显卡会卡一下，放在开播前，不在正片里卡）；ctx.keyart 只会 resolve(true / false)，没好就先用角色库的画面
       const K = KA();
-      const ka = ctx && ctx.keyart ? Promise.resolve(ctx.keyart('alter-e0')).catch(() => false) : K && K.load ? K.load(['alter-e0'], 6000).catch(() => false) : Promise.resolve(false);
+      const ka = ctx && ctx.keyart ? Promise.resolve(ctx.keyart(['alter-e0', 'keller', 'dolly'])).catch(() => false) : K && K.load ? K.load(['alter-e0', 'keller', 'dolly'], 6000).catch(() => false) : Promise.resolve(false);
       const fonts = document.fonts ? Promise.race([Promise.all(['900 160px "Noto Serif SC"', '700 40px "Noto Serif SC"', '600 36px "Noto Serif SC"', '700 52px Cinzel', '700 24px "Noto Sans SC"'].map((f) => document.fonts.load(f, '晴日之约阿黛尔汐斯塔的夏天到了博物馆就要开馆来帮帮我吧老火山也在等你凯勒本页原创MISTYDAY'))), new Promise((r) => setTimeout(r, 2500))]).catch(() => null) : null;
       for (const pose of ['stand', 'jump', 'sit', 'walk', 'run', 'eat', 'sleep', 'look-up', 'push', 'float', 'bounce']) castBox('sheep-pink', { pose });
       await Promise.all([ka, fonts, cards]);

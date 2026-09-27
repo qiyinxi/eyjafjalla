@@ -808,7 +808,26 @@
     for (let i = 0; i < 3; i++) foam(q, ch[0] - 40 + i * 40, ch[1] - 10 + (i % 2) * 18, 17, 0.9, i + 3, true, i);
   }
   /** 特写：雪雉的夏装剧情立绘（crop 'face' | 'bust' | 'upper'；expr 表情编号或关键帧）；立绘没加载好时返回 false */
+  /*
+   * [v3] 首选：雪雉夏装剧情立绘的分层绑定（MVE.keyart 'snowsant'：眨眼、转头、头发随风、官方差分表情与嘴型），
+   * 与立绘剪纸同一块构图；每个镜头开头决定一次用不用（没准备好 → 立绘剪纸 → 手绘替代）
+   */
+  const SNOW_CROP = { bust: [346, -20, 332, 369], upper: [226, -20, 572, 635], face: [390, 0, 244, 184] };
+  const RIGDEC = new Map();
+  function rigOn(s, key) {
+    const K = KA();
+    if (!K || !K.ready || warmMode) return false;
+    const id = ((s.shot && s.shot.id) || '') + '|rig|' + key, now = performance.now();
+    let d = RIGDEC.get(id);
+    if (!d || now - d.at > 1500) { d = { on: !!K.ready(key) }; if (!d.on && K.load) K.load(key, 0); }
+    d.at = now; RIGDEC.set(id, d);
+    return d.on;
+  }
   function snowCard(q, s, o) {
+    if (rigOn(s, SNOW)) {
+      const K = KA();
+      if (K.draw(q, SNOW, { t: s.t, crop: SNOW_CROP[o.crop] || SNOW_CROP.bust, x: o.x, y: o.y, h: o.h, ax: 0.5, ay: 1, flip: !!o.flip, alpha: o.alpha, expr: o.expr, xfade: o.xfade ?? 0.2, look: o.look, mouth: o.mouth, tilt: o.tilt, nod: o.nod, blink: o.blink, wind: o.wind ?? 0.25, breath: o.breath ?? 1, tint: o.light ? [o.light.color, o.light.amount ?? 0.3] : undefined })) return true;
+    }
     const S = SDK();
     if (!S || !S.card) return false;
     // 预热时也“画”一次（画到 2×2 的假画布上）：按真实的屏幕尺寸，提前开始下载该用的那一档清晰度
@@ -2213,7 +2232,7 @@
     inCam(g, cam, 1, (q) => {
       // 店主的脸（官方剧情立绘）：闭着眼 → 睁开一只眼 → 眯着眼左看右看
       const t0 = s.shot.t0, pan = lt < 0.2 ? 0 : lt < 0.62 ? -1 : 1;
-      const ok = snowCard(q, s, { x: 960 + pan * 26, y: 1240, h: 1320, crop: 'bust', expr: [[t0 - 1, 11], [t0 + 0.2, 2], [t0 + 0.62, 9]], xfade: 0.12, breath: 1.2 });
+      const ok = snowCard(q, s, { x: 960 + pan * 26, y: 1240, h: 1320, crop: 'bust', expr: [[t0 - 1, 11], [t0 + 0.2, 2], [t0 + 0.62, 9]], xfade: 0.12, breath: 1.2, look: (tt) => [tt < t0 + 0.62 ? 0 : tt < t0 + 1.2 ? -0.7 : 0.7, 0.1], blink: 0, tilt: (tt) => (tt < t0 + 0.62 ? 0 : tt < t0 + 1.2 ? -0.4 : 0.4) });
       if (!ok) vendor(q, { x: 960, y: 610, h: 700, crop: 'face', pose: 'stand', t, expr: open ? 'sleepy' : 'closed', look, blink: false });
       if (open) sfx(q, '……？', 1480, 280, 70, clamp((lt - 0.2) / 0.2), { color: '#ffffff', rot: 0.08 });
     });
@@ -3277,7 +3296,7 @@
       g.drawImage(blurred(s, 'uh-bg', VW, VH, (q) => { shopBack(q); shopTank(q); }, 0.05), -60, -40, VW + 120, VH + 80);
       inCam(g, { x: 960, y: 540, z: 1 + lt * 0.2, ...shake(s, 3, 71, 20) }, 1, (q) => {
         // 店主的大脸（剧情立绘，惊得张开嘴）+ 一滴冷汗
-        const ok = snowCard(q, s, { x: 960, y: 1280, h: 1380, crop: 'bust', expr: 3, breath: 0 });
+        const ok = snowCard(q, s, { x: 960, y: 1280, h: 1380, crop: 'bust', expr: 3, breath: 0, look: [0.15, -0.45], nod: -0.3, blink: 0, wind: 0.6 });
         if (!ok) vendor(q, { x: 960, y: 640, h: 760, crop: 'face', pose: 'stand', t, expr: 'surprise', look: [0.2, -0.4], blink: false });
         drop(q, ok ? 1180 : 1260, 380 + lt * 200, 22, PI / 2, 0.9, 'cyan');
       });
@@ -4210,7 +4229,7 @@
       g.fillStyle = 'rgba(255,236,220,0.12)'; g.fillRect(0, 0, VW, VH);
       const dr = sin(t * 0.8) * 6, bump = ck > 0 && ck < 0.25 ? sin(PI * ck / 0.25) * 14 : 0;
       const cx = 1000 + dr, cy = 420;   // 瓶口相碰的点
-      snowCard(g, s, { x: 640 + dr, y: 1150, h: 1150, crop: 'bust', expr: [[s.shot.t0 - 1, 10], [s.shot.t0 + 0.06, 11]], xfade: 0.12 });
+      snowCard(g, s, { x: 640 + dr, y: 1150, h: 1150, crop: 'bust', expr: [[s.shot.t0 - 1, 10], [s.shot.t0 + 0.06, 11]], xfade: 0.12, look: [0.55, -0.1], tilt: 0.5 });
       // 她的瓶子：画在立绘前面，瓶身下半截正好压在她抬起的那只手上（像握着）
       const r = 0.6, bh = 400, bx = cx - sin(r) * bh * 0.92, by = cy + cos(r) * bh * 0.92;
       bottle(g, s, bx, by, bh, r, { fl: 'pink', cap: false, fill: 0.7 });
@@ -5087,7 +5106,7 @@
     sd: SD_KEYS,
     prepare: async (ctx) => {
       // 官方立绘（门口那一下的脸部特写）：预载；不可用时特写退回 Q 版
-      const ka = ctx && ctx.keyart ? ctx.keyart('alter-e0') : Promise.resolve(false);
+      const ka = ctx && ctx.keyart ? ctx.keyart(['alter-e0', 'snowsant']) : Promise.resolve(false);
       // 官方 Q 版小人（小羊 × 3、雪雉、纯烬）+ 雪雉的剧情立绘（特写用的几个表情）：预载，最多等 8 秒
       const Sd = SDK();
       const sdp = Sd ? Promise.race([Promise.all([Sd.load ? Sd.load(SD_KEYS, 8000) : true, Sd.card && Sd.card.load ? Sd.card.load('snowsant', [1, 2, 3, 9, 10, 11]) : true]), new Promise((r) => setTimeout(r, 8000))]) : Promise.resolve(false);
