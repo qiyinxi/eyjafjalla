@@ -4690,7 +4690,9 @@
       q.beginPath(); q.rect(AX - 250, FLOOR - SEAT + 40, 34, SEAT - 40); q.rect(AX + 200, FLOOR - SEAT + 40, 34, SEAT - 40); fs(q, '#5a3a24', 4);
       q.beginPath(); rrect(q, AX - 262, FLOOR - SEAT, 510, 46, 10); fs(q, '#7a4e30', 4.5);
       q.fillStyle = 'rgba(255,220,170,.18)'; q.fillRect(AX - 250, FLOOR - SEAT + 6, 486, 8);
-      who(q, 'adele-child', { x: AX, y: FLOOR, h: 1350, pose: 'sit', seat: SEAT, arms: 'lap', t, expr: 'content', outfit: 'school', shadow: false });
+      // 领口以下的特写（桌面挡住脸）：用手绘角色库画——官方小人的“坐”是基建椅子上的侧坐，放到 1350 高时贴图放大约 2.4 倍、
+      // 身子斜在椅子左边、腿在中间，像断开了一样。手绘版是矢量，双手攥着裙角正对镜头；脸始终不入画
+      who(q, 'adele-child', { x: AX, y: FLOOR, h: 1350, pose: 'sit', seat: SEAT, arms: 'lap', t, expr: 'content', outfit: 'school', shadow: false, sd: false });
       // 小黑羊从右边挨过来，把下巴搁在她的膝盖上
       const sk = up(t, 154.1, 154.7, easeO);
       const sh = { x: 1520 - sk * 380, y: 960, h: 500, pose: 'stand', t, flip: true, expr: 'closed', heat: 0.35 * sk, shadow: false };

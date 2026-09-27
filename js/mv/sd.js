@@ -133,7 +133,7 @@
   // cacheFps / cacheMaxPx / cacheMB：drawCached 的帧率（动画时间）、只缓存身高不超过多少设备像素的、缓存上限（0 = 桌面 24MB、触屏 12MB）
   // warmMs：每帧最多花多少毫秒生成预热队列里的帧（见 drawCached 的 o.warm）；warmAhead：每个动作预热从镜头开头起的多少帧（0 = 一整圈）。
   //   一整圈在小羊多的片子里会把缓存顶到上限、把当前镜头要用的帧挤掉（第二部实测：最坏一帧 65ms → 半秒 16 帧时 27ms）
-  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5, warmAhead: 16 };
+  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5, warmAhead: 16, sharp: true };
   const stats = { draws: 0, lastMs: 0, avgMs: 0, canvas: [1, 1], loads: {} };
   const OFF = /[?&]sd=off\b/.test(location.search);
 
@@ -252,6 +252,40 @@
   /* ---------------------------------------------------------------- WebGL：一个共享的离屏上下文 */
   let cv = null, gl = null, gl2 = false, glOK = null, gen = 0;
   let mctx = null, shader = null, batcher = null, skr = null;
+  // 放大用的着色器（WebGL2）：官方小人的贴图分辨率有限（敌人类小羊只有半分辨率），特写里常被放大 2～3 倍。
+  // 默认的双线性放大会糊；放大时改用 Catmull-Rom（5 次采样的双三次），边缘更利。缩小时照旧走 mipmap。没有 WebGL2 就用默认的
+  let shaderSharp = null;
+  const SHARP_VS = `#version 300 es
+in vec4 a_position; in vec4 a_color; in vec4 a_color2; in vec2 a_texCoords;
+uniform mat4 u_projTrans;
+out vec4 v_light; out vec4 v_dark; out vec2 v_texCoords;
+void main(){ v_light = a_color; v_dark = a_color2; v_texCoords = a_texCoords; gl_Position = u_projTrans * a_position; }`;
+  const SHARP_FS = `#version 300 es
+precision highp float;
+in vec4 v_light; in vec4 v_dark; in vec2 v_texCoords;
+uniform sampler2D u_texture;
+out vec4 fragColor;
+vec4 cr(vec2 uv, vec2 ts){
+  vec2 sp = uv * ts, t1 = floor(sp - 0.5) + 0.5, f = sp - t1;
+  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+  vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f);
+  vec2 w12 = w1 + w2, t12 = (t1 + w2 / w12) / ts, t0 = (t1 - 1.0) / ts, t3 = (t1 + 2.0) / ts;
+  vec4 r = textureLod(u_texture, vec2(t12.x, t0.y), 0.0) * (w12.x * w0.y)
+         + textureLod(u_texture, vec2(t0.x, t12.y), 0.0) * (w0.x * w12.y)
+         + textureLod(u_texture, t12, 0.0) * (w12.x * w12.y)
+         + textureLod(u_texture, vec2(t3.x, t12.y), 0.0) * (w3.x * w12.y)
+         + textureLod(u_texture, vec2(t12.x, t3.y), 0.0) * (w12.x * w3.y);
+  r /= w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y;
+  r = clamp(r, 0.0, 1.0);
+  return vec4(min(r.rgb, vec3(r.a)), r.a);
+}
+void main(){
+  vec2 ts = vec2(textureSize(u_texture, 0));
+  vec2 d = fwidth(v_texCoords * ts);
+  vec4 c = max(d.x, d.y) < 0.9 ? cr(v_texCoords, ts) : texture(u_texture, v_texCoords);
+  fragColor.a = c.a * v_light.a;
+  fragColor.rgb = ((c.a - 1.0) * v_dark.a + 1.0 - c.rgb) * v_dark.rgb + c.rgb * v_light.rgb;
+}`;
   let progP = null, UP = null, quad = null, fbo = null, fboTex = null, fboW = 0, fboH = 0, fboOK = false;
   let CW = 1, CH = 1, MAXDIM = 2048;
   const MVP = new Float32Array(16);
@@ -281,6 +315,10 @@
     if (!W || !glLive()) return false;
     mctx = new W.ManagedWebGLRenderingContext(gl);
     shader = W.Shader.newTwoColoredTextured(mctx);
+    shaderSharp = null;
+    if (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext) {
+      try { shaderSharp = new W.Shader(mctx, SHARP_VS, SHARP_FS); } catch (e) { shaderSharp = null; }
+    }
     batcher = new W.PolygonBatcher(mctx, true);
     skr = new W.SkeletonRenderer(mctx, true);
     skr.premultipliedAlpha = true;
@@ -353,7 +391,7 @@ void main(){
     e.preventDefault();
     gen++;
     for (const R of models.values()) dropGPU(R, true);
-    mctx = shader = batcher = skr = null; progP = null; quad = null;
+    mctx = shader = shaderSharp = batcher = skr = null; progP = null; quad = null;
     fbo = null; fboTex = null; fboW = fboH = 0;
   }
   function onRestored() { gen++; /* 各模型在下次 draw 时自动重新加载（文件走浏览器缓存） */ }
@@ -897,13 +935,16 @@ void main(){
       gl.scissor(0, CH - rh, rw, rh);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      shader.bind();
-      shader.setUniformi(window.spine.webgl.Shader.SAMPLER, 0);
-      shader.setUniform4x4f(window.spine.webgl.Shader.MVP_MATRIX, MVP);
-      batcher.begin(shader);
+      // 屏幕上每个贴图像素占几个设备像素：> 1 就是在放大贴图，换 Catmull-Rom 的着色器
+      const mag = (Math.sqrt(Math.abs(Au * Bv - Av * Bu)) * rs) / texelOf(R);
+      const SH = shaderSharp && mag > 1.05 && opts.sharp ? shaderSharp : shader;
+      SH.bind();
+      SH.setUniformi(window.spine.webgl.Shader.SAMPLER, 0);
+      SH.setUniform4x4f(window.spine.webgl.Shader.MVP_MATRIX, MVP);
+      batcher.begin(SH);
       if (solo) setComp(R, false);
       try { skr.draw(batcher, R.skel); } finally { if (solo) setComp(R, true); batcher.end(); }
-      shader.unbind();
+      SH.unbind();
       if (post) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, CH - rh, rw, rh);
@@ -1083,6 +1124,22 @@ void main(){
       API.trace({ src: 'sd', key: R.id, cv: g.canvas, anim: A.a.name, tt: A.tt, sp: A.sp, dur: A.a.duration, animB: B ? B.a.name : null, ttB: B ? B.tt : 0, k,
         x: Ac, y: Bc, s: Math.sqrt(Math.abs(Au * Bv - Av * Bu)), pts, alpha: o.alpha == null ? 1 : +o.alpha, sil: !!o.sil, flip: !!o.flip });
     } catch (e) { /* 调试用，出错不影响画面 */ }
+  }
+
+  /** 贴图密度：每个骨骼单位对应几个贴图像素（区域附件的原始像素 / 附件尺寸，取中位数）。画面上每单位的像素超过它，贴图就被放大（发糊） */
+  function texelOf(R) {
+    if (R._texel != null) return R._texel;
+    const v = [];
+    try {
+      for (const sk of R.data.skins) for (const ent of (sk.getAttachments ? sk.getAttachments() : [])) {
+        const at = ent.attachment, rg = at && at.region;
+        if (!rg || !(at.width > 4)) continue;
+        const ow = rg.originalWidth || rg.width;
+        if (ow > 4) v.push(ow / at.width);
+      }
+    } catch (e) { /* 取不到就当 1 */ }
+    v.sort((a, b) => a - b);
+    return (R._texel = v.length ? +v[v.length >> 1].toFixed(3) : 1);
   }
 
   /* ---------------------------------------------------------------- 锚点 */
@@ -1704,7 +1761,7 @@ void main(){
         anims: R.data.animations.map((a) => [a.name, +a.duration.toFixed(3)]),
         bones: { head: I.head && I.head.data.name, handN: I.handN && I.handN.data.name, handF: I.handF && I.handF.data.name, footL: I.footL && I.footL.data.name, footR: I.footR && I.footR.data.name, chest: I.chest && I.chest.data.name, hip: I.hip && I.hip.data.name },
         gait: I.gait ? { speed: +I.gait.speed.toFixed(1), dur: +I.gait.dur.toFixed(3), perHeight: +(I.gait.speed / I.height).toFixed(3) } : null,
-        load: stats.loads[R.id] || null, bytes: R.bytes, tex: R.nat || null,
+        load: stats.loads[R.id] || null, bytes: R.bytes, tex: R.nat || null, texel: texelOf(R),
       };
     },
     release,
