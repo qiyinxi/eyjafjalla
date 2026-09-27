@@ -107,7 +107,7 @@
     // 红线：画面上 ≥ 60 像素（1080p）的人物用了手绘版（不是剪影）——手绘的脸。羊不算人物，但也列出来（hand-sheep）
     const SHEEP = /^sheep-|^dolly$/;
     for (const fr of frames) for (const r of fr.recs) {
-      if (r.src !== 'cast' || r.sil || (r.alpha ?? 1) < 0.3 || !(r.s >= 60) || /back/.test(r.view || '')) continue; // 背影不露脸，不算
+      if (r.src !== 'cast' || r.sil || r.simple || (r.alpha ?? 1) < 0.3 || !(r.s >= 60) || /back/.test(r.view || '')) continue; // 背影不露脸，不算
       const k = SHEEP.test(r.key) ? 'hand-sheep' : 'hand';
       issues.push({ t: +fr.t.toFixed(3), shot: fr.shot, kind: k, key: r.key, pose: r.pose, h: Math.round(r.s), x: Math.round(r.x), y: Math.round(r.y) }); bump(fr.shot, k, r.s);
     }

@@ -3241,13 +3241,16 @@
   const STAIR_T0 = 18.12, STAIR_HOP = 0.25, STAIR_T1 = STAIR_T0 + (STAIR_HOPS.length - 1) * STAIR_HOP;
   /** tt 时刻在楼梯井里的位置：{ x, y, dir, mode: 'run' | 'hop', u（跳的进度）, d（在平地上跑过的路程）} */
   function stairPath(tt, arc = 50) {
-    if (tt < STAIR_T0) { const k = clamp((tt - 17.76) / (STAIR_T0 - 17.76)); return { x: lerp(380, 580, k), y: 660, dir: 1, mode: 'run', d: 200 * k, v: 200 / (STAIR_T0 - 17.76) }; }
+    // dd：官方小人跑步动画的“时钟路程”——跑 → 一级级跳下去 → 再跑，三段接成一条连续的数（旧写法跑的时候按路程、跳的时候按时间，
+    // 两种时钟在换段的那一帧对不上，腿一下子跳到另一个姿势）。跳的那几下每跳只记 60 像素（一次腾空大约半步，不会转成一团）
+    const HOPC = 60, NH = STAIR_HOPS.length - 1;
+    if (tt < STAIR_T0) { const k = clamp((tt - 17.76) / (STAIR_T0 - 17.76)); return { x: lerp(380, 580, k), y: 660, dir: 1, mode: 'run', d: 200 * k, dd: 200 * k, v: 200 / (STAIR_T0 - 17.76) }; }
     if (tt < STAIR_T1) {
       const H = hops(STAIR_HOPS, tt - STAIR_T0, STAIR_HOP, arc, true), i = min(STAIR_HOPS.length - 2, floor((tt - STAIR_T0) / STAIR_HOP));
-      return { x: H.x, y: H.y, yl: H.y + arc * 4 * H.u * (1 - H.u), dir: STAIR_HOPS[i + 1][0] >= STAIR_HOPS[i][0] ? 1 : -1, mode: 'hop', u: H.u };
+      return { x: H.x, y: H.y, yl: H.y + arc * 4 * H.u * (1 - H.u), dir: STAIR_HOPS[i + 1][0] >= STAIR_HOPS[i][0] ? 1 : -1, mode: 'hop', u: H.u, dd: 200 + clamp((tt - STAIR_T0) / STAIR_HOP, 0, NH) * HOPC };
     }
     const k = clamp((tt - STAIR_T1) / (21.76 - STAIR_T1));
-    return { x: lerp(575, 300, k), y: 2580, dir: -1, mode: 'run', d: 275 * k, v: 275 / (21.76 - STAIR_T1) };
+    return { x: lerp(575, 300, k), y: 2580, dir: -1, mode: 'run', d: 275 * k, dd: 200 + NH * HOPC + 275 * k, v: 275 / (21.76 - STAIR_T1) };
   }
   function shotStairs(g, s) {
     const t = s.t;
@@ -3266,9 +3269,11 @@
         if (P.mode === 'hop') {
           // 影子贴着台阶（两个落点之间的连线），跳得越高越淡
           shadow(q, P.x, P.yl, o.h * (name === 'sheep-black' ? 0.42 : 0.22), 0.42 * (1 - clamp((P.yl - P.y) / 120)));
+          // 官方小人（她）：腾空时仍用跑步动画，时钟接着跑的那一段走（见 stairPath 的 dd）；弧线已经在 P.y 里。手绘的小羊照旧用跳的姿势
+          if (name !== 'sheep-black') return who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'run', flip: P.dir < 0, t, shadow: false }, o, stride(name, { h: o.h, pose: 'run', t }, P.dd)));
           return who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'jump', air: 0.6 * sin(PI * P.u), flip: P.dir < 0, t, shadow: false }, o));
         }
-        who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'run', flip: P.dir < 0, t }, o, stride(name, { h: o.h, pose: 'run', t }, P.d)));
+        who(q, name, Object.assign({ x: P.x, y: P.y, pose: 'run', flip: P.dir < 0, t }, o, stride(name, { h: o.h, pose: 'run', t }, P.dd)));
       };
       person('sheep-black', stairPath(t - 0.38), { h: HT('sheep-black', U) });
       person('adele-child', A, { h: HT('adele-child', U), expr: 'determined', outfit: 'school', prop: handed ? 'satchel' : null, wind: 0.6 });
@@ -3325,7 +3330,9 @@
       const k = clamp((t - 22.75) / 0.42);
       const [m1, m2] = at(sh, 'sheep', 'mouth');
       if (k >= 1) toast(q, m1 + 10, m2 + 8, 0.6, 0.4); // 叼在嘴里的吐司和小羊同一层（在阿黛尔后面）
-      who(q, 'adele-child', Object.assign({ x: ax, y: 905, h, pose, t, flip: t < 22.45, expr: t < 23.15 && t > 22.75 ? 'laugh' : 'determined', outfit: 'school', prop: 'satchel', wind: 0.4, look: [0.6, -0.8] }, gA));
+      // 再冲出去时从站姿交叉淡化进跑步（官方小人；朝向不变。停下那一刻同时转身，游戏里转身也是瞬间的，不淡化）
+      const mixOut = t >= 23.15 && t < 23.35 ? { mixFrom: { pose: 'look-up', speed: 1 }, mixK: E.smooth(23.15, 23.35, t) } : null;
+      who(q, 'adele-child', Object.assign({ x: ax, y: 905, h, pose, t, flip: t < 22.45, expr: t < 23.15 && t > 22.75 ? 'laugh' : 'determined', outfit: 'school', prop: 'satchel', wind: 0.4, look: [0.6, -0.8] }, gA, mixOut));
       img(q, s, 'kitchen-table');
       if (t >= 22.75 && k < 1) { const [x, y] = arc3(1650, 485, m1, m2, 260, k); toast(q, x, y, 0.8, k * 7); }
       if (t > 22.75 && t < 23.1) sparkle(q, 1650, 500, 40, 1 - (t - 22.75) / 0.35, t * 3);
@@ -3414,8 +3421,10 @@
       const JA = 23.9, LA = 24.26;
       if (t > JA) {
         const k = clamp((t - JA) / (LA - JA)), j = t < LA, [jx, jy] = arc3(HOME_DOOR - 6, GY + 2, xA(LA), SY, 24, k), h = HT('adele-child', US);
-        const o = { x: j ? jx : xA(t), y: j ? jy : SY, h, pose: j ? 'jump' : 'run', air: j ? 0.5 * sin(PI * k) : undefined, t, expr: 'determined', outfit: 'school', prop: 'satchel', wind: 0.6 };
-        if (!j) Object.assign(o, stride('adele-child', { h, pose: 'run', t }, xA(t) - xA(LA)));
+        // 蹦出门的那一跳也用跑步动画，时钟接着落地后的跑步走（旧写法跳的时候按时间、落地后按路程从 0 数起，落地那一帧腿跳到另一个姿势）；
+        // 腾空的弧线在 jy 里。跳这一下只记 60 像素路程（半步）
+        const o = { x: j ? jx : xA(t), y: j ? jy : SY, h, pose: 'run', t, expr: 'determined', outfit: 'school', prop: 'satchel', wind: 0.6 };
+        Object.assign(o, stride('adele-child', { h, pose: 'run', t }, j ? 60 * k : 60 + xA(t) - xA(LA)));
         fromDoor(q, j, () => who(q, 'adele-child', o));
       }
     } });

@@ -22,6 +22,8 @@
   const E = window.MVE;
   if (!E) return;
   const { VW, VH, TAU, clamp, lerp, ease, hash, wobble } = E;
+  /** 换姿势交叉淡化（官方小人，js/mv/sd.js 的 mixFrom / mixK；手绘版忽略）：[t0, t0 + d] 秒里从 from 过渡过来；不在这段时间里返回 null */
+  const mixPose = (from, t0, d, t) => (t >= t0 && t < t0 + d ? { mixFrom: typeof from === 'string' ? { pose: from } : from, mixK: E.smooth(t0, t0 + d, t) } : null);
   const PI = Math.PI;
   const fract = (x) => x - Math.floor(x);
   const sst = (a, b, x) => { const k = clamp((x - a) / (b - a)); return k * k * (3 - 2 * k); };
@@ -2222,7 +2224,7 @@
         // 匀速走（步频按速度算），走出门口约 3.6 秒后停下抬头看
         const wk = { h: 300, pose: 'walk', speed: 1.1 }, v = E.cast && E.cast.gait ? E.cast.gait('adele-alter', wk).speed : 88;
         const wt = clamp(lt - 0.3, 0, 3.6), ax = SDOOR.x + 10 + v * wt, walking = lt < 3.9;
-        cast(q, 'adele-alter', { x: ax, y: SDOOR.base, h: 300, pose: walking ? 'walk' : 'look-up', speed: wk.speed, outfit: 'home', t, expr: 'surprise', look: [0.4, -0.8] });
+        cast(q, 'adele-alter', Object.assign({ x: ax, y: SDOOR.base, h: 300, pose: walking ? 'walk' : 'look-up', speed: wk.speed, outfit: 'home', t, expr: 'surprise', look: [0.4, -0.8] }, mixPose('walk', 3.9, 0.25, lt)));
         for (let i = 0; i < 3; i++) { const ph = fract(s.beat + i * 0.3); const [hy, sq] = hop(ph); const lx = ax + 240 + i * 90 + lt * 60; groundShadow(q, lx, SDOOR.base + 2, 26, 0.45 * (1 - hy * 0.6)); lamb(q, s, lx, SDOOR.base - hy * 40, 60, { v: i + 2, sq, glow: 1, pose: hy > 0.3 ? 'jump' : 'stand' }); }
       },
       front: (q) => {
@@ -2466,7 +2468,7 @@
         // 她一边笑一边快步走进集市（匀速，步频按速度算，脚不打滑），走到摊子前停下
         const wk = { h: 330, pose: 'walk', speed: 1.25 }, v = E.cast && E.cast.gait ? E.cast.gait('adele-alter', wk).speed : 110;
         const walking = lt < 3.4, ax = 380 + v * Math.min(lt, 3.4);
-        cast(q, 'adele-alter', { x: ax, y: 1000, h: 330, pose: walking ? 'walk' : 'stand', speed: wk.speed, outfit: 'home', t, expr: 'laugh', look: [0.6, -0.4] });
+        cast(q, 'adele-alter', Object.assign({ x: ax, y: 1000, h: 330, pose: walking ? 'walk' : 'stand', speed: wk.speed, outfit: 'home', t, expr: 'laugh', look: [0.6, -0.4] }, mixPose('walk', 3.4, 0.25, lt)));
         // 一只小羊顶着棉花糖蹦蹦跳跳跑过镜头前
         const px = lerp(-100, 1900, fract(lt / 4.2)) + 200, ph = fract(s.beat * 2), [hy, sq] = hop(ph);
         groundShadow(q, px, 1062, 40, 0.5 * (1 - hy * 0.6));
@@ -3017,7 +3019,7 @@
     tableScene(g, s, cam, {
       sheepLook: lt > 1.6 ? -1 : 1,
       // 她提着灯走近，第 1 秒停下（走的那一段步频配上速度，停下以后才换成站姿）
-      adele: (q) => { const wk = { h: 340, pose: 'walk', speed: 0.8 }, v = E.cast && E.cast.gait ? E.cast.gait('adele-alter', wk).speed : 72; const ao = { x: 420 - v * Math.max(0, 1 - lt), y: 930, h: 340, pose: lt < 1 ? 'walk' : 'stand', speed: wk.speed, outfit: 'home', t, expr: 'surprise', look: [1, 0] }; carryLantern(q, s, ao, { halo: 0.8 }); },
+      adele: (q) => { const wk = { h: 340, pose: 'walk', speed: 0.8 }, v = E.cast && E.cast.gait ? E.cast.gait('adele-alter', wk).speed : 72; const ao = Object.assign({ x: 420 - v * Math.max(0, 1 - lt), y: 930, h: 340, pose: lt < 1 ? 'walk' : 'stand', speed: wk.speed, outfit: 'home', t, expr: 'surprise', look: [1, 0] }, mixPose('walk', 1, 0.25, lt)); carryLantern(q, s, ao, { halo: 0.8 }); },
     });
     s.post.grade(g, '#8a7aa0', 0.18, 'soft-light');
     vig(g, s, 0.62);

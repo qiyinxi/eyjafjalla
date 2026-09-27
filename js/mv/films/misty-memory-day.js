@@ -92,6 +92,14 @@
     const f = typeof from === 'string' ? { pose: from } : from;
     return Object.assign(o, { mixFrom: Object.assign({}, f, { pose: POSE_SD[f.pose] || 'stand' }), mixK: sst(t0, t0 + d, t) });
   }
+  /**
+   * 官方小人“举起来”的东西（种子袋、天灯）放在哪：官方的挥手（Interact）只把一只手伸到身侧，没有举过头顶的动作——
+   * 放在头顶上方、稍微偏向伸出去的那只手（handF）。旧写法挂在近处那只手（handN）上：那只手就在下巴底下，纸袋 / 天灯正好盖住脸
+   */
+  function liftAt(o, fb) {
+    try { const A = E.cast.anchors('adele-alter', sdo(Object.assign({ outfit: 'coat' }, o))); if (A && A.top && A.handF) return [lerp(A.top[0], A.handF[0], 0.35), A.top[1] - 6]; } catch (e) { /* 用估计值 */ }
+    return fb;
+  }
   /** 角色身上的关键点（角色库提供 anchors；没有时用估计值 fb）；阿黛尔按“改过戏”的姿势取（道具要贴在官方小人的手上） */
   function anchor(who, o, key, fb) {
     try { if (E.cast && E.cast.anchors) { const A = E.cast.anchors(who, who === 'adele-alter' ? sdo(Object.assign({ outfit: 'coat' }, o)) : o); if (A && A[key]) return A[key]; } } catch (e) { /* 用估计值 */ }
@@ -3484,9 +3492,9 @@
       }, (qq) => keller(qq, ko, s));
       const ao = mixIn({ x: 1180, y: 1020, h: 440, pose: give >= 1 ? 'hold-up' : 'stand', t, expr: give >= 1 ? 'laugh' : 'smile', flip: true, look: [-1, give >= 1 ? -0.6 : 0.1] }, 'stand', 2.2, 0.45, bt);
       adele(q, ao);
-      const kh = kc ? [880, 800] : anchor('keller', ko, 'handN', [820, 740]), ah = anchor('adele-alter', ao, 'handN', [1150, 560]);
-      // 举过头顶（纸袋的下沿在手上，不挡脸）
-      const px = lerp(kh[0], ah[0], ease.inOut(give)), py = lerp(kh[1], ah[1] - (SDON() ? 60 : 92), ease.inOut(give)) - Math.sin(PI * give) * 60;
+      const kh = kc ? [880, 800] : anchor('keller', ko, 'handN', [820, 740]), ah = SDON() ? liftAt(ao, [1150, 560]) : anchor('adele-alter', ao, 'handN', [1150, 560]);
+      // 举过头顶（纸袋的下沿在手上 / 官方小人的头顶上方，不挡脸）
+      const px = lerp(kh[0], ah[0], ease.inOut(give)), py = lerp(kh[1], ah[1] - (SDON() ? 70 : 92), ease.inOut(give)) - Math.sin(PI * give) * 60;
       seedPacket(q, px, py, 1.3, Math.sin(t * 3) * 0.1, 0);
       if (give >= 1) { sparkle(q, px, py - 40, 70, 0.7 + 0.3 * Math.sin(t * 5), t, '255,236,160'); for (let i = 0; i < 3; i++) star4(q, px - 60 + i * 60, py - 110 - (i % 2) * 20, 12, t * 2 + i, '#ffd24a', 0.9); }
     });
@@ -3593,8 +3601,8 @@
           adele(q, ao);
           if (SDk && bt > 2.8 && bt < 3.6) { const k = clamp((bt - 2.8) / 0.8); for (let i = 0; i < 20; i++) { const an = (i / 20) * TAU, r = 60 + k * 260; q.fillStyle = pick(['#ff4a7a', '#ffd24a', '#ff8ab8', '#ffffff'], hash(114, i)); q.globalAlpha = 1 - k; q.beginPath(); q.arc(1400 + Math.cos(an) * r, 860 + Math.sin(an) * r * 0.7 + 200 * k * k, 9, 0, TAU); q.fill(); } q.globalAlpha = 1; }
           if (land) { for (let i = 0; i < 18; i++) { const a = lt - 0.8, ang = -PI / 2 + (hash(111, i) - 0.5) * 2.4, v = 300 + hash(112, i) * 300; const px = 1420 + Math.cos(ang) * v * a, py = 860 + Math.sin(ang) * v * a + 900 * a * a; if (py < 1100 && a < 1.2) { q.fillStyle = pick(['#ff4a7a', '#ffd24a', '#ff8ab8', '#ffffff'], hash(113, i)); q.beginPath(); q.arc(px, py, 7, 0, TAU); q.fill(); } } }
-          const hp = anchor('adele-alter', ao, 'handN', [1440, 700]);
-          if (land && bt > 3) seedPacket(q, hp[0] + (SDk ? 80 : 0), hp[1] - (SDk ? 200 : 96), 1.4, SDk ? 0.2 : -0.1, 0.5);
+          const hp = SDk ? liftAt(ao, [1440, 600]) : anchor('adele-alter', ao, 'handN', [1440, 700]);
+          if (land && bt > 3) seedPacket(q, hp[0], hp[1] - (SDk ? 74 : 96), 1.4, SDk ? 0.2 : -0.1, 0.5);
           // 旁边的小羊：打嗝，头上“噗”地长出一棵芽
           const burp = clamp((bt - 5) / 0.3);
           lamb(q, s, 1700, 1000, 120, { id: 3569 * 16, pose: 'sit', expr: bt > 5 ? 'closed' : 'happy', flip: true, glow: 0.4, sq: burp > 0 && burp < 1 ? 0.4 : 0 });
@@ -5023,8 +5031,8 @@
         // （官方小人：整段抬着手——先托着天灯，放手之后朝它挥手）
         const ao = { x: 1000, y: 1060, h: 440, pose: SDON() ? 'wave' : rise > 0.05 ? 'look-up' : 'hold-up', t, expr: 'laugh', look: [0, -1], flip: false };
         adele(q, ao);
-        const hp = anchor('adele-alter', SDON() ? ao : Object.assign({}, ao, { pose: 'hold-up' }), 'handN', [1000, 560]);
-        const ly = lerp(hp[1] - 60, -400, ease.in(rise)), lx = hp[0] + Math.sin(t * 0.8) * 20 * rise;
+        const hp = SDON() ? liftAt(ao, [1000, 560]) : anchor('adele-alter', Object.assign({}, ao, { pose: 'hold-up' }), 'handN', [1000, 560]);
+        const ly = lerp(hp[1] - (SDON() ? 70 : 60), -400, ease.in(rise)), lx = hp[0] + Math.sin(t * 0.8) * 20 * rise;
         // 天灯（大）
         E.glow(q, lx, ly, 160, '255,180,110', 0.6); q.fillStyle = '#ffd6a0'; q.beginPath(); q.moveTo(lx - 50, ly - 70); q.lineTo(lx + 50, ly - 70); q.lineTo(lx + 40, ly + 60); q.lineTo(lx - 40, ly + 60); q.closePath(); q.fill();
         q.strokeStyle = 'rgba(160,90,40,0.6)'; q.lineWidth = 2; q.stroke(); E.glow(q, lx, ly + 40, 40, '255,244,220', 0.9);

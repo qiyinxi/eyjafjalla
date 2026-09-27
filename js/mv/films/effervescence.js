@@ -620,6 +620,11 @@
       // o.animT：直接给动画时间（秒，按走过的距离 / 步数锁步相时用；不再乘 speed）
       const so = o.animT != null ? { x: 0, y: 0, scale: sc, anim, t: o.animT, speed: 1, phase: sdPhase(V, o) * 1.3, flip: !!o.flip, tint: o.tint, rim: o.rim }
         : { x: 0, y: 0, scale: sc, anim, t: o.t ?? s.t, speed, phase: sdPhase(V, o) * 1.3, flip: !!o.flip, tint: o.tint, rim: o.rim };
+      // 换动作交叉淡化：o.mixFrom = 上一个姿势，o.mixK = 0..1（1 = 全是现在的姿势）
+      if (o.mixFrom && o.mixK != null && o.mixK < 0.999) {
+        const fa = LAMB_ANIM[o.mixFrom] || 'Idle';
+        if (fa !== anim) { so.from = { anim: fa, speed: fa === 'Move' ? speed : 1 }; so.to = { anim, speed }; so.k = clamp(o.mixK); }
+      }
       if (warmMode) { if (S.drawCached && !o.tint && !o.rim) S.drawCached(g, sk, so); g.restore(); return; }
       const ok = S.drawCached ? S.drawCached(g, sk, so) : S.draw(g, sk, so);
       g.restore();
@@ -2680,7 +2685,8 @@
             const x = x0 + sin(th + wob) * h, y = FL - cos(th + wob) * h;
             const back = open > 0.2 && tip < 0.5;
             const sk = SD_LAMB[L.k];
-            if (back && sdOK(sk)) SDK().draw(q, sk, { x, y, scale: sdScale(sk, V), anim: 'Idle', rot: th + wob, t, sil: '#7a4a6a', rim: { color: '255,244,220', amount: 1 } });
+            // 逆光剪影与后面 lamb() 画的是同一只羊：相位一致（旧写法没给相位，切过来、切回去时每只羊的动作都跳一下）
+            if (back && sdOK(sk)) SDK().draw(q, sk, { x, y, scale: sdScale(sk, V), anim: 'Idle', rot: th + wob, t, phase: sdPhase(V, { id: 2695 * 16 + j }) * 1.3, sil: '#7a4a6a', rim: { color: '255,244,220', amount: 1 } });
             else if (back) cast(q, 'sheep-pink', Object.assign({ x, y, h: sheepH(L.k, 'stand', V), pose: 'stand', rot: th + wob, t, expr: 'surprise', sil: '#7a4a6a', rim: '255,244,220', rimW: 1.6 }, LAMB[L.k][1]));
             else lamb(q, s, x, y, V, { id: 2695 * 16 + j, kind: L.k, pose: 'jump', rot: th + wob, expr: 'surprise' });
             continue;
@@ -3235,7 +3241,7 @@
       q.globalAlpha = 0.5;
       q.save(); q.translate(30, 150); q.scale(1.45, 1.1); q.translate(-30, -150);
       const wob = sin(t * 1.3) * 1.5;
-      if (!(sdOK('enemy_1350_mgcshp') && SDK().draw(q, 'enemy_1350_mgcshp', { x: 22 + wob, y: 160, scale: 58 / 290, anim: pk > 0 && pk < 0.7 ? 'Attack' : 'Idle', t, speed: 0.5 }))) {
+      if (!(sdOK('enemy_1350_mgcshp') && SDK().draw(q, 'enemy_1350_mgcshp', { x: 22 + wob, y: 160, scale: 58 / 290, from: 'Idle', to: 'Attack', k: sst(0, 0.08, pk) * (1 - sst(0.62, 0.7, pk)), t, speed: 0.5 }))) {
         cast(q, 'sheep-pink', { x: 26 + wob, y: 158, h: 64, pose: 'stand', t, expr: pk > 0 && pk < 0.7 ? 'surprise' : 'closed', flip: false, bow: '#ff4f8f' });
         if (!(pk > 0 && pk < 0.7)) { q.fillStyle = 'rgba(255,90,150,0.8)'; q.beginPath(); q.arc(44 + wob, 138, 3.2, 0, TAU); q.fill(); }
       }
@@ -3584,7 +3590,7 @@
           if (plant > 0) { const drop = (1 - ease.out(plant)) * 160; bottle(q, s, x, y - 70 - drop + 6, 76, PI + sh, { fl: FLAVORS[j % 4], cap: true }); if (plant < 1 && plant > 0.8) sparkle(q, x, y, 20, 0.8, 0); }
           // 小羊抱着瓶子（在瓶子后面一点）
           const [hy, sq] = shaking ? [0, 0.15 * sin(t * 40)] : hop(fract(b * 2 + j * 0.3));
-          lamb(q, s, x - 34, y + 4 - hy * 18, V, { id: 3590 * 16 + j, kind: L.k, pose: shaking ? 'push' : hy > 0.3 ? 'jump' : 'stand', sq, rot: sh * 0.6, expr: shaking ? 'determined' : 'happy', t });
+          lamb(q, s, x - 34, y + 4 - hy * 18, V, { id: 3590 * 16 + j, kind: L.k, pose: shaking ? 'push' : hy > 0.3 ? 'jump' : 'stand', sq, rot: sh * 0.6, expr: shaking ? 'determined' : 'happy', t, ...(b >= 4 && b < 4.3 ? { mixFrom: 'stand', mixK: sst(4, 4.3, b) } : b >= 8 && b < 8.3 ? { mixFrom: 'push', mixK: sst(8, 8.3, b) } : null) });
           shadow(q, x - 20, y + 6, 90, 0.4);
           if (shaking) for (let i = 0; i < 3; i++) { const ph = fract(t * 2.5 + i / 3 + j * 0.1); bubble(q, x + sin(t * 40 + i) * 6, y - 80 - ph * 50, 3 + ph * 4, 0.8 * (1 - ph), 'fizz'); }
         }
@@ -3616,7 +3622,7 @@
           }
           bottle(q, s, bx, by, 76, PI + (a > 0 ? sin(a * 8 + j) * 0.12 : 0), { fl: FLAVORS[j % 4], cap: a < 0 });
           const Lx = bx - 30, Ly = by + (a > 0 ? -10 : 74);
-          lamb(q, s, Lx, Ly, V, { id: 3622 * 16 + j, kind: L.k, pose: a > 0 ? 'jump' : 'push', rot: a > 0 ? -0.3 : 0, expr: a > 0 ? 'happy' : 'determined', t });
+          lamb(q, s, Lx, Ly, V, { id: 3622 * 16 + j, kind: L.k, pose: a > 0 ? 'jump' : 'push', rot: -0.3 * sst(0, 0.15, a), expr: a > 0 ? 'happy' : 'determined', t, ...(a >= 0 && a < 0.15 ? { mixFrom: 'push', mixK: sst(0, 0.15, a) } : null) });
           if (a > 0) spray(q, t, { t0: LAUNCH[j], x: bx, y: by + 70, n: 16, dur: 1.5, speed: 380, spread: 1.0, ang: PI / 2, grav: 600, r: 6, seed: 150 + j, color: FLAVORS[j % 4] });
         }
       },

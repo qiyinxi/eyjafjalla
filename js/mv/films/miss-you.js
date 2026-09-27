@@ -31,6 +31,8 @@
   const { VW, VH, TAU, clamp, lerp, ease, hash, wobble, rng } = E;
   const PI = Math.PI;
   const { sin, cos, abs, min, max, floor, pow, sqrt, hypot, atan2 } = Math;
+  /** 换姿势交叉淡化（官方小人，js/mv/sd.js 的 mixFrom / mixK；手绘版忽略）：[t0, t0 + d] 秒里从 from 过渡过来；不在这段时间里返回 null */
+  const mixPose = (from, t0, d, t) => (t >= t0 && t < t0 + d ? { mixFrom: typeof from === 'string' ? { pose: from } : from, mixK: E.smooth(t0, t0 + d, t) } : null);
   const sstep = (a, b, x) => { const k = clamp((x - a) / (b - a)); return k * k * (3 - 2 * k); };
   const fract = (x) => x - floor(x);
 
@@ -2299,7 +2301,7 @@
       const pointing = t > bar(33);
       // 身后火山口的光从左上方照过来：一圈暖色的轮廓光
       // 讲到一半（第二小节）抬手招呼身后的火山（官方小人的 Interact：抬手）；面朝火山那边
-      adele(q, { x: 1420, y: 1000, h: 520, pose: pointing ? 'wave' : 'stand', t, flip: true, expr: 'smile', talk: 0.8, look: pointing ? [-1, -0.3] : [-0.2, 0], wind: 0.5, windDir: -1, rim: '255,168,110', rimDir: -2.6, rimGlow: 0.1 });
+      adele(q, Object.assign({ x: 1420, y: 1000, h: 520, pose: pointing ? 'wave' : 'stand', t, flip: true, expr: 'smile', talk: 0.8, look: pointing ? [-1, -0.3] : [-0.2, 0], wind: 0.5, windDir: -1, rim: '255,168,110', rimDir: -2.6, rimGlow: 0.1 }, mixPose('stand', bar(33), 0.25, t)));
     });
     s.kit.particles(g, t, 'embers', { n: 30, seed: 41 });
     const sec = floor(lt), fr = floor((lt % 1) * 24);
@@ -2728,7 +2730,7 @@
       const v = gaitSpeed('adele-alter', { h: 320, pose: 'walk', speed: STEP_SPD }, 110), u = 1 - max(0, arrive - t) * v / LA;
       const ax = lerp(A0[0], A1[0], u), ay = lerp(A0[1], A1[1], u), ah = lerp(290, 330, clamp(u));
       const pose = t < arrive ? 'walk' : t < hi || lookUp ? 'stand' : 'wave';
-      adele(q, { x: ax, y: ay, h: ah, pose, view: lookUp ? 'back' : undefined, t: t < arrive ? s.beat * BEAT : t, speed: STEP_SPD, flip: !lookUp, expr: 'smile', look: [-1, 0.1], wind: 0.25, shadow: 0.18 });
+      adele(q, Object.assign({ x: ax, y: ay, h: ah, pose, view: lookUp ? 'back' : undefined, t: t < arrive ? s.beat * BEAT : t, speed: STEP_SPD, flip: !lookUp, expr: 'smile', look: [-1, 0.1], wind: 0.25, shadow: 0.18 }, mixPose({ pose: 'walk', t: s.beat * BEAT }, arrive, 0.25, t) || mixPose('stand', hi, 0.25, t)));
       // 小黑羊跑在她前面，跳上第二级台阶，拿头去蹭孩子的胳膊
       const run0 = bar(41) + 0.2, hop0 = bar(41) + 1.9, hop1 = hop0 + 0.36;
       const B0 = [1330, 822], B1 = [900, 910], LB = hypot(B1[0] - B0[0], B1[1] - B0[1]);

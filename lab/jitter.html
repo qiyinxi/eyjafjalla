@@ -80,7 +80,7 @@
         inCast--;
         if (!castHit && cur && g && g.canvas && g.canvas.width === W && g.canvas.height === H && o) {
           const m = g.getTransform(), x = +o.x || 0, y = +o.y || 0;
-          cur.recs.push({ src: 'cast', key: who, x: (m.a * x + m.c * y + m.e) / kk, y: (m.b * x + m.d * y + m.f) / kk, s: (o.h || 300) * Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) / kk, pose: o.pose || 'stand', view: o.view || '', crop: o.crop || '', sil: !!o.sil, alpha: o.alpha ?? 1 });
+          cur.recs.push({ src: 'cast', key: who, x: (m.a * x + m.c * y + m.e) / kk, y: (m.b * x + m.d * y + m.f) / kk, s: (o.h || 300) * Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) / kk, pose: o.pose || 'stand', view: o.view || '', crop: o.crop || '', simple: !!o.simple, sil: !!o.sil, alpha: o.alpha ?? 1 });
         }
       }
     };
