@@ -4497,11 +4497,19 @@
   }
   const scr = (cam, x, y) => [960 + (x - cam.x) * cam.z, 540 + (y - cam.y) * cam.z];
   const DINNER_RADIO = [724, 0.34]; // 晚饭时收音机在窗台上的位置 / 缩放（晚饭、约定两个镜头共用）
-  /** 爸爸举过头顶挥的红领带：从近侧的拳头往上伸，像指挥棒一样左右挥，领带尖跟着甩（纯函数）。领带一直在头顶上方 */
+  /**
+   * 爸爸举过头顶挥的红领带：从近侧的拳头往上伸，像指挥棒一样左右挥，领带尖跟着甩（纯函数）。领带一直在头顶上方。
+   * [修] 背影里 'cheer' 的手在头发后面，领带像是从头发里长出来、悬在半空；现在把举起的前臂（白衬衫袖子）和拳头画在头发外侧，领带从拳头里伸出来
+   */
   function waveTie(q, K, t, U) {
     const C = E.cast, A = C && C.anchors ? C.anchors('katia', K) : null;
-    if (!A || !A.handN) return;
-    const [hx, hy] = A.handN, L = U * 0.21, ph = t * 6.8;
+    if (!A || !A.handN || !A.head || !A.top) return;
+    const R = A.headR || U * 0.1, dir = A.handN[0] >= A.head[0] ? 1 : -1, ph = t * 6.8;
+    // 拳头在头顶斜上方，跟着挥的节奏轻轻晃；袖子往下伸进头发边上（肩膀那边）
+    const fx = A.head[0] + dir * R * (1.72 + 0.05 * sin(ph)), fy = A.top[1] + R * (0.12 - 0.05 * cos(ph));
+    const sx = A.head[0] + dir * R * 1.12, sy = A.head[1] + R * 1.3;
+    const ha = atan2(fy - sy, fx - sx), fr = R * 0.27;
+    const [hx, hy] = [fx + cos(ha) * fr * 0.7, fy + sin(ha) * fr * 0.7], L = U * 0.21;
     const ang = -PI / 2 + 0.62 * sin(ph), lag = -0.55 * cos(ph);
     const c1x = hx + cos(ang) * L * 0.55, c1y = hy + sin(ang) * L * 0.55, ex = hx + cos(ang + lag) * L, ey = hy + sin(ang + lag) * L;
     const N = 10, Lft = [], Rgt = [];
@@ -4524,6 +4532,21 @@
     q.save(); q.globalAlpha = 0.5 * abs(cos(ph)); q.strokeStyle = '#fff4dc'; q.lineWidth = 4; q.lineCap = 'round';
     const sg = cos(ph) >= 0 ? 1 : -1;
     q.beginPath(); q.arc(hx, hy, L * 1.08, ang - 0.5 * sg, ang - 0.12 * sg, sg < 0); q.stroke(); q.restore();
+    // 握着领带的拳头和举起的前臂（白衬衫袖子，从头发侧边伸出来；盖在领带根部上）
+    // 袖子：肘这头粗、腕这头细的圆头梯形（沿 ha 方向的局部坐标里画）
+    const len = hypot(fx - sx, fy - sy) - fr * 0.7, w0 = R * 0.3, w1 = R * 0.22;
+    q.save(); q.translate(sx, sy); q.rotate(ha);
+    q.beginPath(); q.moveTo(0, -w0); q.lineTo(len, -w1); q.lineTo(len, w1); q.lineTo(0, w0); q.arc(0, 0, w0, PI / 2, PI * 1.5); q.closePath(); fs(q, '#f6f4ef', 3.5);
+    q.save(); q.clip(); q.fillStyle = 'rgba(120,80,70,.18)'; q.fillRect(-w0, (dir > 0 ? 0.25 : -1.25) * w0, len + w0, w0); q.restore();
+    q.strokeStyle = 'rgba(58,38,32,.4)'; q.lineWidth = 2.5; q.lineCap = 'round';
+    for (const u of [0.3, 0.55]) { q.beginPath(); q.moveTo(len * u, -w0 * 0.5); q.quadraticCurveTo(len * u - w0 * 0.3, 0, len * u + w0 * 0.1, w0 * 0.45); q.stroke(); }
+    q.beginPath(); q.rect(len - w1 * 0.9, -w1 - 2, w1 * 0.9, w1 * 2 + 4); fs(q, '#ffffff', 3); // 袖口
+    // 拳头：手背朝我们，四个指节
+    q.translate(len + fr * 0.55, 0);
+    q.beginPath(); q.ellipse(0, 0, fr * 0.95, fr, 0, 0, TAU); fs(q, SKIN, 3.5);
+    q.strokeStyle = INK; q.lineWidth = 2.2;
+    for (let i = -1; i <= 2; i++) { const yy = i * fr * 0.42 - fr * 0.2; q.beginPath(); q.arc(fr * 0.55, yy, fr * 0.22, -PI / 2, PI / 2); q.stroke(); }
+    q.restore();
   }
   function shotDinner(g, s) {
     const t = s.t, lt = s.lt;

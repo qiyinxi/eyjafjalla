@@ -3891,16 +3891,19 @@
           const coatAt = (w) => {
             // w 0..1：领口位置（手边 → 头顶 → 肩上）与布料“下垂”的方向（与运动方向相反 + 重力）
             const th = lerp(0.35, -3.0, w), R = lerp(190, 30, ease.in(w)), cx = ax + Math.cos(th) * R, cy = ay - 300 + Math.sin(th) * R * 0.9;
-            const x = lerp(cx, sh[0], sst(0.75, 1, w)), y = lerp(cy, sh[1] - 40, sst(0.75, 1, w));
+            // [修] 旧写法落到胸口上方 40px、衣长一直是 290：官方小人颈下到脚只有约 250，下摆拖到脚底以下，像她身后立着一块板。
+            // 现在领口落在下巴后面，落肩时衣长收到脚踝（精英化后那件外套本来就是长到脚踝的，“刚好合身”）
+            const land = sst(0.75, 1, w);
+            const x = lerp(cx, sh[0], land), y = lerp(cy, sh[1] - 30, land);
             const vx = -Math.sin(th), vy = Math.cos(th) * 0.9, sp = Math.sin(PI * clamp(w * 1.1)) * 1.6;
             let dx = -vx * sp * (w < 1 ? 1 : 0), dy = 1 - vy * sp;
             const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
-            return [x, y, dx, dy];
+            return [x, y, dx, dy, lerp(290, ay - 22 - (sh[1] - 30), land)];
           };
           const sw = ease.inOut(clamp((u - 0.25) / 0.65));
           for (let echo = 3; echo >= 0; echo--) {
-            const [cx, cy, dx, dy] = coatAt(clamp(sw - echo * 0.05));
-            coatHang(q, t, { C: [cx, cy], L: 290, dn: [dx, dy], face: -1, flap: 1.2 * (1 - sst(0.9, 1, sw)), seed: 17, alpha: echo ? 0.18 : 1 });
+            const [cx, cy, dx, dy, cl] = coatAt(clamp(sw - echo * 0.05));
+            coatHang(q, t, { C: [cx, cy], L: cl, dn: [dx, dy], face: -1, flap: 1.2 * (1 - sst(0.9, 1, sw)), seed: 17, alpha: echo ? 0.18 : 1 });
           }
           q.save(); q.translate(ax, 0); q.scale(Math.max(0.06, Math.abs(cs)), 1); q.translate(-ax, 0);
           cast(q, 'adele-alter', ao);
