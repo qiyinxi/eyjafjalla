@@ -1293,7 +1293,8 @@ void main(){
     }
     // 换动作时交叉淡化（不硬切）：o.mixFrom = 上一个姿势（与 o 合并的选项，例如 { pose: 'walk', speed }），o.mixK = 0..1（1 = 全是现在的姿势）。
     // 两个姿势是同一个模型（同一视角）时才淡化，否则照旧硬切。t 的纯函数：影片按时间算 mixK（例如 sst(停下, 停下 + 0.25, t)）
-    if (o.mixFrom && o.mixK != null && o.mixK < 0.999 && !d.kind && !d.spec) {
+    // 现在的姿势是 o.sd 指定的官方动画时，mixFrom 里要写 sd: undefined（否则上一个姿势也会被当成同一个指定动画）
+    if (o.mixFrom && o.mixK != null && o.mixK < 0.999 && !d.kind) {
       const po = Object.assign({}, o, o.mixFrom);
       delete po.mixFrom; delete po.mixK;
       const d2 = decide0(who, po);

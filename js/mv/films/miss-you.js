@@ -4281,8 +4281,9 @@
       q.restore();
       // 她回过身（官方小人的背面），望着山顶；然后朝他们伸出手（背面的 Skill_3_Loop：一只手伸向右上方）
       // 山顶的光从右上方来：背影的一圈暖白的轮廓光
-      const waving = t > bar(116) + BEAT * 3;
-      adele(q, { x: 600, y: 1040, h: 560, pose: waving ? 'wave2' : 'look-up', view: 'back', sd: waving ? { anim: 'Skill_3_Loop', view: 'back' } : undefined, t, expr: 'smile', look: [1, -0.6], wind: 0.5, windDir: 1, rim: '255,244,220', rimDir: -0.9, rimGlow: 0.08 });
+      const wT = bar(116) + BEAT * 3, waving = t > wT;
+      // 抬手那一下从背面的站姿交叉淡化进施法动作（0.3 秒）
+      adele(q, Object.assign({ x: 600, y: 1040, h: 560, pose: waving ? 'wave2' : 'look-up', view: 'back', sd: waving ? { anim: 'Skill_3_Loop', view: 'back' } : undefined, t, expr: 'smile', look: [1, -0.6], wind: 0.5, windDir: 1, rim: '255,244,220', rimDir: -0.9, rimGlow: 0.08 }, mixPose({ pose: 'look-up', sd: undefined }, wT, 0.3, t)));
     });
     // 焦外的前景：右下角一丛花（视差 1.4）
     s.layer(g, cam, 1.4, (q) => q.drawImage(C(s, 'fg-flowers'), 1380, 800, 900, 520));
