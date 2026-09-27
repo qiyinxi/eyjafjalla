@@ -795,6 +795,8 @@
     // 相位按这只羊是谁（o.id：调用处 + 循环序号）定，不跟位置走：旧写法 (x * 0.013) % 3 让走动 / 蹦跳的小羊一边移动一边快进动画，
     // 每走 230 像素还整段跳一次
     const q = { x, y, h: V * 1.28, t: s.t, phase: hash(o.id ?? Math.round(V), 29, 5) * 3, pose, sd: true, variant: LAMB_SD, flip: !o.flip, alpha: o.alpha, rot: (o.rot || 0) + (o.spin || 0) * 0.6, speed: pose === 'walk' ? 1.3 : 1 };
+    // 换动作交叉淡化：o.mixFrom = 上一个姿势（手绘版的姿势名），o.mixK = 0..1
+    if (o.mixFrom && o.mixK != null) { const fp = LAMB_POSE[o.mixFrom] || 'stand'; q.mixFrom = { pose: fp, speed: fp === 'walk' ? 1.3 : 1 }; q.mixK = o.mixK; }
     if (o.shadow) groundShadow(g, x, o.shadowY ?? y, V * 0.62, 0.16 * (o.alpha ?? 1) * clamp(1 - ((o.shadowY ?? y) - y) / 300));
     if (o.glow) E.glow(g, x, y - V * 0.45, V * 1.1, o.glowRgb || '255,170,215', 0.26 * o.glow * (o.alpha ?? 1));
     // 调试（lab/jitter.html）：这只羊是谁（紧跟着的官方小人记录按它配对）；MVE.sd.trace 平时为 null
@@ -3952,7 +3954,7 @@
           const x = 1200 + (a < 0 ? (-a) * 200 : 0) + (a > 1.4 ? (a - 1.4) * 260 : 0), y = 1070;
           const up = clamp(a / 0.3) * (a > 1.4 ? 0 : 1);
           const bald = OFFERS[i] === 'fluff';
-          lamb(q, s, x, y - hop(fract(bt * 2 + i * 0.3))[0] * 10, 110, { id: 3914 * 16 + i, pose: a > 1.4 ? 'walk' : 'stand', expr: a > 1.2 ? 'sad' : 'happy', flip: a > 1.4 ? false : true, glow: 0.4 });
+          lamb(q, s, x, y - hop(fract(bt * 2 + i * 0.3))[0] * 10, 110, { id: 3914 * 16 + i, pose: a > 1.4 ? 'walk' : 'stand', expr: a > 1.2 ? 'sad' : 'happy', flip: a > 1.4 ? false : true, glow: 0.4, mixFrom: a > 1.4 && a < 1.6 ? 'stand' : null, mixK: sst(1.4, 1.6, a) });
           if (bald && a > 0) { q.fillStyle = '#ffe8d8'; q.beginPath(); q.ellipse(x + 14, y - 74, 16, 12, 0, 0, TAU); q.fill(); q.strokeStyle = '#e8a0b8'; q.lineWidth = 2; q.stroke(); }
           if (a < 1.4) offerItem(q, OFFERS[i], x - 40, y - 130 - up * 40, 1.1, t);
           bigX(q, x - 40, y - 190, 60, clamp((a - 0.75) / 0.2) * (1 - clamp((a - 1.3) / 0.2)));
