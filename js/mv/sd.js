@@ -53,7 +53,9 @@
  *     }
  *   drawCached(g, key, o) → boolean  与 draw 相同的参数；画面上不大的（身高 ≤ opts.cacheMaxPx 设备像素）按“动画时间取整到 1/30 秒”
  *                                   的帧缓存贴图（按需生成、LRU，尺寸按半个八度分档、只缩小不放大）。一群小羊用它：每只每帧一次 drawImage，
- *                                   动作仍是 30 帧 / 秒。剪影 / 逆光 / 交叉淡化 / 混合模式、以及大的小人，自动改走 draw
+ *                                   动作仍是 30 帧 / 秒。剪影 / 逆光 / 交叉淡化 / 混合模式、以及大的小人，自动改走 draw。
+ *                                   o.warm = true：不画，只把这一圈要用的帧排进预热队列（影片切镜头前空跑下一个镜头时用），
+ *                                   之后每次 frame() 花最多 opts.warmMs 毫秒生成；cacheStats() 给出命中 / 现生成 / 预热的帧数
  *     相位（phase）只能跟“这是谁”有关（序号、seed），不能跟位置、大小、朝向有关：动画时间 = (t + phase) × speed，
  *     phase 或 speed 每帧一变，动画就每帧跳（走动的人会“抽搐”）。速度会变的走路请按走过的距离锁步相（见 before-summer 的 stride）
  *   anchors(key | who, o) → { head, face, top, chest, hip, handN, handF, hands, prop, feet, footL, footR, bounds, s }
