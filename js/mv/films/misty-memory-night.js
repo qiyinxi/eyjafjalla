@@ -1887,7 +1887,7 @@
     room(g, s, cam, {
       // 这个镜头往左摇到门口（世界 x≈-320），用自己的基准机位烘焙房间，左边不会露出没烘到的一条
       key: 'h', base: { x: 640, y: 620, z: 1.12 },
-      adele: behind ? { x: bx, pose: lt < 0.55 ? 'stand' : 'run', speed: runB.speed, expr: 'surprise', flip: lt < 0.55, look: [-1, 0.2] } : false,
+      adele: behind ? Object.assign({ x: bx, pose: lt < 0.55 ? 'stand' : 'run', speed: runB.speed, expr: 'surprise', flip: lt < 0.55, look: [-1, 0.2] }, mixPose('stand', 0.55, 0.2, lt)) : false,
       coatOff: lifted,
       crate: { tip: 1, lidAt: 'rest' },
       behind: (q) => {
@@ -4030,7 +4030,9 @@
         const mh = sheepH('mom', 'stand', 100), dh = sheepH('dad', 'stand', 104);
         const tA = running ? gaitTime('adele-alter', { h: 380, pose: 'run' }, d, s.shot.t0) : tt;
         const tM = running ? gaitTime('sheep-black', { h: mh, pose: 'run' }, d, s.shot.t0) : tt, tD = running ? gaitTime('sheep-black', { h: dh, pose: 'run' }, d, s.shot.t0 + 0.2) : tt;
-        cast(q, 'adele-alter', { x: ax, y: 812, h: 380, pose: running ? 'run' : 'stand', prop: 'staff', outfit: 'coat', t: tA, expr: 'determined', wind: 0.7, sil: '#1a0e1c', rim: '255,220,200' });
+        // 停下的那一下（slow 过 0.5 = lt 2.15）：跑 → 站交叉淡化 0.25 秒，跑姿用停下时按距离算的时钟
+        const stopMix = !running && lt < 2.4 ? { mixFrom: { pose: 'run', t: gaitTime('adele-alter', { h: 380, pose: 'run' }, d, s.shot.t0) }, mixK: E.smooth(2.15, 2.4, lt) } : null;
+        cast(q, 'adele-alter', Object.assign({ x: ax, y: 812, h: 380, pose: running ? 'run' : 'stand', prop: 'staff', outfit: 'coat', t: tA, expr: 'determined', wind: 0.7, sil: '#1a0e1c', rim: '255,220,200' }, stopMix));
         cast(q, 'sheep-black', { x: ax - 170, y: 818, h: mh, pose: running ? 'run' : 'stand', t: tM, ...MOM, sil: '#1a0e1c', rim: '255,220,200' });
         cast(q, 'sheep-black', { x: ax + 170, y: 816, h: dh, pose: running ? 'run' : 'stand', t: tD, ...DAD, sil: '#1a0e1c', rim: '255,220,200' });
       },
