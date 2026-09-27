@@ -2654,6 +2654,8 @@
         const ao = turned
           ? (SDON() ? { x: 1000, y: 1060, h: 420, pose: 'wave', t, flip: true } : { x: 1000, y: 1060, h: 420, pose: 'turn', turn: 0.25, t, flip: false, arms: 'hold', expr: 'content' })
           : { x: 1000, y: 1060, h: 420, pose: 'hold', t, expr: back ? 'surprise' : 'laugh', look: back ? [0.3, 0.6] : [-1, 0.2], flip: false };
+        // 转身的那一帧（官方小人转身是瞬间的）起 0.2 秒里拿着 → 挥手交叉淡化；转回来时反过来
+        if (SDON()) { mixIn(ao, 'hold', 1.5, 0.2, bt); mixIn(ao, 'wave', 6.4, 0.2, bt); }
         adele(q, ao);
         const hn = anchor('adele-alter', ao, 'handN', [1060, 800]);
         const cx = hn[0] + (turned && !SDON() ? 60 : 4), cy = hn[1] + 20;
@@ -4129,7 +4131,8 @@
           // 她：跳起来去够最后一只（没够着）
           // （官方小人：先抬手去够，第 2 拍起一拍一跳）
           const jump = SDON() ? bt > 1 : fract(bt * 0.5) < 0.5 && bt > 1;
-          adele(q, { x: 3380, y: 1030, h: 440, pose: jump ? 'jump' : 'reach-up', air: jump ? (SDON() ? Math.abs(Math.sin(PI * bt)) : Math.sin(PI * fract(bt * 0.5) * 2)) : 0, t, expr: jump ? 'determined' : 'surprise', look: [0.3, -1], flip: false });
+          // 伸手够 → 跳起来够（官方小人）：起跳的那一拍交叉淡化（离地弧线从 0 开始，正好接得上）
+          adele(q, mixIn({ x: 3380, y: 1030, h: 440, pose: jump ? 'jump' : 'reach-up', air: jump ? (SDON() ? Math.abs(Math.sin(PI * bt)) : Math.sin(PI * fract(bt * 0.5) * 2)) : 0, t, expr: jump ? 'determined' : 'surprise', look: [0.3, -1], flip: false }, { pose: 'reach-up', air: 0 }, 1, 0.2, bt)); // from 的 air 要清零：离地的非 jump 姿势官方小人不接
           // 一串抓着灯笼往上飘的小羊（一拍一颠）
           for (let i = 0; i < 7; i++) {
             const st = i * 0.35, a = Math.max(0, lt - st);
