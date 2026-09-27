@@ -470,7 +470,7 @@ window.MVE = (() => {
    *   .resize(w, h)         设置内部分辨率（像素）
    *   .prepare()            等待字体与影片的 prepare()
    *   .render(t)            画 t 秒时的一帧
-   *   .shotAt(t) / .chapters / .captions (开关)
+   *   .shotAt(t) / .chapters / .captions (开关) / .capScale（字幕放大倍数，≥ 1；播放器按舞台的显示宽度设）
    */
   function renderer(canvas, def, an, opts = {}) {
     const g = canvas.getContext('2d', { alpha: false });
@@ -479,7 +479,7 @@ window.MVE = (() => {
     let bufA = null, bufB = null;
     const caches = new Map();
     const R = {
-      film: def, timing: T, captions: true, debug: !!opts.debug, lastMs: 0, stats: { frames: 0, ms: 0, max: 0 },
+      film: def, timing: T, captions: true, capScale: 1, debug: !!opts.debug, lastMs: 0, stats: { frames: 0, ms: 0, max: 0 },
       /** 减少动态效果：影片应据此减弱镜头抖动、闪白、频闪（s.reduced） */
       reduced: opts.reduced ?? matchMedia('(prefers-reduced-motion: reduce)').matches,
       get size() { return { W, H, k }; },
@@ -543,27 +543,31 @@ window.MVE = (() => {
         const a = window01(t, t0, t1, o.fade ?? 0.6, o.fadeOut ?? o.fade ?? 0.6);
         if (a <= 0) continue;
         const style = CAP[o.style || def.captionStyle || 'narration'] || CAP.narration;
-        style(g, str, a, t - t0, o, def);
+        style(g, str, a, t - t0, o, def, Math.max(1, R.capScale || 1));
       }
     }
     // 字幕样式（设计坐标）
     const CAP = {
-      narration(q, str, a, lt, o) {
-        const y = o.y ?? VH - 92, size = o.size || 40;
+      narration(q, str, a, lt, o, def, cs = 1) {
+        // cs：播放器按舞台的显示宽度放大字幕（手机竖屏时画布只有三百多像素宽，40px 的字只剩 7px 高）；放大后仍不超出画面
+        let size = (o.size || 40) * cs;
+        const fit = (VW - 240) / Math.max(1, measure(q, str, { size, spacing: 4 }));
+        if (fit < 1) size *= fit;
+        const y = o.y ?? VH - 92 - (size - 40) * 0.9;
         const w = measure(q, str, { size, spacing: 4 }) + 120;
         const band = q.createLinearGradient(0, y - 70, 0, y + 30);
         band.addColorStop(0, 'rgba(0,0,0,0)'); band.addColorStop(0.5, 'rgba(0,0,0,0.38)'); band.addColorStop(1, 'rgba(0,0,0,0)');
         q.globalAlpha = a * 0.9; q.fillStyle = band; q.fillRect(VW / 2 - w / 2 - 80, y - 70, w + 160, 100); q.globalAlpha = 1;
         text(q, str, VW / 2, y + (1 - ease.out(Math.min(1, lt / 0.8))) * 10, { size, spacing: 4, color: o.color || '#fff8f0', alpha: a, weight: 600 });
       },
-      quote(q, str, a, lt, o) {
-        text(q, str, o.x ?? VW / 2, o.y ?? VH / 2, { size: o.size || 58, spacing: 8, color: o.color || '#fff', alpha: a, weight: 700, stroke: o.stroke || 'rgba(0,0,0,.35)', strokeW: 10 });
+      quote(q, str, a, lt, o, def, cs = 1) {
+        text(q, str, o.x ?? VW / 2, o.y ?? VH / 2, { size: Math.min((o.size || 58) * cs, ((o.size || 58) * (VW - 240)) / Math.max(1, measure(q, str, { size: o.size || 58, spacing: 8 }))), spacing: 8, color: o.color || '#fff', alpha: a, weight: 700, stroke: o.stroke || 'rgba(0,0,0,.35)', strokeW: 10 });
       },
-      hand(q, str, a, lt, o) {
-        text(q, str, o.x ?? VW / 2, o.y ?? VH - 100, { size: o.size || 46, font: 'hand', color: o.color || '#fffaf0', alpha: a, stroke: o.stroke || 'rgba(60,40,30,.45)', strokeW: 8 });
+      hand(q, str, a, lt, o, def, cs = 1) {
+        text(q, str, o.x ?? VW / 2, o.y ?? VH - 100 - ((o.size || 46) * (cs - 1)) * 0.9, { size: (o.size || 46) * cs, font: 'hand', color: o.color || '#fffaf0', alpha: a, stroke: o.stroke || 'rgba(60,40,30,.45)', strokeW: 8 });
       },
-      side(q, str, a, lt, o) {
-        text(q, str, o.x ?? 120, o.y ?? VH - 120, { size: o.size || 36, align: 'left', spacing: 3, color: o.color || '#fff', alpha: a, weight: 600, stroke: 'rgba(0,0,0,.3)', strokeW: 8 });
+      side(q, str, a, lt, o, def, cs = 1) {
+        text(q, str, o.x ?? 120, o.y ?? VH - 120 - ((o.size || 36) * (cs - 1)) * 0.9, { size: (o.size || 36) * cs, align: 'left', spacing: 3, color: o.color || '#fff', alpha: a, weight: 600, stroke: 'rgba(0,0,0,.3)', strokeW: 8 });
       },
     };
     R.captionStyles = CAP;
