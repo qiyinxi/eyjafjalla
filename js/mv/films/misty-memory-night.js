@@ -537,7 +537,7 @@
     if (o.rot) g.rotate(o.rot);
     if (o.spin) { g.translate(0, -V * 0.45); g.rotate(o.spin); g.translate(0, V * 0.45); }
     g.scale(1 + sq * 0.2, 1 - sq * 0.2);
-    const so = { x: 0, y: 0, scale: V / P.h, anim: P.anim, t: P.t, phase: P.phase, speed: 1, flip: !!o.flip, alpha: o.alpha };
+    const so = { x: 0, y: 0, scale: V / P.h, anim: P.anim, t: P.t, phase: P.phase, speed: 1, flip: !!o.flip, alpha: o.alpha, warm: warmMode };
     const ok = P.S.drawCached ? P.S.drawCached(g, P.key, so) : P.S.draw(g, P.key, so);
     g.restore();
     return ok;
@@ -552,7 +552,7 @@
     const TR = E.sd && E.sd.trace;
     if (TR && P && !warmMode) { const m = g.getTransform(); TR({ src: 'lamb', key: P.key + ':' + (o.pose || 'stand'), cv: g.canvas, x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f, s: V * Math.hypot(m.a, m.b) / 300, V, id: Math.round(o.v || 0) }); }
     if (P) {
-      if (warmMode) { lambOfficial(g, s, x, y, V, o, P); return; } // 画到 2×2 的假画布上：顺手把镜头开头那一帧的缓存建好
+      if (warmMode) { lambOfficial(g, s, x, y, V, o, P); return; } // 空跑下一个镜头：把这只羊一整圈的帧排进 sd 的预热队列
       if (lambOfficial(g, s, x, y, V, o, P)) return;
     }
     const L = lambSpr(s, o.kind || 'pink', o.pose || 'stand', o.expr || 'neutral');

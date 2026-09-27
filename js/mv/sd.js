@@ -129,7 +129,8 @@
   const localOf = (url) => (OFFICIAL && url.startsWith(TORAPPU) ? OFFICIAL + 'spine/' + url.slice(TORAPPU.length).split('?')[0] : '');
   // [/self-host]
   // cacheFps / cacheMaxPx / cacheMB：drawCached 的帧率（动画时间）、只缓存身高不超过多少设备像素的、缓存上限（0 = 桌面 24MB、触屏 12MB）
-  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0 };
+  // warmMs：每帧最多花多少毫秒生成预热队列里的帧（见 drawCached 的 o.warm）
+  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5 };
   const stats = { draws: 0, lastMs: 0, avgMs: 0, canvas: [1, 1], loads: {} };
   const OFF = /[?&]sd=off\b/.test(location.search);
 
@@ -967,7 +968,38 @@ void main(){
   const FC = new Map();
   let fcPx = 0;
   function fcCap() { return (opts.cacheMB || (matchMedia('(pointer: coarse)').matches ? 12 : 24)) * 262144; }
-  function fcClear() { for (const c of FC.values()) { c.width = c.height = 0; } FC.clear(); fcPx = 0; }
+  function fcClear() { for (const c of FC.values()) { c.width = c.height = 0; } FC.clear(); fcPx = 0; FQ.length = 0; FQS.clear(); }
+  /** 生成一帧缓存：key / 动画名 / 第几帧（共 nF 帧）/ 尺寸档 ts；失败返回 null */
+  function fcBuild(key, R, an, fi, nF, d, ts, solo, tint, ck) {
+    const a = R.anims && R.anims.get(an);
+    if (!a) return null;
+    const bx = animBounds(R, a, solo);
+    const cw = Math.ceil((bx[2] - bx[0]) * ts) + 4, chh = Math.ceil((bx[3] - bx[1]) * ts) + 4;
+    if (cw * chh > 1048576) return null;
+    const c = E.mk(cw, chh);
+    c._ox = -bx[0] * ts + 2; c._oy = bx[3] * ts + 2; c._ts = ts;
+    const tr = API.trace; API.trace = null;
+    let ok = false;
+    try { ok = draw(c.getContext('2d'), key, { x: c._ox, y: c._oy, scale: ts, anim: an, t: d > 0 ? (fi * d) / nF : 0, speed: 1, phase: 0, loop: false, solo, tint }); }
+    finally { API.trace = tr; }
+    if (!ok) { c.width = c.height = 0; return null; }
+    FC.set(ck, c); fcPx += cw * chh;
+    const cap = fcCap();
+    for (const [k2, c2] of FC) { if (fcPx <= cap || k2 === ck) break; fcPx -= c2.width * c2.height; c2.width = c2.height = 0; FC.delete(k2); }
+    return c;
+  }
+  // 预热队列：影片在切镜头前“空跑”下一个镜头时（o.warm），把要用到的整圈帧排进来；frame() 每帧花一点时间（opts.warmMs）生成，
+  // 镜头开头就不必一口气现生成几十帧。只影响“什么时候生成”，画出来的东西不变
+  const FQ = [], FQS = new Set(), FST = { hit: 0, miss: 0, warm: 0 };
+  function fcWarmStep(ms) {
+    const t0 = now();
+    while (FQ.length && now() - t0 < ms) {
+      const it = FQ.shift(); FQS.delete(it.ck);
+      if (FC.has(it.ck)) continue;
+      const R = models.get(it.id);
+      if (R && R.ready && R.gen === gen && glLive() && fcBuild(it.key, R, it.an, it.fi, it.nF, it.d, it.ts, it.solo, it.tint, it.ck)) FST.warm++;
+    }
+  }
   function drawCached(g, key, o) {
     o = o || EMPTY;
     if (o.sil || o.rim || o.mix || (o.from != null && o.to != null) || o.mode || opts.cacheFps === 0) return draw(g, key, o);
@@ -994,23 +1026,21 @@ void main(){
       const ts = Math.pow(2, Math.ceil(Math.log2(devS) * 2 - 1e-6) / 2);
       const solo = !!(o.solo && R.info.comp.length);
       const tk = o.tint ? (Array.isArray(o.tint) ? o.tint.join('/') : typeof o.tint === 'object' ? o.tint.color + '/' + o.tint.amount : String(o.tint)) : '';
-      const ck = R.id + '|' + A.a.name + '|' + fi + '|' + ts.toFixed(4) + '|' + (solo ? 1 : 0) + '|' + tk + '|' + R.gen;
+      const ckOf = (f) => R.id + '|' + A.a.name + '|' + f + '|' + ts.toFixed(4) + '|' + (solo ? 1 : 0) + '|' + tk + '|' + R.gen;
+      if (o.warm) {
+        // 预热：把这一圈的帧都排进队列（循环动画一整圈；不循环的从当前帧到结尾），不画
+        const n = loop ? nF : nF + 1;
+        for (let j = 0; j < n; j++) { const f = loop ? (fi + j) % nF : Math.min(nF, fi + j); const k2 = ckOf(f); if (!FC.has(k2) && !FQS.has(k2)) { FQS.add(k2); FQ.push({ id: R.id, key, an: A.a.name, fi: f, nF, d, ts, solo, tint: o.tint, ck: k2 }); } }
+        if (FQ.length > 3000) { for (const it of FQ.splice(0, FQ.length - 3000)) FQS.delete(it.ck); }
+        return true;
+      }
+      const ck = ckOf(fi);
       let c = FC.get(ck);
-      if (c) { FC.delete(ck); FC.set(ck, c); }
+      if (c) { FC.delete(ck); FC.set(ck, c); FST.hit++; }
       else {
-        const bx = animBounds(R, A.a, solo);
-        const cw = Math.ceil((bx[2] - bx[0]) * ts) + 4, chh = Math.ceil((bx[3] - bx[1]) * ts) + 4;
-        if (cw * chh > 1048576) return draw(g, key, o);
-        c = E.mk(cw, chh);
-        c._ox = -bx[0] * ts + 2; c._oy = bx[3] * ts + 2; c._ts = ts;
-        const tr = API.trace; API.trace = null;
-        let ok = false;
-        try { ok = draw(c.getContext('2d'), key, { x: c._ox, y: c._oy, scale: ts, anim: A.a.name, t: d > 0 ? (fi * d) / nF : 0, speed: 1, phase: 0, loop: false, solo, tint: o.tint }); }
-        finally { API.trace = tr; }
-        if (!ok) { c.width = c.height = 0; return draw(g, key, o); }
-        FC.set(ck, c); fcPx += cw * chh;
-        const cap = fcCap();
-        for (const [k2, c2] of FC) { if (fcPx <= cap || k2 === ck) break; fcPx -= c2.width * c2.height; c2.width = c2.height = 0; FC.delete(k2); }
+        FST.miss++;
+        c = fcBuild(key, R, A.a.name, fi, nF, d, ts, solo, o.tint, ck);
+        if (!c) return draw(g, key, o);
       }
       const X = +o.x || 0, Y = +o.y || 0, alpha = o.alpha == null ? 1 : clamp(+o.alpha);
       if (API.trace) { const pts = []; API.trace({ src: 'sd', cached: true, key: R.id, cv: g.canvas, anim: A.a.name, tt: A.tt, sp: A.sp, dur: d, animB: null, ttB: 0, k: 0, x: M ? M.a * X + M.c * Y + M.e : X, y: M ? M.b * X + M.d * Y + M.f : Y, s: devS, pts, alpha, sil: false, flip: !!o.flip }); }
@@ -1290,6 +1320,7 @@ void main(){
    */
   let curShot = null;
   function frame(id) {
+    if (FQ.length) fcWarmStep(opts.warmMs);
     if (id === curShot) return;
     curShot = id;
     for (const R of models.values()) if (R.gate != null && R.gate !== id) R.gate = null;
@@ -1650,6 +1681,8 @@ void main(){
     has: (key, anim) => { const P = parse(key), R = P && models.get(P.id); return !!(R && R.anims && R.anims.has(anim)); },
     draw,
     drawCached,
+    // 帧缓存的统计（开发用）：命中 / 现生成 / 预热生成的帧数、占用像素、预热队列长度
+    cacheStats: () => ({ hit: FST.hit, miss: FST.miss, warm: FST.warm, px: fcPx, n: FC.size, queue: FQ.length }),
     anchors,
     gait,
     crowd,

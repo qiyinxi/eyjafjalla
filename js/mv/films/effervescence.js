@@ -612,7 +612,7 @@
     if (sdR) {
       // 官方小羊：Idle / Move / Attack；走跑时按实际前进速度反推 Move 的播放速度（脚不打滑）。
       // 画面上不大的小羊走 MVE.sd.drawCached：动画时间按 1/30 秒取整的帧缓存（旧写法是每个动作固定 10 帧的精灵条，约 12 帧 / 秒，一顿一顿）；
-      // 大的直接实时画。预热（warmMode，画到 2×2 的假画布上）时也调用一次，提前把镜头开头要用的那一帧建好
+      // 大的直接实时画。预热（warmMode，画到 2×2 的假画布上）时带 warm: true 调用一次：把这一圈的帧排进 sd 的预热队列，之后每帧花一点时间建好
       const S = SDK(), sc = sdScale(sk, V), anim = LAMB_ANIM[pose] || 'Idle';
       let speed = pose === 'sleep' || pose === 'sit' ? 0.35 : 1;
       if (anim === 'Move') { const G = S.gait(sk, { scale: sc }); if (G && G.speed > 1) speed = clamp(((o.wspd || 1) * gaitV(pose === 'run' ? 'run' : 'walk', V)) / G.speed, 0.3, 3.5); }
@@ -625,7 +625,7 @@
         const fa = LAMB_ANIM[o.mixFrom] || 'Idle';
         if (fa !== anim) { so.from = { anim: fa, speed: fa === 'Move' ? speed : 1 }; so.to = { anim, speed }; so.k = clamp(o.mixK); }
       }
-      if (warmMode) { if (S.drawCached && !o.tint && !o.rim) S.drawCached(g, sk, so); g.restore(); return; }
+      if (warmMode) { if (S.drawCached && !o.tint && !o.rim) S.drawCached(g, sk, Object.assign(so, { warm: true })); g.restore(); return; }
       const ok = S.drawCached ? S.drawCached(g, sk, so) : S.draw(g, sk, so);
       g.restore();
       if (ok) { if (o.fx) lambFx(g, s, x, y, V, o); return; }
@@ -3071,11 +3071,11 @@
         // 店主：跟着瓶子转身（Relax）→ 原地转圈（Move，左右翻面）→ 伸手（Interact）→ 扑了个空，一下子躺平（Sleep）
         const fbo = { x: VX, y: SG + 20, h: 400, pose: vpose, t, expr: vexpr, look: vlook, flip: vflip, aim: 0.3 };
         const H = 390;
-        // 原地转圈：横向按 cos 压扁再翻过来（像纸片人转身），一拍一圈。旧写法每秒左右翻面 9 次，看起来是在闪 / 抽搐
+        // 原地转圈：横向按 cos 压扁再翻过来（像纸片人转身），两拍一圈。旧写法每秒左右翻面 9 次，看起来是在闪 / 抽搐
         const AS = animSeq(b, [[0, 'Relax'], [4, 'Move'], [6, 'Interact'], [7, 'Sleep']], 0.35);
         if (bi === 7) snow(q, s, Object.assign({ x: VX + 40 * sst(7, 7.35, b), y: SG + 20 + 6 * sst(7, 7.35, b), h: H, flip: true, fb: fbo }, AS));
         else if (bi === 4 || bi === 5) {
-          const c = cos((b - 4) * TAU), sx = (c < 0 ? -1 : 1) * max(0.06, abs(c));
+          const c = cos((b - 4) * PI), sx = (c < 0 ? -1 : 1) * max(0.22, abs(c)); // 两拍转一圈；侧过来时也留两成宽，不会“消失”一下
           q.save(); q.translate(VX, 0); q.scale(sx, 1); q.translate(-VX, 0);
           snow(q, s, Object.assign({ x: VX, y: SG + 20, h: H, speed: 1.6, flip: false, fb: fbo }, AS));
           q.restore();
