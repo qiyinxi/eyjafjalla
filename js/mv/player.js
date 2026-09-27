@@ -434,8 +434,15 @@ window.MVP = (() => {
     const L = full && hdOK && w >= 1700 ? 0 : w >= 1000 ? 1 : 2;
     return clamp(Math.max(L, floor, saver ? 2 : 0), 0, 3);
   }
+  /** 字幕放大倍数：画布里的旁白按 1920 宽设计成 40px，舞台显示得窄（手机竖屏约 360px 宽）时放大到至少约 12 个 CSS 像素高 */
+  function capScaleFor() {
+    const cw = fsOn || pseudo ? innerWidth : stage.clientWidth || 800;
+    return clamp(12 / ((40 * cw) / 1920), 1, 1.9);
+  }
   function applyLevel(force) {
     if (!R || exporting) return;
+    const cs = capScaleFor();
+    if (Math.abs((R.capScale || 1) - cs) > 0.01) { R.capScale = cs; if (!playing) requestStill(); }
     const L = wantLevel();
     if (L === lv && !force && canvas.width === LV[L][0]) return;
     lv = L;
@@ -1162,6 +1169,7 @@ window.MVP = (() => {
     // 录制期间锁定分辨率（至少 1280×720，除非这台设备已经降过档）
     const L = Math.max(1, floor);
     if (canvas.width !== LV[L][0]) { R.resize(LV[L][0], LV[L][1]); lv = L; hud(); }
+    R.capScale = 1; // 录出来的视频按原设计的字幕大小（在别处全屏看）
     exporting = true;
     root.classList.add('mv-exporting');
     stage.classList.add('rec');
