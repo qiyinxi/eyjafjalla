@@ -789,6 +789,8 @@
     const q = { x, y, h: V * 1.28, t: s.t, phase: hash(o.id ?? Math.round(V), 29, 5) * 3, pose, sd: true, variant: LAMB_SD, flip: !o.flip, alpha: o.alpha, rot: (o.rot || 0) + (o.spin || 0) * 0.6, speed: pose === 'walk' ? 1.3 : 1 };
     if (o.shadow) groundShadow(g, x, o.shadowY ?? y, V * 0.62, 0.16 * (o.alpha ?? 1) * clamp(1 - ((o.shadowY ?? y) - y) / 300));
     if (o.glow) E.glow(g, x, y - V * 0.45, V * 1.1, o.glowRgb || '255,170,215', 0.26 * o.glow * (o.alpha ?? 1));
+    // 调试（lab/jitter.html）：这只羊是谁（紧跟着的官方小人记录按它配对）；MVE.sd.trace 平时为 null
+    if (S.trace) { const m = g.getTransform(); S.trace({ src: 'lamb', key: LAMB_SD + ':' + pose, cv: g.canvas, x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f, s: V * Math.hypot(m.a, m.b) / 300, V, id: q.phase != null ? o.id : null }); }
     try { return !!S.drawCast(g, 'sheep-pink', q); } catch (e) { return false; }
   }
   function lamb(g, s, x, y, V, o = {}) {
@@ -1680,7 +1682,8 @@
           // 下了舷梯再往前一步踩到码头上（y 连续，不瞬移）
           const y = d < ramp ? lerp(736, 884, d / ramp) : 884 + (4 + (i % 2) * 14) * E.smooth(0, 60, d - ramp);
           if (x > vr[1] + 100) continue;
-          townsfolk(q, s, { x, y, h: 300, seed, pose: 'walk', speed: stepRate('crowd', 300, tv), walkV: tv, t: t + i * 0.37, prop: i % 2 ? 'suitcase' : 'bag', arms: i % 2 ? 'carry' : undefined, expr: 'smile' }, i + 1);
+          // 从船舱门口出来：前 0.35 秒淡入（旧写法在舷梯顶上凭空出现）
+          townsfolk(q, s, { x, y, h: 300, seed, pose: 'walk', speed: stepRate('crowd', 300, tv), walkV: tv, t: t + i * 0.37, prop: i % 2 ? 'suitcase' : 'bag', arms: i % 2 ? 'carry' : undefined, expr: 'smile', alpha: clamp(u / 0.35) }, i + 1);
         }
         // 她：从舷梯上走下来（提着箱子），到了码头上，抬头看见迎客的拱门
         const av = 128, walkT = clamp(lt - 0.9, 0, 3.6), ax = 540 + walkT * av, done = lt > 4.5;
@@ -3231,7 +3234,7 @@
           const a = lt - 0.1 - i * 0.12;
           if (a < 0) { lamb(q, s, 700 + i * 90, 900 + (i % 2) * 30, 64, { id: 3205 * 16 + i, pose: 'stand', expr: 'open', flip: true }); continue; }
           const x = 700 + i * 90 + a * 260 * (1 + i * 0.1), y = 900 + (i % 2) * 30 - Math.abs(Math.sin(a * 5 + i)) * 40;
-          lamb(q, s, x, y, 64, { id: 3207 * 16 + i, pose: 'jump', expr: 'surprise', spin: a * 9, flip: true });
+          lamb(q, s, x, y, 64, { id: 3205 * 16 + i, pose: 'jump', expr: 'surprise', spin: a * 9, flip: true });
         }
         // 她：举着一只空玻璃罐迎着风
         const ao = { x: 1000, y: 1030, h: 440, pose: 'hold-up', t, expr: lt < 0.4 ? 'determined' : 'laugh', look: [-0.6, -0.8], wind: Math.min(1.4, wind * 0.8), windDir: 1 };
@@ -3578,7 +3581,8 @@
           // 她扑过去（被花埋住），举起抢回来的种子袋
           // （官方小人：扑进花摊前的一只木花箱，坐在箱子上；第 4 拍花瓣一炸，跳起来把种子袋举在手上）
           const SDk = SDON();
-          const ao = land ? { x: 1400, y: 1040, h: 440, pose: bt > 3 ? 'hold-up' : 'sit-ground', seat: SDk ? 118 : undefined, t, expr: bt > 3 ? 'laugh' : 'surprise', look: [0.4, -0.5], flip: false } : { x: lerp(1100, 1380, dive), y: 1040 - Math.sin(PI * dive) * 120, h: 440, pose: 'jump', t, expr: 'determined', rot: 0.5 * dive, flip: false };
+          const ao = land ? { x: 1400, y: 1040, h: 440, pose: bt > 3 ? 'hold-up' : 'sit-ground', seat: SDk ? 118 : undefined, t, expr: bt > 3 ? 'laugh' : 'surprise', look: [0.4, -0.5], flip: false } : { x: lerp(1100, 1380, dive), y: 1040 - Math.sin(PI * dive) * 120, h: 440, pose: 'jump', t, expr: 'determined', rot: 0.5 * Math.sin(PI * dive), flip: false }; // 扑出去身子前倾、落地时回正（旧写法落地那一帧从 0.5 弧度一下子弹正）
+          if (land) { mixIn(ao, 'jump', 0.8, 0.2, lt); mixIn(ao, 'sit-ground', 3, 0.3, bt); }
           if (SDk) {
             // 花箱（座）：木板 + 满满的花
             const cx = 1400, cy = 1040, w = 230, hh = 118;

@@ -8,6 +8,10 @@
     const issues = [], byShot = {};
     const bump = (shot, kind, v) => { const b = (byShot[shot] = byShot[shot] || {}); const c = (b[kind] = b[kind] || { n: 0, max: 0 }); c.n++; c.max = Math.max(c.max, v); };
     const dist = (p, c) => Math.hypot(p.x - c.x, p.y - c.y);
+    // 小羊（src 'lamb'）的 key 带着姿势（'enemy_1344_ddlamb:jump'）：配对时只看模型，换姿势不算换了一只羊
+    const nk = (r) => (r.src === 'lamb' ? String(r.key).split(':')[0] : r.key);
+    // 小羊的官方模型记录紧跟在它的 lamb 记录后面：把 lamb 的 id 传给它，配对时同 id 才算同一只（挤成一团的小羊不会配错）
+    for (const fr of frames) for (let i = 1; i < fr.recs.length; i++) if (fr.recs[i].src === 'sd' && fr.recs[i - 1].src === 'lamb' && fr.recs[i - 1].id != null) fr.recs[i].id = fr.recs[i - 1].id;
     // 手绘角色 → 同一个人的官方模型 / 立绘（换模型检测只配对同一个人）
     const SAME = { 'adele-child': /amgoat/, 'adele-caster': /amgoat/, 'adele-alter': /agoat2|alter-e0/, fontaine: /spikes/, snowsant: /snsant|snowsant/, keller: /keller/, dolly: /shpkg|dolly/, 'sheep-pink': /enemy_13|lamb/ };
     /** 把 cur 的每条记录配到 prev 里同一个角色（同 src + key，最近的位置） */
@@ -16,12 +20,13 @@
       for (let i = 0; i < curr.recs.length; i++) {
         const c = curr.recs[i];
         let best = -1, bd = Infinity;
-        prev.recs.forEach((p, j) => { if (used.has(j) || p.key !== c.key || p.src !== c.src) return; const d = dist(p, c); if (d < bd) { bd = d; best = j; } });
+        prev.recs.forEach((p, j) => { if (used.has(j) || nk(p) !== nk(c) || p.src !== c.src || (p.id != null && c.id != null && p.id !== c.id)) return; const d = dist(p, c); if (d < bd) { bd = d; best = j; } });
         if (best >= 0 && bd < Math.max(60, (c.s || 100) * 0.6)) { used.add(best); res.set(i, best); }
       }
       return res;
     }
     const wrap1 = (d, per) => (per > 0 ? d - per * Math.round(d / per) : d);
+    const flips = {};
     const M = [];
     for (let f = 1; f < frames.length; f++) {
       const P = frames[f - 1], Cc = frames[f];
@@ -35,7 +40,19 @@
       for (const [ci, pi] of mm) {
         const c = Cc.recs[ci], p = P.recs[pi];
         if (c.src === 'sd') {
+          // 频闪：动画一帧就走了四分之一圈以上（小人跑得太快、按距离锁步相却没有上限）——腿会糊成一团 / 闪
+          if (c.anim === p.anim && !c.animB && !p.animB && sameShot && c.dur > 0) {
+            const d1 = Math.abs(wrap1(c.tt - p.tt, c.dur));
+            if (d1 > c.dur * 0.25 * (dt * 30)) { issues.push({ t: +Cc.t.toFixed(3), shot: Cc.shot, kind: 'strobe', key: c.key, anim: c.anim, v: +(d1 / c.dur).toFixed(2), x: Math.round(c.x), y: Math.round(c.y) }); bump(Cc.shot, 'strobe', d1 / c.dur); }
+          }
           if (c.anim !== p.anim && !c.animB && !p.animB && sameShot) { issues.push({ t: +Cc.t.toFixed(3), shot: Cc.shot, kind: 'anim', key: c.key, from: p.anim, to: c.anim, x: Math.round(c.x), y: Math.round(c.y) }); bump(Cc.shot, 'anim', 1); }
+        }
+        // 朝向来回翻（同一个角色在 0.5 秒里翻面 3 次以上 → 频闪）
+        if (sameShot && c.flip != null && p.flip != null && c.flip !== p.flip) {
+          const k = Cc.shot + '|' + nk(c) + '|' + (c.id ?? '');
+          const L = (flips[k] = (flips[k] || []).filter((tt) => Cc.t - tt < 0.5));
+          L.push(Cc.t);
+          if (L.length >= 3) { issues.push({ t: +Cc.t.toFixed(3), shot: Cc.shot, kind: 'flipflop', src: c.src, key: c.key, x: Math.round(c.x), y: Math.round(c.y) }); bump(Cc.shot, 'flipflop', L.length); }
         }
         if (c.src === 'card' && sameShot) {
           if (c.big !== p.big) { issues.push({ t: +Cc.t.toFixed(3), shot: Cc.shot, kind: 'res', key: c.key, big: c.big }); bump(Cc.shot, 'res', 1); }

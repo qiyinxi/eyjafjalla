@@ -564,6 +564,17 @@
   const LAMB_ANIM = { walk: 'Move', run: 'Move', gallop: 'Move', bound: 'Move', push: 'Attack', eat: 'Attack' };
   function sdReady(key) { const S = SDK(); try { return !!(S && S.ready(key)); } catch (e) { return false; } }
   function sdOK(key) { return !warmMode && sdReady(key); }
+  /**
+   * 按时间表换官方小人的动画，换的时候交叉淡化（不硬切）：seq = [[起点, 动画名], …]（x 与起点同一个时间轴，秒或拍），d = 淡化长度。
+   * 返回 { anim } 或 { anim, from, to, k }——直接合进 MVE.sd.draw 的选项
+   */
+  function animSeq(x, seq, d = 0.2) {
+    let i = 0;
+    while (i + 1 < seq.length && x >= seq[i + 1][0]) i++;
+    const cur = seq[i][1];
+    if (i > 0 && x - seq[i][0] < d) return { anim: cur, from: seq[i - 1][1], to: cur, k: sst(0, 1, (x - seq[i][0]) / d) };
+    return { anim: cur };
+  }
   const sdScale = (key, V) => (V * 1.18) / (SD_FLUFF[key] || 262);
   // 相位只跟“这是哪只羊”有关（o.id：调用处 + 循环序号；或 o.seed）。旧写法把可见高度 V 和朝向也算进去：
   // 小羊一缩放（镜头推拉、落地挤压），动画时间就每帧跳；一转身就整段跳 0.65 秒
@@ -2678,7 +2689,7 @@
           const lx = x0 + sin(th) * h, ly = FL - cos(th) * h;
           const b = bounce(impact, lx, min(FL + 10, ly), 60 + j * 70 + hash(6, j) * 60, -320 - hash(5, j) * 240, FL + 16 + (j % 3) * 16, 2600, 0.38, 0.55);
           const look = lt > 1.15;
-          lamb(q, s, b.x, b.y, V, { id: 2702 * 16 + j, kind: L.k, pose: look ? 'look-up' : b.n === 0 ? 'jump' : 'stand', spin: look || b.n > 0 ? 0 : impact * (5 + j), sq: b.sq, expr: look ? 'surprise' : 'happy', fx: look && j % 2 === 0 ? ['stars'] : null, flip: false });
+          lamb(q, s, b.x, b.y, V, { id: 2695 * 16 + j, kind: L.k, pose: look ? 'look-up' : b.n === 0 ? 'jump' : 'stand', spin: look || b.n > 0 ? 0 : impact * (5 + j), sq: b.sq, expr: look ? 'surprise' : 'happy', fx: look && j % 2 === 0 ? ['stars'] : null, flip: false });
           shadow(q, b.x, FL + 18 + (j % 3) * 16, V, 0.45);
         }
         if (impact > 0 && impact < 0.6) { const k = impact / 0.6; for (let i = 0; i < 6; i++) withAlpha(q, (1 - k) * 0.6, (qq) => qq.drawImage(puffSpr(i, '240,210,190'), x0 + 60 + i * 50 - k * 40, FL - 30 - k * 40, 120 + k * 80, 50 + k * 30)); sfx(q, '咚！', x0 + 260, FL - 190, 56, clamp(impact / 0.12), { color: '#ffffff', rot: -0.1, alpha: 1 - clamp((impact - 0.4) / 0.2) }); }
@@ -2714,12 +2725,12 @@
           if (j >= n) {
             // 还在地上的：按拍子往上蹦，想抓住上一只的脚
             const [hh, sq] = hop(fract(b * 2 + j * 0.3));
-            lamb(q, s, lx + 60 + j * 34, FL - 4 - hh * 40, V, { id: 2738 * 16 + j, kind: L.k, pose: 'jump', sq, expr: 'happy', flip: true });
+            lamb(q, s, lx + 60 + j * 34, FL - 4 - hh * 40, V, { id: 2732 * 16 + j, kind: L.k, pose: 'jump', sq, expr: 'happy', flip: true });
             continue;
           }
           const swing = sin(t * 4 + j * 0.6) * 0.18 * (j + 1) / 7;
           const x = hx + sin(swing) * j * V * 0.8, y = hy + 42 + j * V * 0.72;
-          lamb(q, s, x, y, V, { id: 2743 * 16 + j, kind: L.k, pose: 'jump', rot: swing, expr: j === 0 ? 'determined' : 'surprise', fx: j === 0 ? ['sweat'] : null, flip: false });
+          lamb(q, s, x, y, V, { id: 2732 * 16 + j, kind: L.k, pose: 'jump', rot: swing, expr: j === 0 ? 'determined' : 'surprise', fx: j === 0 ? ['sweat'] : null, flip: false });
         }
         if (ck > 0) { sfx(q, '咔嚓！', lx + 150, ly - 170, 64, clamp(ck / 0.15), { color: '#fff27a', rot: -0.12 }); sparkle(q, hx, hy, 80 * (1 - clamp(ck / 0.5)) + 10, 1.4 * (1 - clamp(ck / 0.5)), 0, '255,240,190'); }
       },
@@ -3054,9 +3065,15 @@
         // 店主：跟着瓶子转身（Relax）→ 原地转圈（Move，左右翻面）→ 伸手（Interact）→ 扑了个空，一下子躺平（Sleep）
         const fbo = { x: VX, y: SG + 20, h: 400, pose: vpose, t, expr: vexpr, look: vlook, flip: vflip, aim: 0.3 };
         const H = 390;
-        if (bi === 7) snow(q, s, { x: VX + 40, y: SG + 26, h: H, anim: 'Sleep', flip: true, fb: fbo });
-        else if (bi === 4 || bi === 5) snow(q, s, { x: VX, y: SG + 20, h: H, anim: 'Move', speed: 1.6, flip: floor(t * 9) % 2 === 0, fb: fbo });
-        else snow(q, s, { x: VX, y: SG + 20, h: H, anim: bi === 6 ? 'Interact' : 'Relax', flip: vflip, fb: fbo });
+        // 原地转圈：横向按 cos 压扁再翻过来（像纸片人转身），一拍一圈。旧写法每秒左右翻面 9 次，看起来是在闪 / 抽搐
+        const AS = animSeq(b, [[0, 'Relax'], [4, 'Move'], [6, 'Interact'], [7, 'Sleep']], 0.35);
+        if (bi === 7) snow(q, s, Object.assign({ x: VX + 40 * sst(7, 7.35, b), y: SG + 20 + 6 * sst(7, 7.35, b), h: H, flip: true, fb: fbo }, AS));
+        else if (bi === 4 || bi === 5) {
+          const c = cos((b - 4) * TAU), sx = (c < 0 ? -1 : 1) * max(0.06, abs(c));
+          q.save(); q.translate(VX, 0); q.scale(sx, 1); q.translate(-VX, 0);
+          snow(q, s, Object.assign({ x: VX, y: SG + 20, h: H, speed: 1.6, flip: false, fb: fbo }, AS));
+          q.restore();
+        } else snow(q, s, Object.assign({ x: VX, y: SG + 20, h: H, flip: bi === 6 ? true : vflip, fb: fbo }, AS));
         const hx = sdOK(SNOW) ? VX + 40 + H * 0.3 : VX, hy = sdOK(SNOW) ? SG - H * 0.28 : SG - 330;
         if (bi === 7) for (let i = 0; i < 4; i++) { const an = t * 4 + i * PI / 2; sparkle(q, hx + cos(an) * 60, hy + sin(an) * 18, 16, 0.9, an, '255,240,160'); }
         // 两边的小羊（接住时挤一下）
@@ -4096,7 +4113,7 @@
           const lx = 300 + j * 150, ly = RF.wall + 70 + (j % 2) * 30;
           if (a < 0) { const u = 1 + a / 0.8; if (u > 0) { const x = lerp(lx + 600, lx, u), y = lerp(-100, ly, u) - sin(PI * u) * 40; bottle(q, s, x + 30, y + 10, V * 1.5, -PI / 2 + 0.6, { fl: FLAVORS[j % 4], cap: false }); lamb(q, s, x, y, V, { id: 4117 * 16 + j, kind: L.k, pose: 'jump', expr: 'happy', flip: true }); } continue; }
           const b = bounce(a, lx, ly - 10, -40, -300, ly, 2600, 0.4, 0.6);
-          lamb(q, s, b.x, b.y, V, { id: 4119 * 16 + j, kind: L.k, pose: b.n === 0 ? 'jump' : 'stand', sq: b.sq, expr: a > 0.5 ? 'happy' : 'surprise', flip: false, fx: a > 0.6 && j % 3 === 0 ? ['stars'] : null });
+          lamb(q, s, b.x, b.y, V, { id: 4117 * 16 + j, kind: L.k, pose: b.n === 0 ? 'jump' : 'stand', sq: b.sq, expr: a > 0.5 ? 'happy' : 'surprise', flip: false, fx: a > 0.6 && j % 3 === 0 ? ['stars'] : null });
           shadow(q, b.x, ly + 2, V * 1.1, 0.4);
           if (a < 0.3) sfx(q, '噗', lx + 30, ly - 90, 30, clamp(a / 0.08), { color: '#ffffff', rot: -0.1, alpha: 1 - clamp((a - 0.2) / 0.1) });
           bottle(q, s, lx + 50 + (j % 2) * 8, ly - 4, V * 1.5, 0, { fl: FLAVORS[j % 4], cap: true });
@@ -4190,7 +4207,7 @@
       far: (q) => roofJets(q, s, t, 0.5),
       near: (q) => roofJets(q, s, t, 0.85),
       mid: (q) => {
-        { const vx = lerp(1640, 1560, step); foamyVendor(q, s, { x: vx, y: RF.wall + 60, h: 410, anim: lt < 0.8 ? 'Move' : lt < 1.1 ? 'Relax' : 'Interact', speed: 0.8, flip: true, fb: { x: vx, y: RF.wall + 60, h: 420, pose: lt < 1.1 ? 'stand' : 'hips', t, expr: lt < 1.1 ? 'surprise' : 'laugh', look: [-1, -0.5], flip: true, nohat: false } }); }
+        { const vx = lerp(1640, 1560, step); foamyVendor(q, s, { x: vx, y: RF.wall + 60, h: 410, ...animSeq(lt, [[0, 'Move'], [0.8, 'Relax'], [1.1, 'Interact']], 0.2), speed: 0.8, flip: true, fb: { x: vx, y: RF.wall + 60, h: 420, pose: lt < 1.1 ? 'stand' : 'hips', t, expr: lt < 1.1 ? 'surprise' : 'laugh', look: [-1, -0.5], flip: true, nohat: false } }); }
         for (let i = 0; i < 8; i++) { const ph = fract(t * 0.5 + i / 8); drop(q, 1520 + hash(145, i) * 160, RF.wall - 320 + ph * 360, 7, PI / 2, (1 - ph) * 0.8, 'pink'); }
         if (lt > 1.1) sfx(q, '哈哈哈！', 1400, RF.wall - 420, 44, clamp((lt - 1.1) / 0.15), { color: '#fff27a', rot: -0.1 });
       },
@@ -4801,8 +4818,8 @@
             const dj = lt - dive - j * 0.1;
             if (dj > 0.35) continue;
             if (dj > 0) { const u = dj / 0.35, x = lerp(sx, MZC.x, u), y = lerp(sy, MZC.y - 50, u) - sin(PI * u) * 40; lamb(q, s, x, y, V, { id: 4823 * 16 + j, kind: L.k, pose: 'jump', spin: u * 3, expr: 'happy' }); continue; }
-            if (j === 0) { lamb(q, s, sx, sy - bumpA * 16, V, { id: 4824 * 16 + j, kind: L.k, pose: bumpA > 0.05 ? 'jump' : 'stand', rot: -bumpA * 0.35, expr: 'determined', flip: true, t }); shadow(q, sx, sy + 1, V * 1.1, 0.4 * (1 - bumpA * 0.5)); continue; }
-            lamb(q, s, sx, sy, V, { id: 4825 * 16 + j, kind: L.k, pose: 'stand', expr: 'happy', flip: false, t });
+            if (j === 0) { lamb(q, s, sx, sy - bumpA * 16, V, { id: 4823 * 16 + j, kind: L.k, pose: bumpA > 0.05 ? 'jump' : 'stand', rot: -bumpA * 0.35, expr: 'determined', flip: true, t }); shadow(q, sx, sy + 1, V * 1.1, 0.4 * (1 - bumpA * 0.5)); continue; }
+            lamb(q, s, sx, sy, V, { id: 4823 * 16 + j, kind: L.k, pose: 'stand', expr: 'happy', flip: false, t });
           }
         }), '#2a1c40', 0.22);
         inCam(gg, cam, 1, (q) => {
@@ -4904,7 +4921,9 @@
         if (close < 1) {
           // 面朝货箱倒着往屋里退（Move 倒放，脚不打滑），把箱子拖进门
           const ax = lerp(MZ.door.x - 6, MZ.door.x + 30, ease.inOut(drag)), mv = drag > 0 && drag < 1;
-          const ok = sdOK('alter') && SDK().draw(q, 'alter', { x: ax, y: MZ.step - 2, h: 192, anim: mv ? 'Move' : 'Relax', speed: mv ? -0.35 : 1, t, flip: true, rim: { color: '255,210,150', amount: 0.8 } });
+          // 起步 / 停下时 Relax ↔ Move（倒着走）交叉淡化
+          const mk = sst(0, 0.08, drag) * (1 - sst(0.92, 1, drag));
+          const ok = sdOK('alter') && SDK().draw(q, 'alter', { x: ax, y: MZ.step - 2, h: 192, from: { anim: 'Relax', speed: 1 }, to: { anim: 'Move', speed: -0.35 }, k: mk, t, flip: true, rim: { color: '255,210,150', amount: 0.8 } });
           if (!ok) doorAdele(q, s, t, { x: ax, pose: 'crouch', expr: 'smile', look: [-0.4, 0.6], flip: true });
         }
         if (drag >= 1 && close < 1) crate(q, s, cx, cy, MZC.sc, { no: 7, hoof: 1, lid: 0 });

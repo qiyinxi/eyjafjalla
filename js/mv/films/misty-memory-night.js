@@ -546,6 +546,9 @@
    */
   function lamb(g, s, x, y, V, o = {}) {
     const P = olSpec(s, o);
+    // 调试（lab/jitter.html）：这只羊是谁（o.v），紧跟着的官方小人记录按它配对；MVE.sd.trace 平时为 null
+    const TR = E.sd && E.sd.trace;
+    if (TR && P && !warmMode) { const m = g.getTransform(); TR({ src: 'lamb', key: P.key + ':' + (o.pose || 'stand'), cv: g.canvas, x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f, s: V * Math.hypot(m.a, m.b) / 300, V, id: Math.round(o.v || 0) }); }
     if (P) {
       if (warmMode) { lambOfficial(g, s, x, y, V, o, P); return; } // 画到 2×2 的假画布上：顺手把镜头开头那一帧的缓存建好
       if (lambOfficial(g, s, x, y, V, o, P)) return;
@@ -3968,7 +3971,6 @@
     vig(g, s, 0.5);
   }
   /* ---------- 镜头 42 · 登山（166.44 → 172.70）：远景，整座发光的火山，一串小羊的光点盘旋着通向山顶 ---------- */
-  let ASC_LEN = null; // 盘山路的累计横向路程表（u 从 0 到 1，400 段；只算一次）
   function shotAscent(g, s) {
     const t = s.t, lt = s.lt;
     const k = ease.inOut(clamp(lt / 6.2));
@@ -3995,11 +3997,9 @@
         }
         const [ax, ay, az] = P(uH);
         E.glow(q, ax, ay - 24, 80, '255,240,230', 0.9);
-        // 远景里只有 70 像素高的一个发光小人：腿的相位 = 沿盘山路走过的横向路程 / 步幅（她朝左右跑，脚按横向速度着地；到顶前慢下来，脚不打滑）
-        if (!ASC_LEN) { ASC_LEN = [0]; let px = P(0)[0]; for (let j = 1; j <= 400; j++) { const x = P(j / 400)[0]; ASC_LEN.push(ASC_LEN[j - 1] + Math.abs(x - px)); px = x; } }
-        const lenAt = (u) => { const jf = clamp(u) * 400, j0 = Math.min(399, Math.floor(jf)); return lerp(ASC_LEN[j0], ASC_LEN[j0 + 1], jf - j0); };
-        const ro = { h: 70, pose: 'run' };
-        cast(q, 'adele-alter', { x: ax, y: ay, h: 70, pose: 'run', t: gaitTime('adele-alter', ro, lenAt(uH) - lenAt(U0), s.shot.t0), prop: 'staff', outfit: 'coat', flip: az > 0, sil: '#1a0e1c', rim: '255,220,200' });
+        // [修] 旧写法按走过的路锁步相（gaitTime）：可她在画面上每秒要跑 300 多像素，70 像素高的小人腿一秒要摆十几个来回，糊成一团在闪。
+        // 远景小剪影脚底打不打滑看不出来，频闪看得出来：改成固定的快跑节奏（约 2.4 倍步频）
+        cast(q, 'adele-alter', { x: ax, y: ay, h: 70, pose: 'run', t, speed: 2.4, prop: 'staff', outfit: 'coat', flip: az > 0, sil: '#1a0e1c', rim: '255,220,200' });
       },
     });
     sparkles(g, t, 30, 16, '255,220,200');
