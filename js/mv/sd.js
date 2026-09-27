@@ -937,7 +937,7 @@ void main(){
       gl.clear(gl.COLOR_BUFFER_BIT);
       // 屏幕上每个贴图像素占几个设备像素：> 1 就是在放大贴图，换 Catmull-Rom 的着色器
       const mag = (Math.sqrt(Math.abs(Au * Bv - Av * Bu)) * rs) / texelOf(R);
-      const SH = shaderSharp && mag > 1.05 && opts.sharp ? shaderSharp : shader;
+      const SH = shaderSharp && mag > 1.25 && opts.sharp ? shaderSharp : shader; // 轻微放大看不出糊，不换
       SH.bind();
       SH.setUniformi(window.spine.webgl.Shader.SAMPLER, 0);
       SH.setUniform4x4f(window.spine.webgl.Shader.MVP_MATRIX, MVP);
