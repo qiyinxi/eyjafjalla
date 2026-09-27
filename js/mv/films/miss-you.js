@@ -2230,7 +2230,7 @@
     const kDrawn = (rigOn(s, 'keller') && kellerRig(g, s, {
       x: kx - 10, y: 900, h: 400, expr: [[b0 - 1, 1], [b0 + 1.2, 10], [landT + 0.2, 9]], wind: 0.35, windDir: 1,
       look: KP ? KP([[b0 + 0.6, [-0.15, -0.05]], [b0 + 1.6, [-0.75, -0.35]], [b0 + 3.0, [-0.5, 0.25]], [landT + 0.3, [-0.3, 0.55]]]) : [-0.4, 0.2],
-      tilt: (tt) => -0.4 * clamp((tt - landT) / 0.8), glint: (tt) => E.window01(tt, landT + 0.3, landT + 1.3, 0.25, 0.5),
+      tilt: (tt) => -0.4 * E.smooth(landT, landT + 0.8, tt), glint: (tt) => E.window01(tt, landT + 0.3, landT + 1.3, 0.25, 0.5),
       tint: ['#ffc8a8', 0.3], light: { color: '#ffc49a', dir: [-0.85, -0.3], rim: 0.55, wash: 0.08 },
     })) || (cardOn(s, 'keller') && E.sd.card(g, 'keller', { x: kx - 10, y: 900, h: 400, crop: 'upper', t, breath: 1, expr: [[b0, 1], [landT + 0.2, 9]], light: { color: '#ffc8a8', amount: 0.3 } }));
     if (kDrawn) {
@@ -3363,7 +3363,7 @@
         from: { crop: 'face', z: 1.0, x: -0.01, y: -0.02, look: [0.1, 0.12] }, to: { crop: 'face', z: 1.06, x: 0.01, y: -0.02, look: [0.3, -0.16] },
         eyes: 1 - sstep(open + BEAT * 1.6, open + BEAT * 2.6, t), blink: t > open + BEAT * 3 ? 'auto' : 0, saccade: 0.2,
         grade: { base: 'cool', tint: ['#f0f4ff', 0.16], light: { color: '#fff2dc', dir: [0.9, -0.45], rim: 0.9, wash: 0.06 }, bloom: 0.3 },
-        wind: 1.1, windDir: -1,
+        wind: 1, windDir: -1, // 绑定验证过的最大风力是 1（再大发梢后面会露出没补画的空洞）
         bg: (q, s2) => { sky(q, s2, 'sky-ridge'); E.glow(q, 1500, 200, 700, '255,244,220', 0.4, 'screen', false); },
         particles: [{ type: 'ash', n: 40 }], dof: 0.5, leak: { x: 1720, y: 160, r: 900, rgb: '255,240,214', a: 0.24 }, vignette: 0.32,
       })) {
@@ -4023,7 +4023,7 @@
       crop: 'upper', span: kaSpan, ease: 'out',
       from: { crop: 'upper', z: 0.96, y: -0.09, look: [0.1, -0.25] }, to: { crop: 'upper', z: 1.03, y: -0.1, look: [0.25, -0.4] },
       grade: { base: 'dream', light: { color: '#ffb0c8', dir: [0.3, -0.95], rim: 0.8, wash: 0.06 }, overlay: ['#ff7aa8', 0.06, 'soft-light'], bloom: 0.32 },
-      wind: 1.05, windDir: -1, cast: 0.55 + 0.35 * s.pulse(4), glow: 1.3 + 0.6 * s.lo, blink: 'auto',
+      wind: 1, windDir: -1, cast: 0.55 + 0.35 * s.pulse(4), glow: 1.3 + 0.6 * s.lo, blink: 'auto',
       bg: (q, s2) => {
         sky(q, s2, 'sky-aurora');
         s2.kit.stars(q, s2.t, { n: 70, seed: 452, h: 500, size: 2, tw: 0.6 });

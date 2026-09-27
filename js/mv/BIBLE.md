@@ -114,6 +114,17 @@
 - 影片可以有 `prepare(ctx)`（异步，`ctx.svg(str,w,h)` 把 SVG 栅格化成画布、`ctx.img(url)`）、`overlay(g, s)`（每帧最上层）、`captions: [[t0, t1, '文字', { style: 'narration'|'quote'|'hand'|'side', x, y, size }]]`。
 - 结构数据：`MVE.analysis(url)`；影片里通过 `s.T`（`beatAt / barAt / beatTime / barTime / env / accent`）。
 
+### 官方小人 / 立绘的动作连贯（防“抽搐”，`lab/jitter.html` 逐帧检查）
+- 动画时间 = `(t + phase) × speed`。**phase 只能跟“这是谁”有关**（序号、seed、`o.id`），不能拿位置 x、屏幕大小 V、朝向算：走动的角色 x 每帧都在变，动画就每帧跳（第四部客串干员、第四 / 五部小羊的“抽搐”就是这么来的）。
+- **speed 在镜头里要是常数**；速度会变（加减速、按距离推进）的走路，直接给按走过的距离算的动画时间（`t: 距离 / 步速, speed: 1`，或小羊的 `animT`），不要每帧重算 speed 再乘绝对时间 t。
+- **不要按拍子 / 按离地高度在两个动画之间来回切**（蹦跳的小羊 `hy > 0.3 ? 'jump' : 'stand'`）：蹦跳用 Idle，离地的弧线由影片自己画。
+- 换动作（走 → 站、站 → 挥手）用交叉淡化：角色库钩子的 `mixFrom / mixK`（第四部的 `mixIn()`），直接画官方小人时用 `from / to / k`。
+- 转头、歪头这类立绘参数用缓入缓出（`sst` / `E.smooth`），不要线性斜坡或阶跃。
+- 一群小的官方小人用 `MVE.sd.drawCached`（按 1/30 秒取整的帧缓存），不要自己做每个动作 10～12 帧的精灵条（一顿一顿）。
+- 循环走动的路人（`x % span`），接缝要放在画面外；镜头只有几秒的，干脆别循环。
+- 立绘绑定的风力不超过 1（`wind > 1` 发梢后面会露出没补画的空洞）；1024² 的剧情立绘（凯勒、雪雉、多利）特写别放大到 2.5 倍以上（会糊）。
+- 检查：`lab/jitter.html?film=<id>&all=1&fps=30&keep=1` 记下每帧每个角色的动画时间与位置，`lab/jitter-analyze.js` 找相位跳变（phase）、动画硬切（anim）、凭空出现（pop）、同一镜头里官方 ↔ 手绘互换（swap）、≥ 60 像素的手绘人物（hand）。
+
 ### 性能预算（1280×720，`lab/mv.html?film=<id>&perf=1`）
 - 每帧 `render()` CPU：平均 ≤ 3ms，p95 ≤ 6ms；帧间隔 p95 ≤ 20ms（在无头 GPU 模式下）。
 - 同屏柔光精灵 ≤ 400 个、粒子 ≤ 600 个；每帧新建的渐变对象越少越好（能缓存就缓存）。

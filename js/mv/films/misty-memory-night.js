@@ -144,14 +144,11 @@
     LRU.clear(); lruPx = 0; maxK = 0; warmQ.length = 0; warmedAt.clear();
     for (const c of SPM.values()) c.width = c.height = 1;
     SPM.clear();
-    for (const e of OL.values()) e.c.width = e.c.height = 1;
-    OL.clear(); olQ.length = 0;
+    OL.clear();
   }
   function warmStep(ms, sk) {
     const t0 = performance.now();
     while (warmQ.length && performance.now() - t0 < ms) { const it = warmQ.shift(); if (it.sk === sk && !LRU.has(it.ck)) lcBuild(it.ck, it.w, it.h, it.fn, it.k, it.sk); }
-    // 官方小羊的精灵条（一条约 2–4 毫秒）：这一帧还有余量才建
-    while (olQ.length && performance.now() - t0 < ms) { const it = olQ.shift(); olStrip(it.key, it.anim, it.px); }
   }
   const warmedAt = new Map(), dummyCtx = E.mk(2, 2).getContext('2d');
   /** 与引擎 state() 同样的字段（给预热空跑用） */
@@ -483,96 +480,75 @@
    * 一致性：只有模型“可用”（加载好、且不是在这个镜头中途才加载好——sd 的镜头闸门）时才建精灵条；精灵条一次建完整（12 帧全成功才存），
    * 所以同一只羊在同一个镜头里不会从手绘版跳成官方版。没有 WebGL / 模型没到：照旧画手绘版的精灵。 */
   const OL_KEYS = ['enemy_1344_ddlamb', 'enemy_1345_tplamb', 'enemy_1350_mgcshp', 'enemy_1344_ddlamb_2', 'enemy_1350_mgcshp_2'];
-  const OL_N = 12, OL_PX = [32, 48, 64, 96, 128, 192, 256];
-  const OL = new Map();
+  const OL = new Map(); // 每种官方小羊的身高（骨骼单位）与动画时长
   const SDX = () => { const S = window.MVE && window.MVE.sd; return S && S.enabled !== false && S.anchorsCast && (!S.supported || S.supported()) ? S : null; };
   const olKey = (v) => OL_KEYS[((Math.round(v || 0) % OL_KEYS.length) + OL_KEYS.length) % OL_KEYS.length];
-  const olAnim = (pose) => (pose === 'jump' || pose === 'run' || pose === 'walk' ? 'Move' : pose === 'push' ? 'Attack' : 'Idle');
+  // 蹦跳（jump）用 Idle：离地的弧线由影片自己算。旧写法 jump → Move，而蹦跳的小羊按 hy > 0.3 在 jump / stand 之间来回切，
+  // 每一跳都在 Idle 与 Move 之间硬切一次（第五部一直是 jump → Idle，三部统一）
+  const olAnim = (pose) => (pose === 'run' || pose === 'walk' ? 'Move' : pose === 'push' ? 'Attack' : 'Idle');
   /** 模型现在能不能用（走 sd 的镜头闸门）；不能用时顺手让它开始加载 */
   function olUsable(S, key) {
     const o = { sd: true, variant: key, pose: 'stand', x: 0, y: 0, h: 100 };
     try { if (S.anchorsCast('sheep-pink', o)) return true; if (S.wants) S.wants('sheep-pink', o); } catch (e) { /* 手绘 */ }
     return false;
   }
-  /** 一种羊、一个动画、一个像素档的精灵条（建不成返回 null，下次再试） */
-  function olStrip(key, anim, px) {
-    const ck = key + '|' + anim + '|' + px;
-    const hit = OL.get(ck);
-    if (hit) return hit;
+  /**
+   * 这只羊（o.v 选模型、pose 选动画）现在该怎么画：{ key, anim, sc（每骨骼单位几像素 / V）, t, phase }；模型不可用时 null = 画手绘版。
+   * [修] 旧写法把每个动画预渲染成 12 帧的精灵条（约 12 帧 / 秒，一顿一顿；叼着的外套、领带也按 12 帧跳）；
+   * 现在用 MVE.sd.drawCached（动画时间按 1/30 秒取整的帧缓存，大的直接实时画），嘴的位置按同一时刻的骨骼算
+   */
+  function olSpec(s, o) {
     const S = SDX();
-    if (!S || !olUsable(S, key)) return null;
-    try {
-      const info = S.info(key);
-      if (!info || !info.anims) return null;
-      const A = info.anims.find((a) => a[0] === anim) || info.anims.find((a) => a[0] === 'Idle');
-      if (!A) return null;
-      const dur = A[1] || 1, sc = px / Math.max(40, info.height);
-      const a0 = S.anchors(key, { x: 0, y: 0, scale: sc, anim: A[0], t: 0 });
-      if (!a0 || !a0.bounds) return null;
-      const [bx0, by0, bx1, by1] = a0.bounds, pad = 3;
-      const fw = Math.ceil(bx1 - bx0) + pad * 2, fh = Math.ceil(by1 - by0) + pad * 2, ox = -bx0 + pad, oy = -by0 + pad;
-      const c = E.mk(fw * OL_N, fh), q = c.getContext('2d');
-      for (let i = 0; i < OL_N; i++) if (!S.draw(q, key, { x: ox + i * fw, y: oy, scale: sc, anim: A[0], t: (dur * i) / OL_N })) { c.width = c.height = 1; return null; }
-      // 每一帧嘴的位置（相对脚底，以身高为单位）：叼东西的时候跟着头一起动
-      const mouth = [];
-      for (let i = 0; i < OL_N; i++) { const a = i ? S.anchors(key, { x: 0, y: 0, scale: sc, anim: A[0], t: (dur * i) / OL_N }) : a0; const m = (a && (a.mouth || a.face)) || [px * 0.3, -px * 0.5]; mouth.push([m[0] / px, m[1] / px]); }
-      const e = { c, fw, fh, ox, oy, px, dur, mouth };
-      OL.set(ck, e);
-      return e;
-    } catch (err) { return null; }
-  }
-  function olPx(g, V) {
-    const M = g.getTransform(), dev = V * Math.sqrt(Math.abs(M.a * M.d - M.b * M.c));
-    for (const p of OL_PX) if (p >= dev * 1.1) return p;
-    return OL_PX[OL_PX.length - 1];
-  }
-  /** 这只羊（按屏幕上的像素高度选档）用哪一条精灵条；null = 画手绘版 */
-  const olEntry = (g, v, pose, V) => olStrip(olKey(v), olAnim(pose), olPx(g, V));
-  /** 预热（下一个镜头的空跑）：记下要建的精灵条，之后每帧花几毫秒建一条（见 warmStep） */
-  const olQ = [];
-  function olWarm(g, v, pose, V) {
-    const key = olKey(v), anim = olAnim(pose), px = olPx(g, V), ck = key + '|' + anim + '|' + px;
-    if (!OL.has(ck) && !olQ.some((it) => it.ck === ck)) olQ.push({ ck, key, anim, px });
+    if (!S || (o.kind || 'pink') !== 'pink' || o.hand) return null;
+    const key = olKey(o.v);
+    if (!olUsable(S, key)) return null;
+    let m = OL.get(key);
+    if (!m) {
+      try { const info = S.info(key); if (!info || !info.anims) return null; m = { h: Math.max(40, info.height), dur: new Map(info.anims) }; OL.set(key, m); } catch (e) { return null; }
+    }
+    const want = olAnim(o.pose || 'stand'), anim = m.dur.has(want) ? want : 'Idle', dur = m.dur.get(anim) || 1;
+    // 每只羊错开相位（只跟 o.v 有关，不跟位置走）
+    return { S, key, anim, h: m.h, t: s.t * (o.aspeed || 1), phase: hash(Math.round(o.v || 0) + 7, 91) * dur };
   }
   /** 小羊的嘴在哪（相对脚底；flip = 面朝左）：叼外套、叼领带时对位用。官方模型按骨骼，手绘版按比例 */
   function lambMouthOff(g, s, V, o = {}) {
-    const e = SDX() && (o.kind || 'pink') === 'pink' && !o.hand ? olEntry(g, o.v, o.pose || 'jump', V) : null;
-    const f = o.flip ? -1 : 1;
-    if (!e) return [f * 0.38 * V, -0.4 * V];
-    const m = e.mouth[olFrame(s, o, e)];
-    return [f * m[0] * V, m[1] * V];
+    const f = o.flip ? -1 : 1, P = olSpec(s, Object.assign({ pose: 'jump' }, o));
+    if (P) {
+      try {
+        const a = P.S.anchors(P.key, { x: 0, y: 0, scale: V / P.h, anim: P.anim, t: P.t, phase: P.phase });
+        const m = a && (a.mouth || a.face);
+        if (m) return [f * m[0], m[1]];
+      } catch (e) { /* 按比例 */ }
+    }
+    return [f * 0.38 * V, -0.4 * V];
   }
   /** 羊背离脚底多高（骑在羊背上的东西对位用）：官方小羊的毛团更高 */
   function lambBack(g, V, o = {}) {
-    const e = SDX() && (o.kind || 'pink') === 'pink' && !o.hand ? olEntry(g, o.v, o.pose || 'stand', V) : null;
-    return (e ? 0.82 : 0.58) * V;
+    const S = SDX(), off = S && (o.kind || 'pink') === 'pink' && !o.hand && olUsable(S, olKey(o.v));
+    return (off ? 0.82 : 0.58) * V;
   }
-  /** 这一刻播到第几帧（每只羊错开相位） */
-  function olFrame(s, o, e) {
-    const ph = hash(Math.round(o.v || 0) + 7, 91) * e.dur, at = (s.t * (o.aspeed || 1) + ph) / e.dur;
-    return Math.floor((at - Math.floor(at)) * OL_N) % OL_N;
-  }
-  function lambOfficial(g, s, x, y, V, o, e) {
-    const sq = o.sq || 0, S = V / e.px, fi = olFrame(s, o, e);
+  function lambOfficial(g, s, x, y, V, o, P) {
+    const sq = o.sq || 0;
     if (o.glow) E.glow(g, x, y - V * 0.45, V * 1.25, o.glowRgb || '255,160,210', 0.3 * o.glow);
     g.save();
     g.translate(x, y);
     if (o.rot) g.rotate(o.rot);
     if (o.spin) { g.translate(0, -V * 0.45); g.rotate(o.spin); g.translate(0, V * 0.45); }
-    g.scale((o.flip ? -1 : 1) * S * (1 + sq * 0.2), S * (1 - sq * 0.2));
-    if (o.alpha != null) g.globalAlpha *= clamp(o.alpha);
-    g.drawImage(e.c, fi * e.fw, 0, e.fw, e.fh, -e.ox, -e.oy, e.fw, e.fh);
+    g.scale(1 + sq * 0.2, 1 - sq * 0.2);
+    const so = { x: 0, y: 0, scale: V / P.h, anim: P.anim, t: P.t, phase: P.phase, speed: 1, flip: !!o.flip, alpha: o.alpha };
+    const ok = P.S.drawCached ? P.S.drawCached(g, P.key, so) : P.S.draw(g, P.key, so);
     g.restore();
+    return ok;
   }
   /**
    * 画一只小羊：(x, y) 脚底，V 可见高度（官方模型可用时画官方粉色小羊，否则画手绘精灵）
    * o: { v（第几只：选哪一种官方小羊）, kind, pose, expr, flip, sq(挤压 -1..1), spin(绕身体中心转), rot(绕脚底转), alpha, glow, hand（强制手绘） }
    */
   function lamb(g, s, x, y, V, o = {}) {
-    if ((o.kind || 'pink') === 'pink' && !o.hand && SDX()) {
-      if (warmMode) { olWarm(g, o.v, o.pose || 'stand', V); return; }
-      const e = olEntry(g, o.v, o.pose || 'stand', V);
-      if (e) { lambOfficial(g, s, x, y, V, o, e); return; }
+    const P = olSpec(s, o);
+    if (P) {
+      if (warmMode) { lambOfficial(g, s, x, y, V, o, P); return; } // 画到 2×2 的假画布上：顺手把镜头开头那一帧的缓存建好
+      if (lambOfficial(g, s, x, y, V, o, P)) return;
     }
     const L = lambSpr(s, o.kind || 'pink', o.pose || 'stand', o.expr || 'neutral');
     const b = L.b, bh = b.y1 - b.y0, sc = V / bh, sq = o.sq || 0;
@@ -3866,7 +3842,7 @@
         key: KA_KEY, crop: 'upper',
         from: { crop: 'upper', z: 1.0, y: 0.03, look: [0.3, -0.12], cast: 0.15 }, to: { crop: 'upper', z: 1.1, y: 0.0, look: [0.14, -0.06], cast: 0.7 },
         ease: 'sine', span: [T - s.shot.t0, s.dur],
-        eyes: 'open', smile: 0.15, blush: 0.2, wind: 1.15, windDir: -1, glow: 1.3, seed: 7,
+        eyes: 'open', smile: 0.15, blush: 0.2, wind: 1, windDir: -1, glow: 1.3, seed: 7,
         grade: { base: 'ember', tint: ['#fff0f4', 0.12], overlay: ['#ff6fa0', 0.14, 'soft-light'], light: { color: '#ffb48c', dir: [0.85, 0.35], rim: 1.0, wash: 0.1 }, leak: '255,130,150', bokeh: '255,180,210', grain: 0 },
         bg: (q, s2) => kaVolcanoBg(q, s2, { lx: 1560, ly: 820, hot: 1 + 0.4 * Math.exp(-after * 2) }),
         particles: [{ type: 'embers', n: 46 }, { type: 'ash', n: 50 }], dof: 0.5, bloom: 0.45, pulse: 0.4,

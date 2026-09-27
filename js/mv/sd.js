@@ -27,6 +27,9 @@
  *                                   不 reject；超时 resolve(false)，加载在后台继续。失败按退避重试；PRTS 偶尔断连：每个请求 20 秒超时、
  *                                   重试 3 次，同时最多 6 个请求。运行库与 js/chibi.js 共用（已加载 / 正在加载时不重复）
  *   ready(key) → boolean · has(key, anim) → boolean · supported() → boolean（有没有可用的 WebGL）
+ *                                   ready 在“这个镜头播放中途才加载好”的模型上仍返回 false（到下一个镜头才 true），影片按它选官方 / 替代画面，
+ *                                   同一个镜头里不会换人
+ *   trace                            调试：设成函数时，每次 draw / drawCached / card 报告这一帧的动画时间、位置与骨骼（lab/jitter.html 用）；平时 null
  *   draw(g, key, o) → boolean        画进 2D 画布 g（当前变换 = 设计坐标 × 相机，可放进 s.layer；旋转也行）。没加载完 / 不支持时
  *                                   返回 false、什么也不画（第一次 draw 会自动开始加载）
  *     o = {
@@ -48,6 +51,11 @@
  *       solo          true：不画模型自带的同伴（挂在 'Common' 骨骼下的整棵子树：后来的故事里的爸爸妈妈羊、伞、书、特效）
  *       glow          0..1：身后一团柔光（glowRgb，默认粉色）
  *     }
+ *   drawCached(g, key, o) → boolean  与 draw 相同的参数；画面上不大的（身高 ≤ opts.cacheMaxPx 设备像素）按“动画时间取整到 1/30 秒”
+ *                                   的帧缓存贴图（按需生成、LRU，尺寸按半个八度分档、只缩小不放大）。一群小羊用它：每只每帧一次 drawImage，
+ *                                   动作仍是 30 帧 / 秒。剪影 / 逆光 / 交叉淡化 / 混合模式、以及大的小人，自动改走 draw
+ *     相位（phase）只能跟“这是谁”有关（序号、seed），不能跟位置、大小、朝向有关：动画时间 = (t + phase) × speed，
+ *     phase 或 speed 每帧一变，动画就每帧跳（走动的人会“抽搐”）。速度会变的走路请按走过的距离锁步相（见 before-summer 的 stride）
  *   anchors(key | who, o) → { head, face, top, chest, hip, handN, handF, hands, prop, feet, footL, footR, bounds, s }
  *                                   与 draw 同一构图、同一时刻，骨骼的世界坐标换算到调用者坐标（bounds = [x0, y0, x1, y1]）；
  *                                   第一个参数是角色库的 who（'adele-alter'）时等于 anchorsCast
@@ -87,6 +95,8 @@
  *          是官方小人还是手绘版都对得上；Move 的播放速度由此反推（跑 = 加快的 Move）
  *     Sit：基建小人坐在椅子上（根骨骼在座面，小腿垂下）；o.seat = 座面离脚底的高度，没给时让脚刚好踩地
  *     其余姿势（hug / carry / reach / kneel / point / write / jump / sit-ground / walk-away / turn / crop 特写 …）返回 false → 手绘版
+ *   换姿势时交叉淡化：o.mixFrom = 上一个姿势（与 o 合并，例如 { pose: 'walk' }），o.mixK = 0..1（1 = 全是现在的姿势）；
+ *          同一个模型、同一视角时才淡化（站 ↔ 走 ↔ 挥手 ↔ 坐），否则硬切
  *   o.sd：false = 这一次强制手绘；true = 允许 opt-in 的角色；'Attack' / { anim, view: 'front' | 'back' | 'build', speed, loop }
  *         = 强制用官方小人的某个动画（作战 / 施法镜头，例如 { anim: 'Skill_3_Loop', view: 'front' } 举杖施法）
  *   audit：MVE.sd.audit = true 时每次决定记进 MVE.sd.log（lab/sd.html?film=…&audit=1 用来列出每个镜头是小人还是手绘）
@@ -118,7 +128,8 @@
   const localMiss = new Set();
   const localOf = (url) => (OFFICIAL && url.startsWith(TORAPPU) ? OFFICIAL + 'spine/' + url.slice(TORAPPU.length).split('?')[0] : '');
   // [/self-host]
-  const opts ={ maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true };
+  // cacheFps / cacheMaxPx / cacheMB：drawCached 的帧率（动画时间）、只缓存身高不超过多少设备像素的、缓存上限（0 = 桌面 24MB、触屏 12MB）
+  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0 };
   const stats = { draws: 0, lastMs: 0, avgMs: 0, canvas: [1, 1], loads: {} };
   const OFF = /[?&]sd=off\b/.test(location.search);
 
@@ -696,7 +707,7 @@ void main(){
     const d = a.duration;
     if (d > 0) tt = loop ? ((tt % d) + d) % d : clamp(tt, 0, d);
     else tt = 0;
-    return { a, tt };
+    return { a, tt, sp };
   }
   function pose(R, A, B, k) {
     const S = window.spine, sk = R.skel, P = R.posed;
@@ -831,6 +842,7 @@ void main(){
         if (px < X0) X0 = px; if (px > X1) X1 = px; if (py < Y0) Y0 = py; if (py > Y1) Y1 = py;
       }
       const Wc = g.canvas.width, Hc = g.canvas.height;
+      if (API.trace) traceSD(g, R, A, B, k, o, Au, Av, Ac, Bu, Bv, Bc);
       X0 = Math.max(0, Math.floor(X0)); Y0 = Math.max(0, Math.floor(Y0)); X1 = Math.min(Wc, Math.ceil(X1)); Y1 = Math.min(Hc, Math.ceil(Y1));
       const alpha = o.alpha == null ? 1 : clamp(+o.alpha);
       if (X1 - X0 < 1 || Y1 - Y0 < 1 || alpha <= 0.002) { R.last = now(); lastDraw = R.last; return true; }
@@ -945,6 +957,96 @@ void main(){
     }
   }
   const union = (p, q) => [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[2], q[2]), Math.max(p[3], q[3])];
+
+  /* ---------------------------------------------------------------- 小尺寸的帧缓存
+   * drawCached(g, key, o)：参数与 draw 相同。画面上不大的小人（身高 ≤ opts.cacheMaxPx 设备像素）按“动画时间取整到 1/opts.cacheFps 秒”
+   * 渲染成一张小位图缓存起来，以后同一帧（同模型、同动画、同一档尺寸）直接 drawImage——一群小羊每帧只花几次贴图。
+   * 与旧的“每个动作固定 10～12 帧的精灵条”不同：帧率按动画时间算（默认 30 帧 / 秒，0.8 秒的 Move 就是 24 帧），按需生成、
+   * LRU 淘汰（opts.cacheMB），尺寸按半个八度分档（缓存图总是不小于屏幕上的尺寸，只缩小不放大，不会糊）。
+   * 剪影、逆光、交叉淡化、混合模式这些不缓存，直接 draw。t 的纯函数：同一时刻永远是同一帧。 */
+  const FC = new Map();
+  let fcPx = 0;
+  function fcCap() { return (opts.cacheMB || (matchMedia('(pointer: coarse)').matches ? 12 : 24)) * 262144; }
+  function fcClear() { for (const c of FC.values()) { c.width = c.height = 0; } FC.clear(); fcPx = 0; }
+  function drawCached(g, key, o) {
+    o = o || EMPTY;
+    if (o.sil || o.rim || o.mix || (o.from != null && o.to != null) || o.mode || opts.cacheFps === 0) return draw(g, key, o);
+    let R;
+    try {
+      if (!g || !g.canvas) return false;
+      const P = parse(key);
+      if (!P) return false;
+      R = models.get(P.id);
+      if (!R || !R.ready || !glLive() || R.gen !== gen) return draw(g, key, o); // 没加载：draw 负责开始加载、返回 false
+      const A = animSpec(R, o.anim || (R.P.view === 'build' ? 'Relax' : 'Idle'), o);
+      if (!A) return false;
+      const M = g.getTransform ? g.getTransform() : null;
+      // 按变换里放大得最多的那个方向选档（挤压 / 拉伸时也不放大缓存图）
+      const axk = M ? Math.max(Math.hypot(M.a, M.b), Math.hypot(M.c, M.d)) : g.canvas.width / VW;
+      const s = scaleOf(R, o), devS = s * axk;
+      if (!(devS > 0) || devS * R.info.height > (opts.cacheMaxPx || 150)) return draw(g, key, o);
+      // 动画时间取整到 1/fps（循环动画按整数帧均分一圈，接缝不跳）
+      const d = A.a.duration, fps = opts.cacheFps || 30, loop = o.loop ?? true;
+      const nF = d > 0 ? Math.max(1, Math.round(d * fps)) : 1;
+      let fi = d > 0 ? Math.round((A.tt / d) * nF) : 0;
+      if (loop) fi %= nF; else fi = Math.min(fi, nF);
+      // 尺寸档：不小于屏幕上的缩放，半个八度一档
+      const ts = Math.pow(2, Math.ceil(Math.log2(devS) * 2 - 1e-6) / 2);
+      const solo = !!(o.solo && R.info.comp.length);
+      const tk = o.tint ? (Array.isArray(o.tint) ? o.tint.join('/') : typeof o.tint === 'object' ? o.tint.color + '/' + o.tint.amount : String(o.tint)) : '';
+      const ck = R.id + '|' + A.a.name + '|' + fi + '|' + ts.toFixed(4) + '|' + (solo ? 1 : 0) + '|' + tk + '|' + R.gen;
+      let c = FC.get(ck);
+      if (c) { FC.delete(ck); FC.set(ck, c); }
+      else {
+        const bx = animBounds(R, A.a, solo);
+        const cw = Math.ceil((bx[2] - bx[0]) * ts) + 4, chh = Math.ceil((bx[3] - bx[1]) * ts) + 4;
+        if (cw * chh > 1048576) return draw(g, key, o);
+        c = E.mk(cw, chh);
+        c._ox = -bx[0] * ts + 2; c._oy = bx[3] * ts + 2; c._ts = ts;
+        const tr = API.trace; API.trace = null;
+        let ok = false;
+        try { ok = draw(c.getContext('2d'), key, { x: c._ox, y: c._oy, scale: ts, anim: A.a.name, t: d > 0 ? (fi * d) / nF : 0, speed: 1, phase: 0, loop: false, solo, tint: o.tint }); }
+        finally { API.trace = tr; }
+        if (!ok) { c.width = c.height = 0; return draw(g, key, o); }
+        FC.set(ck, c); fcPx += cw * chh;
+        const cap = fcCap();
+        for (const [k2, c2] of FC) { if (fcPx <= cap || k2 === ck) break; fcPx -= c2.width * c2.height; c2.width = c2.height = 0; FC.delete(k2); }
+      }
+      const X = +o.x || 0, Y = +o.y || 0, alpha = o.alpha == null ? 1 : clamp(+o.alpha);
+      if (API.trace) { const pts = []; API.trace({ src: 'sd', cached: true, key: R.id, cv: g.canvas, anim: A.a.name, tt: A.tt, sp: A.sp, dur: d, animB: null, ttB: 0, k: 0, x: M ? M.a * X + M.c * Y + M.e : X, y: M ? M.b * X + M.d * Y + M.f : Y, s: devS, pts, alpha, sil: false, flip: !!o.flip }); }
+      if (alpha <= 0.002) return true;
+      g.save();
+      if (o.shadow) {
+        const sw = R.info.height * s * 0.34 * (o.shadowW || 1), sy = o.shadowY ?? Y, sa = (typeof o.shadow === 'number' ? o.shadow : o.shadowA ?? 0.26) * alpha;
+        const ga = g.globalAlpha; g.globalAlpha = ga * clamp(sa);
+        g.drawImage(shadowSprite(), X - sw, sy - sw * 0.16, sw * 2, sw * 0.32);
+        g.globalAlpha = ga;
+      }
+      if (o.glow > 0) { const bb = animBounds(R, A.a, solo), vh = Math.max(20, bb[3]) * s; E.glow(g, X, Y - vh * 0.45, vh * 1.1, o.glowRgb || '255,160,210', 0.34 * o.glow * alpha); }
+      g.translate(X, Y);
+      if (o.rot) g.rotate(+o.rot);
+      const kk = s / c._ts;
+      g.scale((o.flip ? -1 : 1) * kk, kk);
+      if (alpha < 1) g.globalAlpha *= alpha;
+      g.imageSmoothingEnabled = true;
+      g.drawImage(c, -c._ox, -c._oy);
+      g.restore();
+      R.last = now(); lastDraw = R.last;
+      return true;
+    } catch (e) { if (opts.debug) console.warn('[sd.cached]', e); return false; }
+  }
+  /**
+   * 调试（lab/jitter.html）：MVE.sd.trace = (rec) => {} 时，每次 draw 报告这一帧的动画时间、构图与几根骨骼的设备坐标，
+   * 用来逐帧比较（t 与 t + 1/60 之间姿势 / 位置的跳变）。平时 trace 为 null，不花任何开销
+   */
+  function traceSD(g, R, A, B, k, o, Au, Av, Ac, Bu, Bv, Bc) {
+    try {
+      const I = R.info, pts = [];
+      for (const b of [I.head, I.hip, I.footL, I.footR, I.handN, I.chest]) if (b) pts.push(Au * b.worldX + Av * b.worldY + Ac, Bu * b.worldX + Bv * b.worldY + Bc);
+      API.trace({ src: 'sd', key: R.id, cv: g.canvas, anim: A.a.name, tt: A.tt, sp: A.sp, dur: A.a.duration, animB: B ? B.a.name : null, ttB: B ? B.tt : 0, k,
+        x: Ac, y: Bc, s: Math.sqrt(Math.abs(Au * Bv - Av * Bu)), pts, alpha: o.alpha == null ? 1 : +o.alpha, sil: !!o.sil, flip: !!o.flip });
+    } catch (e) { /* 调试用，出错不影响画面 */ }
+  }
 
   /* ---------------------------------------------------------------- 锚点 */
   function anchors(key, o) {
@@ -1156,6 +1258,20 @@ void main(){
       const s = scaleOf(R, o), drop = sitDrop(R) * s;
       const seat = o.seat != null ? Math.max(o.seat, drop) : drop;
       q.y = (o.y || 0) - seat;
+    }
+    // 换动作时交叉淡化（不硬切）：o.mixFrom = 上一个姿势（与 o 合并的选项，例如 { pose: 'walk', speed }），o.mixK = 0..1（1 = 全是现在的姿势）。
+    // 两个姿势是同一个模型（同一视角）时才淡化，否则照旧硬切。t 的纯函数：影片按时间算 mixK（例如 sst(停下, 停下 + 0.25, t)）
+    if (o.mixFrom && o.mixK != null && o.mixK < 0.999 && !d.kind && !d.spec) {
+      const po = Object.assign({}, o, o.mixFrom);
+      delete po.mixFrom; delete po.mixK;
+      const d2 = decide0(who, po);
+      if (d2.key === d.key && d2.anim && d2.anim !== q.anim) {
+        const q2 = castOpts(who, po, d2, R), k = clamp(o.mixK);
+        q.from = { anim: d2.anim, speed: q2.speed, t: q2.t, phase: q2.phase };
+        q.to = { anim: q.anim, speed: q.speed, t: q.t, phase: q.phase };
+        q.k = k;
+        q.y = (q2.y || 0) + ((q.y || 0) - (q2.y || 0)) * k;
+      }
     }
     return q;
   }
@@ -1413,6 +1529,7 @@ void main(){
       const alpha = o.alpha == null ? 1 : clamp(o.alpha);
       if (alpha <= 0.002) return true;
       const X = (+o.x || 0) + px, Y = (+o.y || 0) + py + bob;
+      if (API.trace) { try { const m = g.getTransform(); API.trace({ src: 'card', key, cv: g.canvas, x: m.a * X + m.c * Y + m.e, y: m.b * X + m.d * Y + m.f, s: sc * Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)), breath, e1, e0, k, big: !!(im1 && (im1.naturalWidth || 0) > 600), alpha }); } catch (e) { /* 调试用 */ } }
       const src = (im) => { const f = (im.naturalWidth || 1024) / 1024; return [cr[0] * f, cr[1] * f, cr[2] * f, cr[3] * f]; };
       const fx = o.flip ? -1 : 1;
       // 半身 / 胸像的下边缘柔和地淡出（不留一道硬切线）；fade: 0..0.5 构图高度的比例，0 = 不淡
@@ -1496,6 +1613,7 @@ void main(){
     try {
       const P = key ? parse(key) : null;
       const list = P ? [models.get(P.id)].filter(Boolean) : [...models.values()];
+      if (!P) fcClear();
       if (immediate === true) {
         for (const R of list) { R.dropAt = 0; dropGPU(R); }
         if (!P) { shrinkAt = 0; shrink(); }
@@ -1510,6 +1628,7 @@ void main(){
 
   /* ---------------------------------------------------------------- 接口 */
   const API = {
+    trace: null,
     credit: CREDIT,
     enabled: true,
     audit: false,
@@ -1525,9 +1644,12 @@ void main(){
     parse: (key) => { const p = parse(key); return p ? Object.assign({}, p) : null; },
     keys: () => Object.keys(ALIAS),
     load,
-    ready: (key) => { const P = parse(key), R = P && models.get(P.id); return !!(R && R.ready && glLive() && R.gen === gen); },
+    // 播放中途才加载好的模型，在同一个镜头里仍报告“没好”（与角色库钩子的 usable() 一致）：影片按 ready() 决定画官方小人还是替代画面，
+    // 这样一个镜头里不会从手绘突然跳成官方小人；下一个镜头起才换上
+    ready: (key) => { const P = parse(key), R = P && models.get(P.id); return !!(R && R.ready && glLive() && R.gen === gen && usable(R)); },
     has: (key, anim) => { const P = parse(key), R = P && models.get(P.id); return !!(R && R.anims && R.anims.has(anim)); },
     draw,
+    drawCached,
     anchors,
     gait,
     crowd,

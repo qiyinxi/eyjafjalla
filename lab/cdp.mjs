@@ -5,7 +5,7 @@
 //   mobile: true（模拟手机：触屏、移动端视口；dpr 默认 3）, dpr, ua: "用户代理", cpu: 4（CPU 降速倍数，近似中端手机）,
 //   steps: [ { wait: ms } | { eval: "js 表达式（可 await）", as: "名字" } | { shot: "文件名.png" } | { perf: "start" | "stop", as: "名字" }
 //          | { tap: true, x, y } 或 { tap: true, expr: "js，返回 [x, y]" }（触屏点按） | { cpu: 倍数 }（中途改 CPU 降速）
-//          | { size: [宽, 高] }（中途改视口，比如手机横过来） ]
+//          | { size: [宽, 高] }（中途改视口，比如手机横过来） | { dump: "js 表达式", file: "文件名.json" }（大结果分块写进文件） ]
 // }
 // perf start/stop：在页面里记录每一帧间隔与 longtask，stop 时返回统计。
 import { spawn } from 'node:child_process';
@@ -127,6 +127,15 @@ try {
   for (const st of sc.steps) {
     if (st.wait) await sleep(st.wait);
     else if (st.eval) { const v = await evaluate(st.eval); if (st.as) results[st.as] = v; }
+    else if (st.dump) {
+      // 大结果（几十 MB 的 JSON）：先在页面里 JSON.stringify，再按 500 KB 分块取回、写进文件（一次 returnByValue 太大会卡住）
+      const n = await evaluate(`(window.__dump = JSON.stringify(${st.dump})).length`);
+      const parts = [];
+      for (let i = 0; i < n; i += 5e5) parts.push(await evaluate(`window.__dump.slice(${i}, ${i + 5e5})`));
+      await evaluate('(window.__dump = null, 0)');
+      writeFileSync(join(outDir, st.file || 'dump.json'), parts.join(''));
+      if (st.as) results[st.as] = n;
+    }
     else if (st.tap) {
       let [x, y] = [st.x, st.y];
       if (st.expr) [x, y] = await evaluate(st.expr);

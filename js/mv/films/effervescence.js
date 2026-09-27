@@ -564,26 +564,10 @@
   const LAMB_ANIM = { walk: 'Move', run: 'Move', gallop: 'Move', bound: 'Move', push: 'Attack', eat: 'Attack' };
   function sdReady(key) { const S = SDK(); try { return !!(S && S.ready(key)); } catch (e) { return false; } }
   function sdOK(key) { return !warmMode && sdReady(key); }
-  /** 小羊的动画帧缓存：画面上小于 SPR_MAX（设计像素）的小羊用预渲染帧，每个动作 SPR_NF 帧 */
-  const SPR_MAX = 120, SPR_NF = 10;
-  // 各模型的绘制框（骨骼单位，脚底为原点，y 向下）：留足 Attack / Move 的动作幅度
-  const SD_BOX = { enemy_1344_ddlamb: [-230, -380, 330, 40], enemy_1350_mgcshp: [-260, -440, 270, 40], enemy_1347_fyshp: [-200, -440, 190, 40] };
-  const SDDUR = new Map();
-  function sdDur(key, anim) {
-    const k = key + ':' + anim; let d = SDDUR.get(k);
-    if (d == null) { d = 1; try { const I = SDK().info(key); const a = I && I.anims && I.anims.find((x) => x[0] === anim); if (a) d = a[1]; } catch (e) { /* 默认 1 秒 */ } SDDUR.set(k, d); }
-    return d;
-  }
-  /** 一帧（fr）小羊精灵：按屏幕尺寸分三档分辨率；返回 { c, box（design 坐标）, sc（绘制时的骨骼缩放） } */
-  function sdLambFrame(s, key, anim, fr, px) {
-    const tier = px < 45 ? 45 : px < 80 ? 80 : SPR_MAX, V = tier, sc = sdScale(key, V), B = SD_BOX[key] || [-260, -440, 330, 40];
-    const box = [B[0] * sc, B[1] * sc, B[2] * sc, B[3] * sc], w = box[2] - box[0], h = box[3] - box[1];
-    const dur = sdDur(key, anim), tt = ((fr + 0.5) / SPR_NF) * dur;
-    const c = LC(s, `sdl:${key}:${anim}:${fr}:${tier}`, w, h, (q) => { try { SDK().draw(q, key, { x: -box[0], y: -box[1], scale: sc, anim, t: tt, speed: 1 }); } catch (e) { /* 空帧 */ } }, 1.25);
-    return c === DUMMY ? null : { c, box, sc };
-  }
   const sdScale = (key, V) => (V * 1.18) / (SD_FLUFF[key] || 262);
-  const sdPhase = (V, o) => fract((o.seed ?? 0) * 0.37 + V * 0.113 + (o.flip ? 0.5 : 0) + (o.phaseK || 0));
+  // 相位只跟“这是哪只羊”有关（o.id：调用处 + 循环序号；或 o.seed）。旧写法把可见高度 V 和朝向也算进去：
+  // 小羊一缩放（镜头推拉、落地挤压），动画时间就每帧跳；一转身就整段跳 0.65 秒
+  const sdPhase = (V, o) => fract((o.id != null ? hash(o.id, 29, 5) : (o.seed ?? 0) * 0.37) + (o.phaseK || 0));
   const SDGEO = new Map();
   /** 官方小羊静止姿势下脸 / 头顶的位置（骨骼单位；只量一次） */
   function sdGeo(key) {
@@ -603,6 +587,9 @@
     if (o.alpha != null && o.alpha <= 0.01) return;
     if (o.glow) E.glow(g, x, y - V * 0.45, V * 1.25, o.glowRgb || '255,160,210', 0.34 * o.glow);
     const m = g.getTransform(), zs = sqrt(abs(m.a * m.d - m.b * m.c)) / s.k;
+    // 调试（lab/jitter.html）：每只小羊这一帧的位置与大小（设备像素）；MVE.sd.trace 平时为 null
+    const TR = E.sd && E.sd.trace;
+    if (TR && !warmMode) TR({ src: 'lamb', key: (SD_LAMB[o.kind || 'pink'] || 'pink') + ':' + (o.pose || 'stand'), cv: g.canvas, x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f, s: V * zs * s.k / 300, V: V * zs, id: o.id });
     g.save();
     g.translate(x, y);
     if (o.rot) g.rotate(o.rot);
@@ -611,31 +598,19 @@
     const tt = (o.t ?? s.t) * (o.wspd || 1);
     const sk = SD_LAMB[kind] || SD_LAMB.pink;
     const sdR = o.sd !== false && sdReady(sk);
-    if (sdR && warmMode) {
-      // 预热：只把要用到的小精灵帧排进队列
-      if (V * zs < SPR_MAX && !o.tint && !o.rim) sdLambFrame(s, sk, LAMB_ANIM[pose] || 'Idle', 0, V * zs);
-      g.restore(); return;
-    }
     if (sdR) {
-      // 官方小羊：Idle / Move / Attack；走跑时按实际前进速度反推 Move 的播放速度（脚不打滑）
+      // 官方小羊：Idle / Move / Attack；走跑时按实际前进速度反推 Move 的播放速度（脚不打滑）。
+      // 画面上不大的小羊走 MVE.sd.drawCached：动画时间按 1/30 秒取整的帧缓存（旧写法是每个动作固定 10 帧的精灵条，约 12 帧 / 秒，一顿一顿）；
+      // 大的直接实时画。预热（warmMode，画到 2×2 的假画布上）时也调用一次，提前把镜头开头要用的那一帧建好
       const S = SDK(), sc = sdScale(sk, V), anim = LAMB_ANIM[pose] || 'Idle';
       let speed = pose === 'sleep' || pose === 'sit' ? 0.35 : 1;
       if (anim === 'Move') { const G = S.gait(sk, { scale: sc }); if (G && G.speed > 1) speed = clamp(((o.wspd || 1) * gaitV(pose === 'run' ? 'run' : 'walk', V)) / G.speed, 0.3, 3.5); }
       g.scale(1 + sq * 0.2, 1 - sq * 0.2);
-      if (V * zs < SPR_MAX && !o.tint && !o.rim) {
-        // 画面上不大的小羊：用预先渲染好的动画帧（每个动作 10 帧），一帧一次 drawImage
-        const dur = sdDur(sk, anim), at = ((o.t ?? s.t) + sdPhase(V, o) * 1.3) * speed, fr = dur > 0 ? floor(fract(at / dur) * SPR_NF) : 0;
-        const F = sdLambFrame(s, sk, anim, fr, V * zs);
-        if (F) {
-          const k = sc / F.sc;
-          g.scale((o.flip ? -1 : 1) * k, k);
-          g.drawImage(F.c, F.box[0], F.box[1], F.box[2] - F.box[0], F.box[3] - F.box[1]);
-          g.restore();
-          if (o.fx) lambFx(g, s, x, y, V, o);
-          return;
-        }
-      }
-      const ok = S.draw(g, sk, { x: 0, y: 0, scale: sc, anim, t: o.t ?? s.t, speed, phase: sdPhase(V, o) * 1.3, flip: !!o.flip, tint: o.tint, rim: o.rim });
+      // o.animT：直接给动画时间（秒，按走过的距离 / 步数锁步相时用；不再乘 speed）
+      const so = o.animT != null ? { x: 0, y: 0, scale: sc, anim, t: o.animT, speed: 1, phase: sdPhase(V, o) * 1.3, flip: !!o.flip, tint: o.tint, rim: o.rim }
+        : { x: 0, y: 0, scale: sc, anim, t: o.t ?? s.t, speed, phase: sdPhase(V, o) * 1.3, flip: !!o.flip, tint: o.tint, rim: o.rim };
+      if (warmMode) { if (S.drawCached && !o.tint && !o.rim) S.drawCached(g, sk, so); g.restore(); return; }
+      const ok = S.drawCached ? S.drawCached(g, sk, so) : S.draw(g, sk, so);
       g.restore();
       if (ok) { if (o.fx) lambFx(g, s, x, y, V, o); return; }
       g.save(); g.translate(x, y); if (o.rot) g.rotate(o.rot); if (o.spin) { g.translate(0, -V * 0.45); g.rotate(o.spin); g.translate(0, V * 0.45); } if (o.alpha != null && o.alpha < 1) g.globalAlpha *= clamp(o.alpha);
@@ -812,7 +787,9 @@
    * [v3] 首选：雪雉夏装剧情立绘的分层绑定（MVE.keyart 'snowsant'：眨眼、转头、头发随风、官方差分表情与嘴型），
    * 与立绘剪纸同一块构图；每个镜头开头决定一次用不用（没准备好 → 立绘剪纸 → 手绘替代）
    */
-  const SNOW_CROP = { bust: [346, -20, 332, 369], upper: [226, -20, 572, 635], face: [390, 0, 244, 184] };
+  // bust 比立绘卡片的 bust 宽一圈：立绘原图只有 1024²，旧的 bust（332×369）在 1080p 满屏要放大 3.6 倍、720p 也有 2.4 倍，
+  // 发丝一片糊、压缩噪点和锐化白边都出来了；放宽到 448×498 后放大倍数降到约 2.7 / 1.8，构图仍是胸像
+  const SNOW_CROP = { bust: [288, -20, 448, 498], upper: [226, -20, 572, 635], face: [390, 0, 244, 184] };
   const RIGDEC = new Map();
   function rigOn(s, key) {
     const K = KA();
@@ -831,7 +808,7 @@
     const S = SDK();
     if (!S || !S.card) return false;
     // 预热时也“画”一次（画到 2×2 的假画布上）：按真实的屏幕尺寸，提前开始下载该用的那一档清晰度
-    try { const ok = !!S.card(q, 'snowsant', Object.assign({ t: s.t }, o)); return warmMode ? false : ok; } catch (e) { return false; }
+    try { const ok = !!S.card(q, 'snowsant', Object.assign({ t: s.t }, o, { crop: SNOW_CROP[o.crop] || o.crop })); return warmMode ? false : ok; } catch (e) { return false; }
   }
 
   /* =========================================================
@@ -1863,8 +1840,8 @@
     baked(g, s, 'bw-sand', { x: 960, y: 540, z: 1 }, cam, 0.7, beachSand, 0.9, [-420, 760, 2340, 1200]);
     inCam(g, cam, 0.7, (q) => {
       for (const [x, y, sc, c] of UMB) umbrella(q, x, y, sc, c, t);
-      // 沙滩上的人（很小）
-      for (let i = 0; i < 6; i++) { const x = 160 + i * 300 + hash(71, i) * 80, y = 900 + hash(72, i) * 80, walk = hash(73, i) < 0.4; cast(q, 'crowd', { x: x + (walk ? ((t * 22 + i * 60) % 240) - 120 : 0), y, h: 74 + (y - 900) * 0.3, pose: walk ? 'walk' : 'stand', t: t + i, seed: 60 + i, simple: true, flip: hash(74, i) < 0.5, color: pick(['#ff6fa8', '#3fc0d8', '#ffc83a', '#7fd8a0', '#b48ae0', '#ff8a5a'], hash(75, i)) }); }
+      // 沙滩上的人（很小）；走路的一直往前走（旧写法 % 240 让其中两个在镜头中途往回瞬移 240 像素）
+      for (let i = 0; i < 6; i++) { const x = 160 + i * 300 + hash(71, i) * 80, y = 900 + hash(72, i) * 80, walk = hash(73, i) < 0.4; cast(q, 'crowd', { x: x + (walk ? t * 22 - 80 : 0), y, h: 74 + (y - 900) * 0.3, pose: walk ? 'walk' : 'stand', t: t + i, seed: 60 + i, simple: true, flip: hash(74, i) < 0.5, color: pick(['#ff6fa8', '#3fc0d8', '#ffc83a', '#7fd8a0', '#b48ae0', '#ff8a5a'], hash(75, i)) }); }
       heatWisps(q, t, { x: -200, y: 900, w: VW + 400, h: 240, n: 12, r: 120, rgb: '255,250,235', a: 0.16, seed: 3, speed: 0.22 });
       // 粉色的一丝热浪（小羊们快来了）
       if (lt > 4.2) heatWisps(q, t, { x: 1250, y: 760, w: 260, h: 120, n: 4, r: 60, rgb: '255,160,210', a: 0.35 * sst(4.2, 6, lt), seed: 8, speed: 0.5 });
@@ -2033,7 +2010,7 @@
           const sn0 = 12.21 - s.shot.t0, sniff = lt > sn0 && lt < sn0 + 0.75 ? abs(sin((lt - sn0) * 16)) * 0.04 : 0;
           const wide = lt > 13.0 - s.shot.t0;
           const look = lt > sn0 && lt < 12.85 - s.shot.t0 ? (fract((lt - sn0) * 1.6) < 0.5) : false;
-          peeker(q, s, x, 430, pop - sniff, { kind: 'boss', expr: wide ? 'surprise' : 'neutral', flip: look, fx: wide ? ['stars', 'drool'] : null, t, tilt: 0.42, rise: 0.66 });
+          peeker(q, s, x, 430, pop - sniff, { id: 2036 * 16, kind: 'boss', expr: wide ? 'surprise' : 'neutral', flip: look, fx: wide ? ['stars', 'drool'] : null, t, tilt: 0.42, rise: 0.66 });
         }
         seawall(q, WALL_Y, s);
         popBurst(q, x + 40, WALL_Y - 120, 170, pk, 3);
@@ -2092,7 +2069,7 @@
           const pop = ease.back(clamp(a / 0.26));
           const x = 170 + i * 262 + (i === 6 ? 20 : 0), V = 300 * L.sc;
           const tiny = i === 6, jump = tiny ? abs(sin(max(0, a - 0.25) * 9)) * 0.3 : 0;
-          peeker(q, s, x, V, pop * (tiny ? 0.5 : 1) + jump, { kind: L.k, expr: a > 0.45 ? 'surprise' : 'neutral', flip: i === 2 || i === 5, fx: a > 0.45 ? (i % 2 ? ['stars', 'drool'] : ['stars']) : null, hooves: !tiny, t: t + i, tilt: 0.4, rise: 0.64 });
+          peeker(q, s, x, V, pop * (tiny ? 0.5 : 1) + jump, { id: 2095 * 16 + i, kind: L.k, expr: a > 0.45 ? 'surprise' : 'neutral', flip: i === 2 || i === 5, fx: a > 0.45 ? (i % 2 ? ['stars', 'drool'] : ['stars']) : null, hooves: !tiny, t: t + i, tilt: 0.4, rise: 0.64 });
         }
         seawall(q, WALL_Y, s);
         for (let j = 0; j < 7; j++) { const i = order[j]; popBurst(q, 170 + i * 262 + 40, WALL_Y - 130, 140, clamp((lt - popAt(j)) / 0.5), 10 + i); }
@@ -2131,7 +2108,9 @@
   function sneakX(b, i, stepLen, x0, gap) {
     const bb = b - i * 0.1, step = floor(bb), u = fract(bb);
     const dart = bb < 0 ? 0 : u < 0.42 ? ease.inOut(u / 0.42) : 1;
-    return { x: x0 + (max(0, step) + dart) * stepLen - i * gap, moving: bb > 0 && u < 0.42, u };
+    // prog：走了几步（连续）——小羊的 Move 动画按它走，一步半个循环：迈步时腿动、定住时停在半步上（不在 Idle / Move 之间硬切）
+    // w：这一步的“用力”程度（0 → 1 → 0），挤压、前倾按它平滑地变
+    return { x: x0 + (max(0, step) + dart) * stepLen - i * gap, moving: bb > 0 && u < 0.42, u, prog: max(0, step) + dart, w: bb > 0 && u < 0.42 ? sin(PI * u / 0.42) : 0 };
   }
 
   /* ---------- 潜入（17.53 → 21.77）：侧面跟拍，小羊们一拍一小步地踮脚过去 ---------- */
@@ -2156,7 +2135,7 @@
           const hy = P.moving ? sin(PI * P.u / 0.42) * 10 : 0;
           const scared = freeze && i === 1, glare = i === 0 && b > 6.1 && b < 7.4;
           if (P.moving) for (let k = 1; k <= 3; k++) { q.strokeStyle = `rgba(255,255,255,${0.5 - k * 0.12})`; q.lineWidth = 2.5; q.beginPath(); q.moveTo(P.x - V * 0.6 - k * 14, y - hy - V * (0.2 + k * 0.15)); q.lineTo(P.x - V * 0.6 - k * 14 - 30, y - hy - V * (0.2 + k * 0.15)); q.stroke(); }
-          lamb(q, s, P.x, y - hy, V, { kind: L.k, pose: P.moving ? 'run' : 'stand', t: 0.1, sq: P.moving ? -0.25 : 0.05 * sin(fract(b) * PI * 6) * (1 - fract(b)), rot: P.moving ? 0.1 : 0, expr: freeze ? 'surprise' : glare ? 'sad' : 'neutral', fx: scared || (i === 1 && b > 6.3 && b < 7.4) ? ['sweat'] : null, flip: glare });
+          lamb(q, s, P.x, y - hy, V, { id: 2159 * 16 + i, kind: L.k, pose: 'run', animT: P.prog * 0.45, sq: -0.25 * P.w + (1 - P.w) * 0.05 * sin(fract(b) * PI * 6) * (1 - fract(b)), rot: 0.1 * P.w, expr: freeze ? 'surprise' : glare ? 'sad' : 'neutral', fx: scared || (i === 1 && b > 6.3 && b < 7.4) ? ['sweat'] : null, flip: glare });
           shadow(q, P.x - 4, y + 2, V * 1.1, 0.5);
         }
         if (b > gullT) sfx(q, '嘎？', 660, SG - 250, 40, clamp((b - gullT) / 0.3), { color: '#ffffff', rot: -0.12, alpha: 1 - clamp((b - gullT - 1.2) / 0.3) });
@@ -2204,7 +2183,7 @@
           const P = sneakX(bb, i, 64, 520, 52);
           const V = 46 * L.sc, y = SG + 34 + (i % 2) * 8;
           const hy = P.moving ? sin(PI * P.u / 0.42) * 9 : 0;
-          lamb(q, s, P.x, y - hy, V, { kind: L.k, pose: P.moving ? 'walk' : 'stand', sq: P.moving ? -0.22 : 0.04, rot: P.moving ? 0.08 : 0, expr: freeze ? 'surprise' : 'neutral', fx: freeze ? (i === 1 ? ['sweat'] : null) : null });
+          lamb(q, s, P.x, y - hy, V, { id: 2207 * 16 + i, kind: L.k, pose: 'walk', animT: P.prog * 0.45, sq: 0.04 - 0.26 * P.w, rot: 0.08 * P.w, expr: freeze ? 'surprise' : 'neutral', fx: freeze ? (i === 1 ? ['sweat'] : null) : null });
           shadow(q, P.x - 4, y + 2, V * 1.1, 0.5);
           if (i === 1 && rk > 0 && rk < 0.7) sparkle(q, bx0, by0 - 40, 26 * (1 - rk / 0.7) + 6, 1.2 * (1 - rk / 0.7), rk * 4, '255,236,160');
         }
@@ -2249,7 +2228,7 @@
         // 看不见的小羊：只剩一点粉色的热浪和亮晶晶的轮廓（定格在半空的一步）
         for (let i = 0; i < 7; i++) {
           const L = GANG[i], x = 700 + i * 52 + (i === 6 ? 20 : 0), y = SG + 40 + (i % 2) * 8, V = 46 * L.sc;
-          lamb(q, s, x, y, V, { kind: L.k, pose: 'run', t: 0.1, alpha: 0.16 + 0.06 * sin(t * 9 + i), sq: -0.15 });
+          lamb(q, s, x, y, V, { id: 2252 * 16 + i, kind: L.k, pose: 'run', t: 0.1, alpha: 0.16 + 0.06 * sin(t * 9 + i), sq: -0.15 });
           if (hash(31, i) < 0.6) sparkle(q, x + (hash(32, i) - 0.5) * V, y - V * (0.3 + 0.5 * hash(33, i)), 8 + 4 * sin(t * 7 + i), 0.7, t, '255,190,225');
         }
         heatWisps(q, t, { x: 650, y: SG + 60, w: 420, h: 140, n: 8, r: 60, rgb: '255,160,210', a: 0.45, seed: 21, speed: 0.8 });
@@ -2282,7 +2261,7 @@
           const moving = arrive < 1;
           const isBoss = i === 0;
           const lookUp = b > 1.2 && b < idea;
-          lamb(q, s, x, y - (moving ? hy * 16 : 0), V, { kind: L.k, pose: lookUp ? 'look-up' : moving ? 'jump' : 'stand', sq: moving ? sq * 0.6 : 0, flip: isBoss && b > idea, expr: isBoss && b > idea ? 'happy' : lookUp ? 'neutral' : 'neutral', fx: isBoss && b > idea ? ['!'] : null, fxPop: clamp((b - idea) / 0.4) });
+          lamb(q, s, x, y - (moving ? hy * 16 : 0), V, { id: 2285 * 16 + i, kind: L.k, pose: lookUp ? 'look-up' : moving ? 'jump' : 'stand', sq: moving ? sq * 0.6 : 0, flip: isBoss && b > idea, expr: isBoss && b > idea ? 'happy' : lookUp ? 'neutral' : 'neutral', fx: isBoss && b > idea ? ['!'] : null, fxPop: clamp((b - idea) / 0.4) });
           shadow(q, x - 4, y + 2, V * 1.1, 0.45);
         }
         if (b > idea) { const a = (b - idea) * BEAT; sparkle(q, 1760, SG - 110, 40 * (1 - clamp(a / 0.8)) + 10, 1.3 * (1 - clamp(a / 0.8)), a * 3, '255,240,170'); }
@@ -2320,7 +2299,7 @@
         // 还没跳上去的：在旁边排队、按拍子小跳
         const [hy, sq] = hop(fract(st.b * 2 + L.j * 0.3));
         const qx = x0 - 60 - L.j * 44, qy = gy + 6;
-        lamb(q, s, qx, qy - hy * 10, L.V, { kind: L.L.k, pose: 'stand', sq: sq * 0.5, expr: 'neutral' });
+        lamb(q, s, qx, qy - hy * 10, L.V, { id: 2323 * 16 + L.j, kind: L.L.k, pose: 'stand', sq: sq * 0.5, expr: 'neutral' });
         continue;
       }
       const lx = x0 + sin(L.theta) * L.h, ly = gy - L.h * cos(L.theta);
@@ -2332,7 +2311,7 @@
       }
       const land = L.air === 0 && L.a < 0.8 ? (1 - L.a / 0.8) : 0;
       const bottom = L.j === 0 && st.lv.filter((z) => !z.wait).length > 4;
-      lamb(q, s, x, y, L.V, { kind: L.L.k, pose: L.air > 0 ? 'jump' : 'stand', rot: L.theta, sq: land * 0.6 * sin(L.a * 20) + (bottom ? 0.18 : 0), expr: L.air > 0 ? 'happy' : bottom ? 'sad' : (L.j === 6 ? 'happy' : 'neutral'), fx: bottom ? ['sweat'] : null, flip: false });
+      lamb(q, s, x, y, L.V, { id: 2335 * 16 + L.j, kind: L.L.k, pose: L.air > 0 ? 'jump' : 'stand', rot: L.theta, sq: land * 0.6 * sin(L.a * 20) + (bottom ? 0.18 : 0), expr: L.air > 0 ? 'happy' : bottom ? 'sad' : (L.j === 6 ? 'happy' : 'neutral'), fx: bottom ? ['sweat'] : null, flip: false });
       px = x; py = y;
     }
     return [px, py];
@@ -2692,14 +2671,14 @@
             const sk = SD_LAMB[L.k];
             if (back && sdOK(sk)) SDK().draw(q, sk, { x, y, scale: sdScale(sk, V), anim: 'Idle', rot: th + wob, t, sil: '#7a4a6a', rim: { color: '255,244,220', amount: 1 } });
             else if (back) cast(q, 'sheep-pink', Object.assign({ x, y, h: sheepH(L.k, 'stand', V), pose: 'stand', rot: th + wob, t, expr: 'surprise', sil: '#7a4a6a', rim: '255,244,220', rimW: 1.6 }, LAMB[L.k][1]));
-            else lamb(q, s, x, y, V, { kind: L.k, pose: 'jump', rot: th + wob, expr: 'surprise' });
+            else lamb(q, s, x, y, V, { id: 2695 * 16 + j, kind: L.k, pose: 'jump', rot: th + wob, expr: 'surprise' });
             continue;
           }
           // 摔在地上：从倒下的位置弹开
           const lx = x0 + sin(th) * h, ly = FL - cos(th) * h;
           const b = bounce(impact, lx, min(FL + 10, ly), 60 + j * 70 + hash(6, j) * 60, -320 - hash(5, j) * 240, FL + 16 + (j % 3) * 16, 2600, 0.38, 0.55);
           const look = lt > 1.15;
-          lamb(q, s, b.x, b.y, V, { kind: L.k, pose: look ? 'look-up' : b.n === 0 ? 'jump' : 'stand', spin: look || b.n > 0 ? 0 : impact * (5 + j), sq: b.sq, expr: look ? 'surprise' : 'happy', fx: look && j % 2 === 0 ? ['stars'] : null, flip: false });
+          lamb(q, s, b.x, b.y, V, { id: 2702 * 16 + j, kind: L.k, pose: look ? 'look-up' : b.n === 0 ? 'jump' : 'stand', spin: look || b.n > 0 ? 0 : impact * (5 + j), sq: b.sq, expr: look ? 'surprise' : 'happy', fx: look && j % 2 === 0 ? ['stars'] : null, flip: false });
           shadow(q, b.x, FL + 18 + (j % 3) * 16, V, 0.45);
         }
         if (impact > 0 && impact < 0.6) { const k = impact / 0.6; for (let i = 0; i < 6; i++) withAlpha(q, (1 - k) * 0.6, (qq) => qq.drawImage(puffSpr(i, '240,210,190'), x0 + 60 + i * 50 - k * 40, FL - 30 - k * 40, 120 + k * 80, 50 + k * 30)); sfx(q, '咚！', x0 + 260, FL - 190, 56, clamp(impact / 0.12), { color: '#ffffff', rot: -0.1, alpha: 1 - clamp((impact - 0.4) / 0.2) }); }
@@ -2729,18 +2708,18 @@
           if (ck > 0) {
             // 掉下来，摔成一堆
             const a = ck, b2 = bounce(a, hx + j * 6, hy + 30 + j * V * 0.75, (j - 3) * 60, 0, FL - 6 - (j % 2) * 8, 2600, 0.35, 0.6);
-            lamb(q, s, b2.x, b2.y, V, { kind: L.k, pose: b2.n === 0 ? 'jump' : 'stand', spin: b2.n === 0 ? a * (4 + j) : 0, sq: b2.sq, expr: 'surprise' });
+            lamb(q, s, b2.x, b2.y, V, { id: 2732 * 16 + j, kind: L.k, pose: b2.n === 0 ? 'jump' : 'stand', spin: b2.n === 0 ? a * (4 + j) : 0, sq: b2.sq, expr: 'surprise' });
             continue;
           }
           if (j >= n) {
             // 还在地上的：按拍子往上蹦，想抓住上一只的脚
             const [hh, sq] = hop(fract(b * 2 + j * 0.3));
-            lamb(q, s, lx + 60 + j * 34, FL - 4 - hh * 40, V, { kind: L.k, pose: 'jump', sq, expr: 'happy', flip: true });
+            lamb(q, s, lx + 60 + j * 34, FL - 4 - hh * 40, V, { id: 2738 * 16 + j, kind: L.k, pose: 'jump', sq, expr: 'happy', flip: true });
             continue;
           }
           const swing = sin(t * 4 + j * 0.6) * 0.18 * (j + 1) / 7;
           const x = hx + sin(swing) * j * V * 0.8, y = hy + 42 + j * V * 0.72;
-          lamb(q, s, x, y, V, { kind: L.k, pose: 'jump', rot: swing, expr: j === 0 ? 'determined' : 'surprise', fx: j === 0 ? ['sweat'] : null, flip: false });
+          lamb(q, s, x, y, V, { id: 2743 * 16 + j, kind: L.k, pose: 'jump', rot: swing, expr: j === 0 ? 'determined' : 'surprise', fx: j === 0 ? ['sweat'] : null, flip: false });
         }
         if (ck > 0) { sfx(q, '咔嚓！', lx + 150, ly - 170, 64, clamp(ck / 0.15), { color: '#fff27a', rot: -0.12 }); sparkle(q, hx, hy, 80 * (1 - clamp(ck / 0.5)) + 10, 1.4 * (1 - clamp(ck / 0.5)), 0, '255,240,190'); }
       },
@@ -2784,12 +2763,12 @@
         for (const Bt of bb.list) {
           if (Bt.i % 3 !== 0 || j > 2) continue;
           const L = GANG[[3, 5, 1][j++]], duck = Bt.capping ? 0.5 : 0, [hy, sq] = hop(fract(s.beat + j * 0.33));
-          lamb(q, s, Bt.x, BOTTLE_TOP - hy * 16, 40 * L.sc, { kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq: sq * 0.6 + duck, expr: 'happy' });
+          lamb(q, s, Bt.x, BOTTLE_TOP - hy * 16, 40 * L.sc, { id: 2787 * 16 + Bt.i, kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq: sq * 0.6 + duck, expr: 'happy' });
         }
         // 站在糖浆罐顶上欢呼的两只
-        for (const [x, k, ph] of [[790, 'boss', 0], [1120, 'geek', 0.5]]) { const [hy, sq] = hop(fract(s.beat + ph)); lamb(q, s, x, 346 - hy * 40, 44, { kind: k, pose: hy > 0.3 ? 'jump' : 'stand', sq, expr: 'happy', flip: x > 1000 }); }
+        for (const [x, k, ph] of [[790, 'boss', 0], [1120, 'geek', 0.5]]) { const [hy, sq] = hop(fract(s.beat + ph)); lamb(q, s, x, 346 - hy * 40, 44, { id: 2790 * 16 + x, kind: k, pose: hy > 0.3 ? 'jump' : 'stand', sq, expr: 'happy', flip: x > 1000 }); }
         // 地上转圈的两只
-        for (const [x, k, ph] of [[1640, 'bell', 0.25], [1760, 'pink', 0.75]]) { const [hy, sq] = hop(fract(s.beat * 2 + ph)); lamb(q, s, x + sin(t * 3 + ph * 6) * 30, FL + 6 - hy * 30, 44, { kind: k, pose: hy > 0.3 ? 'jump' : 'stand', sq, expr: 'happy', flip: cos(t * 3 + ph * 6) < 0 }); shadow(q, x + sin(t * 3 + ph * 6) * 30, FL + 8, 50, 0.4); }
+        for (const [x, k, ph] of [[1640, 'bell', 0.25], [1760, 'pink', 0.75]]) { const [hy, sq] = hop(fract(s.beat * 2 + ph)); lamb(q, s, x + sin(t * 3 + ph * 6) * 30, FL + 6 - hy * 30, 44, { id: 2792 * 16 + x, kind: k, pose: hy > 0.3 ? 'jump' : 'stand', sq, expr: 'happy', flip: cos(t * 3 + ph * 6) < 0 }); shadow(q, x + sin(t * 3 + ph * 6) * 30, FL + 8, 50, 0.4); }
         steam(q, t, 510, 240, beatTimes(s, s.shot.t0 - 1, t), { r: 36, rise: 150 });
         if (hk > 0) { steam(q, t, 510, 240, [s.shot.t0 + hit, s.shot.t0 + hit + 0.05], { r: 90, rise: 260, life: 1.6 }); sfx(q, '噗——', 640, 150, 58, clamp(hk / 0.15), { color: '#ffffff', rot: -0.1, alpha: 1 - clamp((hk - 0.6) / 0.3) }); }
         risingBubbles(q, t, { n: 24, seed: 71, x: 700, w: 520, y0: 580, h: 420, r: 4, grow: 8, a: 0.8 });
@@ -2813,11 +2792,12 @@
       },
       front: (q, bb) => {
         const k = floor(s.beat) % 4, x = WS.syrup[k] + 30, [hy, sq] = hop(fract(s.beat));
-        lamb(q, s, x - 30 + sin(fract(s.beat) * PI) * 10, 346 - hy * 26, 46, { kind: 'geek', pose: hy > 0.3 ? 'jump' : 'push', sq, expr: 'happy', flip: k % 2 === 1 });
+        // 一直用 Attack（拧阀门）：旧写法按 hy > 0.3 在 jump（Idle）和 push（Attack）之间每拍硬切一次
+        lamb(q, s, x - 30 + sin(fract(s.beat) * PI) * 10, 346 - hy * 26, 46, { id: 2816 * 16, kind: 'geek', pose: 'push', sq, expr: 'happy', flip: k % 2 === 1 });
         // 骑瓶子的小羊经过，被溅了一身
         for (const Bt of bb.list) if (Bt.i % 4 === 1) {
           const [hh, sq2] = hop(fract(s.beat * 2 + Bt.i * 0.3));
-          lamb(q, s, Bt.x, BOTTLE_TOP - hh * 10, 40, { kind: Bt.i % 8 === 1 ? 'bell' : 'pink', pose: 'stand', sq: sq2 * 0.5, expr: Bt.station >= 0 ? 'closed' : 'happy', fx: Bt.station >= 0 ? ['sweat'] : null });
+          lamb(q, s, Bt.x, BOTTLE_TOP - hh * 10, 40, { id: 2820 * 16 + Bt.i, kind: Bt.i % 8 === 1 ? 'bell' : 'pink', pose: 'stand', sq: sq2 * 0.5, expr: Bt.station >= 0 ? 'closed' : 'happy', fx: Bt.station >= 0 ? ['sweat'] : null });
         }
         sparkles(q, t, 8, 72, '255,246,220', { x: 700, y: 360, w: 500, h: 300, r: 12 });
       },
@@ -2836,10 +2816,10 @@
       front: (q, bb) => {
         const u = bb.u, p = u < 0.12 ? sin(PI * u / 0.24) : u < 0.3 ? 1 - (u - 0.12) / 0.18 : 0, hy = 470 + p * 42;
         // 骑在压头上的带头小羊（压下时被挤扁）
-        lamb(q, s, WS.capX + 4, hy, 50, { kind: 'boss', pose: 'stand', sq: p * 0.7, expr: p > 0.5 ? 'closed' : 'happy', t });
+        lamb(q, s, WS.capX + 4, hy, 50, { id: 2839 * 16, kind: 'boss', pose: 'stand', sq: p * 0.7, expr: p > 0.5 ? 'closed' : 'happy', t });
         // 飞轮里的仓鼠……小羊
         const [fx, fy, fr] = WS.fly;
-        lamb(q, s, fx, fy + fr - 12, 42, { kind: 'pink', pose: 'run', wspd: 3, expr: 'happy', flip: false, t });
+        lamb(q, s, fx, fy + fr - 12, 42, { id: 2842 * 16, kind: 'pink', pose: 'run', wspd: 3, expr: 'happy', flip: false, t });
         for (const acc of [40.88, 41.94, 42.35, 42.74]) { const a = t - acc; if (a > 0 && a < 0.45) { sfx(q, '咔嚓', WS.capX + 120, 420, 34, clamp(a / 0.1), { color: '#fff27a', rot: 0.12, alpha: 1 - clamp((a - 0.3) / 0.15) }); sparkle(q, WS.capX, 590, 40 * (1 - a / 0.45), 1.2 * (1 - a / 0.45), 0, '255,240,190'); } }
       },
     });
@@ -2865,7 +2845,7 @@
           const pc = (Bt.x - WS.capX) / PITCH, capped = pc > 0.02 || (abs(pc) < 0.02 && bb.u > 0.1);
           const duck = Bt.capping ? 0.6 : 0;
           const V = 40 * L.sc, y = BOTTLE_TOP;
-          lamb(q, s, Bt.x, y, V, { kind: L.k, pose: 'stand', sq: duck + (bb.mv > 0 && bb.mv < 1 ? -0.1 : 0), expr: Bt.station >= 0 ? 'closed' : duck ? 'surprise' : 'happy', rot: bb.mv > 0 && bb.mv < 1 ? -0.08 : 0 });
+          lamb(q, s, Bt.x, y, V, { id: 2868 * 16 + Bt.i, kind: L.k, pose: 'stand', sq: duck + (bb.mv > 0 && bb.mv < 1 ? -0.1 : 0), expr: Bt.station >= 0 ? 'closed' : duck ? 'surprise' : 'happy', rot: bb.mv > 0 && bb.mv < 1 ? -0.08 : 0 });
           if (capped) { const Gc = lambGeo(L.k, 'stand', V, Bt.x, y, false, duck); if (!Gc.sd) capHat(q, s, Gc, V * 0.22, t); }
         }
       },
@@ -2887,7 +2867,7 @@
           const pt = j * BEAT / 2 + 0.02, a = lt - pt, popped = a > 0;
           const bump = a > 0 && a < 0.2 ? sin(PI * a / 0.2) : 0;
           // 瓶子立在小羊前面（瓶子比小羊还高）
-          lamb(q, s, x - 26, y, V, { kind: L.k, pose: 'stand', sq: bump * 0.5, rot: -bump * 0.2, expr: popped ? 'happy' : 'neutral', fx: !popped && a > -0.6 ? ['stars'] : null });
+          lamb(q, s, x - 26, y, V, { id: 2890 * 16 + j, kind: L.k, pose: 'stand', sq: bump * 0.5, rot: -bump * 0.2, expr: popped ? 'happy' : 'neutral', fx: !popped && a > -0.6 ? ['stars'] : null });
           const fl = FLAVORS[j % 4];
           bottle(q, s, x + 14, y + 4, 80, 0.05, { fl, cap: !popped });
           shadow(q, x - 10, y + 4, 70, 0.4);
@@ -2922,7 +2902,7 @@
           const L = GANG[[0, 1, 3, 6][j]], V = 50 * L.sc, x = 1740 + j * 108, y = FL + 20 + (j % 2) * 10;
           const G = lambGeo(L.k, 'stand', V, x, y, false);
           const puffUp = bk > 0 ? max(0, 1 - bk * 2.5) : sst(0.6, 1, drink) * 0.2;
-          lamb(q, s, x, y, V, { kind: L.k, pose: bk > 0 ? 'jump' : 'look-up', sq: -puffUp, expr: bk > 0 ? 'happy' : 'closed', fx: bk < 0 && drink > 0.7 ? ['cheeks'] : null, t });
+          lamb(q, s, x, y, V, { id: 2925 * 16 + j, kind: L.k, pose: bk > 0 ? 'jump' : 'look-up', sq: -puffUp, expr: bk > 0 ? 'happy' : 'closed', fx: bk < 0 && drink > 0.7 ? ['cheeks'] : null, t });
           if (bk < 0) {
             // 抱着瓶子仰头喝：瓶口对着嘴
             const rot = -2.2 + sin(t * 3 + j) * 0.05, bh = 70;
@@ -3016,7 +2996,7 @@
           const G = lambGeo(P.L.k, 'run', P.V, P.x, P.y, true);
           const bk = G.back || G.top, bx = bk[0] + 6, by = bk[1] + 6 - P.bob * 8;
           // 看不见的小羊：一丝粉色热浪
-          lamb(q, s, P.x, P.y - P.bob * 6, P.V, { kind: P.L.k, pose: 'run', flip: true, alpha: 0.1, wspd: P.wspd });
+          lamb(q, s, P.x, P.y - P.bob * 6, P.V, { id: 3019 * 16 + P.j, kind: P.L.k, pose: 'run', flip: true, alpha: 0.1, wspd: P.wspd });
           bottle(q, s, bx, by, 72, sin(t * 4 + P.j) * 0.12, { fl: FLAVORS[P.j % 4] });
           if (hash(47, P.j) < 0.6) sparkle(q, P.x, P.y - P.V * 0.5, 10, 0.5 + 0.3 * sin(t * 8 + P.j), t, '255,190,225');
         }
@@ -3041,7 +3021,7 @@
         snow(q, s, { x: 1178, y: SG - 2, h: 390, anim: 'Relax', flip: false, fb: vo });
         for (const P of carryLine(s, t, t0)) {
           const y = P.y - P.bob * 6;
-          lamb(q, s, P.x, y, P.V, { kind: P.L.k, pose: 'run', flip: true, wspd: P.wspd, expr: 'happy', sq: -P.bob * 0.08 });
+          lamb(q, s, P.x, y, P.V, { id: 3044 * 16 + P.j, kind: P.L.k, pose: 'run', flip: true, wspd: P.wspd, expr: 'happy', sq: -P.bob * 0.08 });
           const G = lambGeo(P.L.k, 'run', P.V, P.x, y, true);
           const bk = G.back || G.top; bottle(q, s, bk[0] + 6, bk[1] + 8, 72, sin(t * 4 + P.j) * 0.12, { fl: FLAVORS[P.j % 4] });
           shadow(q, P.x, P.y + 2, P.V * 1.1, 0.45);
@@ -3085,7 +3065,7 @@
         for (const [x, k, fl, c] of [[LX, 'boss', false, catchL], [RX, 'bell', true, catchR], [LX - 90, 'pink', false, false], [RX + 90, 'geek', true, false], [VX + 40, 'pink', false, bi === 6]]) {
           if (x === VX + 40 && bi < 6) continue;
           const [hy, sq] = cheer ? hop(fract(b * 2)) : [0, 0];
-          lamb(q, s, x, SG + 40 - hy * 30, 46, { kind: k, flip: fl, pose: hy > 0.3 ? 'jump' : 'stand', sq: c ? 0.5 : sq, expr: cheer ? 'happy' : 'neutral', t });
+          lamb(q, s, x, SG + 40 - hy * 30, 46, { id: 3088 * 16 + x, kind: k, flip: fl, pose: hy > 0.3 ? 'jump' : 'stand', sq: c ? 0.5 : sq, expr: cheer ? 'happy' : 'neutral', t });
           shadow(q, x, SG + 42, 50, 0.4);
         }
         // 飞着的瓶子（打着转）
@@ -3109,7 +3089,7 @@
         const cx = [WS.belt[1] - 260, WS.belt[1] - 100, WS.belt[1] + 60, WS.belt[1] + 230];
         // 投手（站在传送带尽头）+ 接应的
         const [hy0, sq0] = hop(fract(b));
-        lamb(q, s, WS.belt[1] - 30, BOTTLE_TOP - hy0 * 20, 46, { kind: 'boss', pose: hy0 > 0.3 ? 'jump' : 'stand', sq: sq0, expr: 'happy', flip: false });
+        lamb(q, s, WS.belt[1] - 30, BOTTLE_TOP - hy0 * 20, 46, { id: 3112 * 16, kind: 'boss', pose: hy0 > 0.3 ? 'jump' : 'stand', sq: sq0, expr: 'happy', flip: false });
         for (let k = 0; k < 8; k++) {
           const a = b - k; if (a < 0 || a > 1.2) continue;
           const tx = cx[k % 4], u = clamp(a / 0.8), x = lerp(WS.belt[1] - 10, tx, u), y = lerp(BOTTLE_TOP - 30, FL - 90, u) - sin(PI * u) * 180;
@@ -3118,10 +3098,10 @@
           if (u >= 1 && a < 1.0) sfx(q, '叮', tx + 30, FL - 170, 30, clamp((a - 0.8) / 0.08), { color: '#bdf6ff', rot: 0.12 });
         }
         // 箱子里探出头的小羊
-        for (let i = 0; i < 3; i++) { const [hh, sq] = hop(fract(b + i * 0.33)); lamb(q, s, cx[i + 1] + (i - 1) * 10, FL - 104 - hh * 14, 42, { kind: ['pink', 'geek', 'bell'][i], pose: 'stand', sq, expr: 'happy', flip: i % 2 === 0 }); }
+        for (let i = 0; i < 3; i++) { const [hh, sq] = hop(fract(b + i * 0.33)); lamb(q, s, cx[i + 1] + (i - 1) * 10, FL - 104 - hh * 14, 42, { id: 3121 * 16 + i, kind: ['pink', 'geek', 'bell'][i], pose: 'stand', sq, expr: 'happy', flip: i % 2 === 0 }); }
         // 最小的那只：抱着一瓶使劲摇（伏笔）
         const shakeA = sin(t * 38) * 0.25, sx0 = WS.belt[1] + 380;
-        lamb(q, s, sx0, FL + 24, 36, { kind: 'pink', pose: 'stand', rot: shakeA * 0.4, expr: 'happy', flip: true, t });
+        lamb(q, s, sx0, FL + 24, 36, { id: 3124 * 16, kind: 'pink', pose: 'stand', rot: shakeA * 0.4, expr: 'happy', flip: true, t });
         bottle(q, s, sx0 - 30, FL + 22, 60, shakeA, { fl: 'pink' });
         for (let i = 0; i < 6; i++) { const ph = fract(t * 3 + i / 6); bubble(q, sx0 - 30 + sin(shakeA * 6 + i) * 6, FL - 30 - ph * 30, 2 + ph * 3, 0.7 * (1 - ph), 'fizz'); }
         shadow(q, sx0 - 10, FL + 26, 70, 0.4);
@@ -3148,7 +3128,7 @@
           // 扑上去的小羊：从地上跳过去贴住漏洞
           const L = GANG[k % 7], u = clamp((a - 0.2) / 0.35), sx = 360 + k * 110, sy = FL + 20;
           const x = lerp(sx, lx, ease.out(u)), y = lerp(sy, ly + 30, ease.out(u)) - sin(PI * u) * 80;
-          lamb(q, s, x, y, 44 * L.sc, { kind: L.k, pose: u < 1 ? 'jump' : 'push', rot: u < 1 ? 0 : (k % 2 ? 0.3 : -0.3), sq: u >= 1 ? 0.3 + 0.1 * sin(t * 20 + k) : 0, expr: u >= 1 ? 'closed' : 'determined', fx: u >= 1 ? ['sweat'] : null, flip: lx < sx });
+          lamb(q, s, x, y, 44 * L.sc, { id: 3151 * 16 + k, kind: L.k, pose: u < 1 ? 'jump' : 'push', rot: u < 1 ? 0 : (k % 2 ? 0.3 : -0.3), sq: u >= 1 ? 0.3 + 0.1 * sin(t * 20 + k) : 0, expr: u >= 1 ? 'closed' : 'determined', fx: u >= 1 ? ['sweat'] : null, flip: lx < sx });
         }
       },
     });
@@ -3170,7 +3150,7 @@
         // 崩飞的铆钉（朝镜头飞来）
         if (hk > 0) for (let i = 0; i < 6; i++) { const a = hk - i * 0.05; if (a < 0) continue; const an = (i / 6) * TAU + 0.4, d = a * (400 + i * 60); q.fillStyle = '#4a2410'; q.beginPath(); q.arc(510 + cos(an) * d, 360 + sin(an) * d * 0.7 - a * 60, 5 + a * 20, 0, TAU); q.fill(); }
         // 抱着管子发抖的小羊
-        for (let j = 0; j < 3; j++) lamb(q, s, 380 + j * 170, [560, 700, 330][j], 46, { kind: GANG[j].k, pose: 'push', rot: sin(t * 30 + j) * 0.08, expr: 'surprise', fx: ['sweat'], flip: j === 2 });
+        for (let j = 0; j < 3; j++) lamb(q, s, 380 + j * 170, [560, 700, 330][j], 46, { id: 3173 * 16 + j, kind: GANG[j].k, pose: 'push', rot: sin(t * 30 + j) * 0.08, expr: 'surprise', fx: ['sweat'], flip: j === 2 });
         if (hk > 0) sfx(q, '砰！', 640, 380, 64, clamp(hk / 0.1), { color: '#ff8a7a', rot: -0.12, alpha: 1 - clamp((hk - 0.9) / 0.3) });
       },
     });
@@ -3208,7 +3188,7 @@
         const spots = [[330, 600, 'boss', 0.3], [505, 268, 'geek', 0], [860, 346, 'pink', 0], [975, 346, 'bell', 0], [1090, 346, 'pink', 0], [1340, 470, 'pink', 0], [700, FL + 10, 'pink', 0]];
         spots.forEach(([x, y, k, rot], i) => {
           const fl = (i % 2 === 0) !== (side < 0);
-          lamb(q, s, x, y, i === 6 ? 34 : 44, { kind: k, pose: 'stand', rot, expr: 'surprise', fx: ['cheeks'], flip: fl, t: 0 });
+          lamb(q, s, x, y, i === 6 ? 34 : 44, { id: 3211 * 16 + i, kind: k, pose: 'stand', rot, expr: 'surprise', fx: ['cheeks'], flip: fl, t: 0 });
         });
         for (const x of STABS) { const a = t - x; if (a > 0 && a < 0.3) sparkle(q, 900, 300, 30 * (1 - a / 0.3), 0.6, 0, '255,255,255'); }
       },
@@ -3279,7 +3259,7 @@
         steam(q, t, WS.tank[0] + 20, 780, beatTimes(s, s.shot.t0 - 0.5, t, 2), { r: 16, rise: 50, life: 0.6, drift: -40 });
         // 老板（站在罐子前面，背对我们一点）+ 身边一排小羊：一起慢慢转头看罐子
         snow(q, s, { x: 800, y: FL + 16, h: 420, anim: 'Relax', flip: turn > 0.5, fb: { x: 800, y: FL + 16, h: 430, pose: 'stand', expr: 'surprise', look: [lerp(0.8, -1, turn), -0.3], flip: turn > 0.5 } });
-        for (let j = 0; j < 5; j++) { const L = GANG[j + 1], x = 900 + j * 64; lamb(q, s, x, FL + 18, 44 * L.sc, { kind: L.k, pose: turn > 0.5 ? 'look-up' : 'stand', flip: turn > 0.5 + j * 0.05, expr: turn > 0.5 ? 'surprise' : 'neutral', fx: turn > 0.8 ? ['sweat'] : null, t: 0 }); shadow(q, x, FL + 20, 50, 0.4); }
+        for (let j = 0; j < 5; j++) { const L = GANG[j + 1], x = 900 + j * 64; lamb(q, s, x, FL + 18, 44 * L.sc, { id: 3282 * 16 + j, kind: L.k, pose: turn > 0.5 ? 'look-up' : 'stand', flip: turn > 0.5 + j * 0.05, expr: turn > 0.5 ? 'surprise' : 'neutral', fx: turn > 0.8 ? ['sweat'] : null, t: 0 }); shadow(q, x, FL + 20, 50, 0.4); }
         if (b > 6.5) sfx(q, '咕噜噜……', 520, 300, 34, clamp((b - 6.5) / 0.4), { color: '#ffffff', rot: 0.08 });
       },
     });
@@ -3308,7 +3288,7 @@
       g.fillStyle = '#f6e4c8'; g.fillRect(0, 0, VW, VH);
       g.drawImage(blurred(s, 'uh-bg', VW, VH, (q) => { shopBack(q); shopTank(q); }, 0.05), -60, -40, VW + 120, VH + 80);
       inCam(g, { x: 960, y: 540, z: 1 + (lt - BEAT) * 0.2, ...shake(s, 3, 73, 20) }, 1, (q) => {
-        for (let j = 0; j < 4; j++) lamb(q, s, 360 + j * 420, 900, 360, { kind: GANG[j].k, pose: 'look-up', expr: 'surprise', fx: ['sweat'], t, flip: j % 2 === 1 });
+        for (let j = 0; j < 4; j++) lamb(q, s, 360 + j * 420, 900, 360, { id: 3311 * 16 + j, kind: GANG[j].k, pose: 'look-up', expr: 'surprise', fx: ['sweat'], t, flip: j % 2 === 1 });
       });
       s.post.vignette(g, 0.5);
       return;
@@ -3443,7 +3423,7 @@
       geyser(q, t, gx, gy, a, 600, 40, { seed: 7, lean: -0.1, drops: 36 });
       rainbow(q, gx - 60, gy + 60, 330, sst(0.2, 1.2, lt), 70);
       // 骑在喷泉顶上的小羊（小小的粉点）
-      for (let i = 0; i < 5; i++) { const ph = t * 2 + i * 1.3; lamb(q, s, gx - 56 + cos(ph) * 40 + i * 6, gy - 540 + sin(ph) * 14, 14, { kind: GANG[i].k, pose: 'jump', flip: cos(ph) < 0 }); }
+      for (let i = 0; i < 5; i++) { const ph = t * 2 + i * 1.3; lamb(q, s, gx - 56 + cos(ph) * 40 + i * 6, gy - 540 + sin(ph) * 14, 14, { id: 3446 * 16 + i, kind: GANG[i].k, pose: 'jump', flip: cos(ph) < 0 }); }
     });
     baked(g, s, 'bw-sand', { x: 960, y: 540, z: 1 }, cam, 0.7, beachSand, 0.9, [-420, 760, 2340, 1200]);
     inCam(g, cam, 0.7, (q) => {
@@ -3524,7 +3504,7 @@
           const [hy, sq] = hop(fract(s.beat + j * 0.2));
           const trick = floor(s.beat + j) % 4 === 0;
           bottle(q, s, x + 20, y + 6, 70, -PI / 2 + 0.1 + sin(t * 3 + j) * 0.08, { fl: FLAVORS[j % 4] });
-          lamb(q, s, x, y - hy * (trick ? 60 : 16), 46 * L.sc, { kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', flip: true, sq, spin: trick ? -fract(s.beat + j) * TAU : 0, expr: 'happy' });
+          lamb(q, s, x, y - hy * (trick ? 60 : 16), 46 * L.sc, { id: 3527 * 16 + j, kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', flip: true, sq, spin: trick ? -fract(s.beat + j) * TAU : 0, expr: 'happy' });
         }
         // 被卷在浪里的店主：躺在泡沫上一起一伏地漂（Sleep，身子随浪倾斜）
         const vx = xf + 780, vy = topY(vx) + 40;
@@ -3587,7 +3567,7 @@
           if (plant > 0) { const drop = (1 - ease.out(plant)) * 160; bottle(q, s, x, y - 70 - drop + 6, 76, PI + sh, { fl: FLAVORS[j % 4], cap: true }); if (plant < 1 && plant > 0.8) sparkle(q, x, y, 20, 0.8, 0); }
           // 小羊抱着瓶子（在瓶子后面一点）
           const [hy, sq] = shaking ? [0, 0.15 * sin(t * 40)] : hop(fract(b * 2 + j * 0.3));
-          lamb(q, s, x - 34, y + 4 - hy * 18, V, { kind: L.k, pose: shaking ? 'push' : hy > 0.3 ? 'jump' : 'stand', sq, rot: sh * 0.6, expr: shaking ? 'determined' : 'happy', t });
+          lamb(q, s, x - 34, y + 4 - hy * 18, V, { id: 3590 * 16 + j, kind: L.k, pose: shaking ? 'push' : hy > 0.3 ? 'jump' : 'stand', sq, rot: sh * 0.6, expr: shaking ? 'determined' : 'happy', t });
           shadow(q, x - 20, y + 6, 90, 0.4);
           if (shaking) for (let i = 0; i < 3; i++) { const ph = fract(t * 2.5 + i / 3 + j * 0.1); bubble(q, x + sin(t * 40 + i) * 6, y - 80 - ph * 50, 3 + ph * 4, 0.8 * (1 - ph), 'fizz'); }
         }
@@ -3619,7 +3599,7 @@
           }
           bottle(q, s, bx, by, 76, PI + (a > 0 ? sin(a * 8 + j) * 0.12 : 0), { fl: FLAVORS[j % 4], cap: a < 0 });
           const Lx = bx - 30, Ly = by + (a > 0 ? -10 : 74);
-          lamb(q, s, Lx, Ly, V, { kind: L.k, pose: a > 0 ? 'jump' : 'push', rot: a > 0 ? -0.3 : 0, expr: a > 0 ? 'happy' : 'determined', t });
+          lamb(q, s, Lx, Ly, V, { id: 3622 * 16 + j, kind: L.k, pose: a > 0 ? 'jump' : 'push', rot: a > 0 ? -0.3 : 0, expr: a > 0 ? 'happy' : 'determined', t });
           if (a > 0) spray(q, t, { t0: LAUNCH[j], x: bx, y: by + 70, n: 16, dur: 1.5, speed: 380, spread: 1.0, ang: PI / 2, grav: 600, r: 6, seed: 150 + j, color: FLAVORS[j % 4] });
         }
       },
@@ -3650,7 +3630,7 @@
       for (let j = 0; j < 5; j++) {
         const L = GANG[j + 1], x = 300 + j * 330 + sin(slow + j) * 30, y = 360 + (j % 2) * 170 + cos(slow * 1.3 + j) * 20, V = 70 + (j % 3) * 20;
         bottle(q, s, x + 6, y + 8, V * 1.6, PI + sin(slow + j) * 0.3, { fl: FLAVORS[j % 4], cap: false });
-        lamb(q, s, x, y, V, { kind: L.k, pose: 'jump', spin: sin(slow * 2 + j) * 0.5, expr: 'happy', flip: j % 2 === 1 });
+        lamb(q, s, x, y, V, { id: 3653 * 16 + j, kind: L.k, pose: 'jump', spin: sin(slow * 2 + j) * 0.5, expr: 'happy', flip: j % 2 === 1 });
         for (let i = 0; i < 4; i++) foam(q, x + 6 + sin(i * 2 + j) * 8, y + V * 1.6 + 30 + i * 40, 30 - i * 4, 0.7 - i * 0.14, i + j, true, i);
       }
     });
@@ -3664,7 +3644,7 @@
       // 带头的那只（近景，大）
       const bx = 700 + sin(slow) * 20, by = 640 + cos(slow * 1.2) * 16;
       bottle(q, s, bx + 12, by + 16, 380, PI - 0.25 + sin(slow) * 0.05, { fl: 'pink', cap: false });
-      lamb(q, s, bx, by, 250, { kind: 'boss', pose: 'jump', rot: -0.25 + sin(slow) * 0.05, expr: 'happy', t });
+      lamb(q, s, bx, by, 250, { id: 3667 * 16, kind: 'boss', pose: 'jump', rot: -0.25 + sin(slow) * 0.05, expr: 'happy', t });
       // 飞出去的瓶盖：画面中间，慢慢转
       bottleCap(q, s, 1240 + lt * 10, 470 - lt * 14, 92, slow * 5, 0.3 + 0.7 * abs(sin(t * 0.9)));
       sparkle(q, 1240 + lt * 10 - 40, 440 - lt * 14, 60, 0.6 + 0.4 * sin(t * 3), t * 0.4, '255,250,235');
@@ -3726,7 +3706,7 @@
     // 近景：躺在空中的小羊们
     inCam(g, { x: 960, y: 540, z: 1 + lt * 0.02 }, 1, (q) => {
       const pose = [[420, 360, 'bell', 'float', 0], [1500, 300, 'geek', 'float', 1], [760, 820, 'pink', 'sleep', 2], [1340, 760, 'pink', 'float', 3]];
-      for (const [x, y, kk, p, j] of pose) { const yy = y + sin(slow * 2 + j) * 14; lamb(q, s, x + sin(slow + j) * 20, yy, 150, { kind: kk, pose: p, rot: sin(slow + j) * 0.2, expr: j === 1 ? 'surprise' : 'happy', flip: j % 2 === 1, t, fx: j === 2 ? ['zzz'] : null }); }
+      for (const [x, y, kk, p, j] of pose) { const yy = y + sin(slow * 2 + j) * 14; lamb(q, s, x + sin(slow + j) * 20, yy, 150, { id: 3729 * 16 + j, kind: kk, pose: p, rot: sin(slow + j) * 0.2, expr: j === 1 ? 'surprise' : 'happy', flip: j % 2 === 1, t, fx: j === 2 ? ['zzz'] : null }); }
       // 一只张嘴接住飘过来的水滴
       const dx = lerp(1700, 1560, clamp(lt / 2.5)), dy = lerp(200, 250, clamp(lt / 2.5));
       if (lt < 2.5) drop(q, dx, dy, 16, PI / 2, 1, 'cyan'); else { popBurst(q, 1560, 250, 80, clamp((lt - 2.5) / 0.5), 61); if (lt < 3.2) sfx(q, '咕嘟', 1640, 170, 40, clamp((lt - 2.5) / 0.1), { color: '#bdf6ff', rot: 0.1 }); }
@@ -3746,7 +3726,7 @@
     inCam(g, cam, 1, (q) => {
       const x = 900, y = 720 + (fk > 0 ? fk * fk * 2600 : 0);
       bottle(q, s, x + 20, y + 20, 560, PI - 0.2, { fl: 'pink', cap: false });
-      lamb(q, s, x, y, 420, { kind: 'boss', pose: 'stand', rot: -0.15, expr: lt > 0.3 ? 'happy' : 'neutral', t, fx: lt > 0.45 && lt < 1.3 ? ['stars'] : null });
+      lamb(q, s, x, y, 420, { id: 3749 * 16, kind: 'boss', pose: 'stand', rot: -0.15, expr: lt > 0.3 ? 'happy' : 'neutral', t, fx: lt > 0.45 && lt < 1.3 ? ['stars'] : null });
       const bp = lt - 1.0;
       if (bp < 0) bubble(q, lerp(1500, 1180, clamp(lt / 1.0)), lerp(300, 560, clamp(lt / 1.0)), 40, 0.9);
       else if (bp < 0.4) popBurst(q, 1180, 560, 110, bp / 0.4, 107);
@@ -3827,7 +3807,7 @@
       const tilt = cos(t * 3 + j * 1.2) * 0.25;
       for (let i = 1; i < 10; i++) foam(q, x + 40 + i * 34, y + 30 + sin(t * 3 + j * 1.2 - i * 0.2) * (o.wave || 70) * 0.2, 12 + i * 3, 0.8 - i * 0.075, i + j, true, i);
       bottle(q, s, x + 40, y + 20, V * 1.5, -PI / 2 - tilt, { fl: FLAVORS[j % 4], cap: false });
-      lamb(q, s, x + 26, y - 4, V, { kind: L.k, pose: 'jump', rot: -tilt * 0.6, flip: true, expr: 'happy', t });
+      lamb(q, s, x + 26, y - 4, V, { id: 3830 * 16 + j, kind: L.k, pose: 'jump', rot: -tilt * 0.6, flip: true, expr: 'happy', t });
     }
   }
   /* ---------- 港口（113.10 → 117.34）：汽水火箭小队贴着桅杆掠过港口，海鸥吓得乱飞 ---------- */
@@ -3935,7 +3915,7 @@
       for (let j = 0; j < 7; j++) {
         const bb = b - j * 0.25; if (bb < 0) continue;
         const P = lead(bb), L = GANG[j];
-        lamb(q, s, P.x, P.y, 62 * L.sc, { kind: L.k, pose: 'jump', sq: P.u < 0.12 ? 0.6 * (1 - P.u / 0.12) : P.u > 0.9 ? 0.3 : -0.15, spin: j === 0 ? -P.u * TAU * (P.i % 2) : 0, expr: 'happy', t });
+        lamb(q, s, P.x, P.y, 62 * L.sc, { id: 3938 * 16 + j, kind: L.k, pose: 'jump', sq: P.u < 0.12 ? 0.6 * (1 - P.u / 0.12) : P.u > 0.9 ? 0.3 : -0.15, spin: j === 0 ? -P.u * TAU * (P.i % 2) : 0, expr: 'happy', t });
         if (P.u < 0.1) sfx(q, '嘣', P.x + 40, P.y - 80, 28, 1 - P.u / 0.1, { color: '#fff27a', rot: 0.1, alpha: 1 - P.u / 0.1 });
       }
     });
@@ -3979,7 +3959,7 @@
       const d = flyD(j); if (d <= 0 || d >= 1) continue;
       const e = pow(d, 2.2), x = VPX + sin(t * 3 + j * 1.7) * 300 * e + (j - 3) * 40 * e, y = lerp(VPY - 40, 700, e) + cos(t * 2.4 + j) * 80 * e, V = lerp(8, 420, e);
       bottle(g, s, x + V * 0.3, y + V * 0.2, V * 1.5, -PI / 2 + 0.3, { fl: FLAVORS[j % 4], cap: false });
-      lamb(g, s, x, y, V, { kind: GANG[j].k, pose: 'jump', expr: 'happy', flip: false, t });
+      lamb(g, s, x, y, V, { id: 3982 * 16 + j, kind: GANG[j].k, pose: 'jump', expr: 'happy', flip: false, t });
       if (j === 2 && e > 0.3) { g.fillStyle = '#ffffff'; g.save(); g.translate(x + V * 0.2, y - V * 0.8); g.rotate(0.4); g.fillRect(-V * 0.08, 0, V * 0.16, V * 0.34); g.fillRect(-V * 0.08, V * 0.26, V * 0.24, V * 0.1); g.restore(); }
     }
     s.post.vignette(g, 0.34);
@@ -4114,9 +4094,9 @@
         for (let j = 0; j < 7; j++) {
           const L = GANG[j], V = 50 * L.sc, tl = j * BEAT / 2 + 0.05, a = lt - tl;
           const lx = 300 + j * 150, ly = RF.wall + 70 + (j % 2) * 30;
-          if (a < 0) { const u = 1 + a / 0.8; if (u > 0) { const x = lerp(lx + 600, lx, u), y = lerp(-100, ly, u) - sin(PI * u) * 40; bottle(q, s, x + 30, y + 10, V * 1.5, -PI / 2 + 0.6, { fl: FLAVORS[j % 4], cap: false }); lamb(q, s, x, y, V, { kind: L.k, pose: 'jump', expr: 'happy', flip: true }); } continue; }
+          if (a < 0) { const u = 1 + a / 0.8; if (u > 0) { const x = lerp(lx + 600, lx, u), y = lerp(-100, ly, u) - sin(PI * u) * 40; bottle(q, s, x + 30, y + 10, V * 1.5, -PI / 2 + 0.6, { fl: FLAVORS[j % 4], cap: false }); lamb(q, s, x, y, V, { id: 4117 * 16 + j, kind: L.k, pose: 'jump', expr: 'happy', flip: true }); } continue; }
           const b = bounce(a, lx, ly - 10, -40, -300, ly, 2600, 0.4, 0.6);
-          lamb(q, s, b.x, b.y, V, { kind: L.k, pose: b.n === 0 ? 'jump' : 'stand', sq: b.sq, expr: a > 0.5 ? 'happy' : 'surprise', flip: false, fx: a > 0.6 && j % 3 === 0 ? ['stars'] : null });
+          lamb(q, s, b.x, b.y, V, { id: 4119 * 16 + j, kind: L.k, pose: b.n === 0 ? 'jump' : 'stand', sq: b.sq, expr: a > 0.5 ? 'happy' : 'surprise', flip: false, fx: a > 0.6 && j % 3 === 0 ? ['stars'] : null });
           shadow(q, b.x, ly + 2, V * 1.1, 0.4);
           if (a < 0.3) sfx(q, '噗', lx + 30, ly - 90, 30, clamp(a / 0.08), { color: '#ffffff', rot: -0.1, alpha: 1 - clamp((a - 0.2) / 0.1) });
           bottle(q, s, lx + 50 + (j % 2) * 8, ly - 4, V * 1.5, 0, { fl: FLAVORS[j % 4], cap: true });
@@ -4137,7 +4117,7 @@
       near: (q) => roofJets(q, s, t, 0.85),
       mid: (q) => {
         roofJets(q, s, t, 1);
-        for (let j = 0; j < 7; j++) { const L = GANG[j], x = 260 + j * 170, [hy, sq] = hop(fract(s.beat + j * 0.14)); lamb(q, s, x, RF.wall + 90 - hy * 50, 50 * L.sc, { kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq, expr: 'happy', flip: j % 2 === 1 }); shadow(q, x, RF.wall + 92, 56, 0.35); }
+        for (let j = 0; j < 7; j++) { const L = GANG[j], x = 260 + j * 170, [hy, sq] = hop(fract(s.beat + j * 0.14)); lamb(q, s, x, RF.wall + 90 - hy * 50, 50 * L.sc, { id: 4140 * 16 + j, kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq, expr: 'happy', flip: j % 2 === 1 }); shadow(q, x, RF.wall + 92, 56, 0.35); }
       },
     });
     s.post.vignette(g, 0.25);
@@ -4158,7 +4138,7 @@
           const ph = fract(b), bi = floor(b);
           const kick = bi % 4 === 3, spin = bi % 8 === 7;
           const [hy, sq] = hop(ph);
-          lamb(q, s, x + (bi % 2 ? 10 : -10), y - hy * (kick ? 70 : 34), 52 * L.sc, { kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq, rot: kick ? (bi % 8 < 4 ? -0.35 : 0.35) * sin(PI * ph) : 0, spin: spin ? ph * TAU : 0, flip: (bi % 4) >= 2, expr: 'happy', t });
+          lamb(q, s, x + (bi % 2 ? 10 : -10), y - hy * (kick ? 70 : 34), 52 * L.sc, { id: 4161 * 16 + j, kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq, rot: kick ? (bi % 8 < 4 ? -0.35 : 0.35) * sin(PI * ph) : 0, spin: spin ? ph * TAU : 0, flip: (bi % 4) >= 2, expr: 'happy', t });
         }
         if (floor(b) % 4 === 3) sfx(q, '嘿！', 1120, RF.wall - 260, 44, clamp(fract(b) / 0.1), { color: '#fff27a', rot: 0.12, alpha: 1 - clamp((fract(b) - 0.6) / 0.3) });
         sparkles(q, t, 10, 133, '255,240,250', { x: 300, y: 300, w: 900, h: 400, r: 14 });
@@ -4184,7 +4164,7 @@
         roofJets(q, s, t, 1);
         // 泡泡烟花：一拍一朵
         for (let i = 0; i < 12; i++) { const t0 = s.shot.t0 + i * BEAT * 0.5 - 0.4; bubbleFirework(q, t, 200 + hash(141, i) * 1500, 170 + hash(142, i) * 240, 240 + hash(143, i) * 140, t0, i); }
-        for (let j = 0; j < 7; j++) { const L = GANG[j], x = 260 + j * 170, [hy, sq] = hop(fract(s.beat * 2 + j * 0.14)); lamb(q, s, x, RF.wall + 90 - hy * 60, 50 * L.sc, { kind: L.k, pose: 'jump', sq, expr: 'happy', flip: j % 2 === 1, fx: j === 0 ? ['hearts'] : null }); }
+        for (let j = 0; j < 7; j++) { const L = GANG[j], x = 260 + j * 170, [hy, sq] = hop(fract(s.beat * 2 + j * 0.14)); lamb(q, s, x, RF.wall + 90 - hy * 60, 50 * L.sc, { id: 4187 * 16 + j, kind: L.k, pose: 'jump', sq, expr: 'happy', flip: j % 2 === 1, fx: j === 0 ? ['hearts'] : null }); }
       },
     });
     sparkles(g, t, 26, 139, '255,236,250', { r: 16 });
@@ -4236,7 +4216,7 @@
       // 小羊和它的瓶子
       const lr = -0.62, lh = 330, lbx = cx - sin(lr) * lh * 0.92 + bump, lby = cy + cos(lr) * lh * 0.92;
       bottle(g, s, lbx, lby, lh, lr, { fl: 'mint', cap: false, fill: 0.7 });
-      lamb(g, s, lbx + 120 + bump, lby + 150, 170, { kind: 'boss', pose: 'jump', rot: 0.18, flip: true, expr: 'happy', t, fx: ck > 0.3 ? ['hearts'] : null });
+      lamb(g, s, lbx + 120 + bump, lby + 150, 170, { id: 4239 * 16, kind: 'boss', pose: 'jump', rot: 0.18, flip: true, expr: 'happy', t, fx: ck > 0.3 ? ['hearts'] : null });
       if (ck > 0 && ck < 1.2) { sparkle(g, cx, cy, 120 * (1 - ck / 1.2) + 24, 1.2 * (1 - ck / 1.2), ck, '255,250,230'); popBurst(g, cx, cy, 150, ck / 1.2, 147); sfx(g, '叮！', cx + 40, cy - 190, 96, clamp(ck / 0.1), { color: '#fff27a', rot: -0.08, alpha: 1 - clamp((ck - 0.9) / 0.3) }); }
       for (let i = 0; i < 10; i++) { const ph = fract(t * 0.8 + i / 10); bubble(g, cx + sin(i * 2.3) * 60, cy - ph * 260, 8 + ph * 12, 0.8 * (1 - ph), 'fizz'); }
       const ck3 = t - 142.83; if (ck3 > 0) s.post.fill(g, '#fff6e0', 0.18 * exp(-ck3 * 6) * flashK(s), 'lighter');
@@ -4261,7 +4241,7 @@
         // 带头的小羊跳起来，用它的瓶子迎上去：瓶口对瓶口
         const lRot = 0.9, lbh = 84, lbx = cx - sin(lRot) * lbh * 0.92 - 6, lby = cy + cos(lRot) * lbh * 0.92 + 2;
         const bump = ck > 0 && ck < 0.25 ? sin(PI * ck / 0.25) * 8 : 0;
-        lamb(q, s, lbx - 60 - bump, lby + 58, 86, { kind: 'boss', pose: 'jump', rot: -0.25, expr: 'happy', t, fx: ck > 0.3 ? ['hearts'] : null });
+        lamb(q, s, lbx - 60 - bump, lby + 58, 86, { id: 4264 * 16, kind: 'boss', pose: 'jump', rot: -0.25, expr: 'happy', t, fx: ck > 0.3 ? ['hearts'] : null });
         bottle(q, s, lbx - bump, lby, lbh, lRot, { fl: 'mint', cap: false });
         if (ck > 0 && ck < 1.2) { sparkle(q, cx, cy, 70 * (1 - ck / 1.2) + 18, 1.2 * (1 - ck / 1.2), ck, '255,250,230'); popBurst(q, cx, cy, 90, ck / 1.2, 147); sfx(q, '叮！', cx + 20, cy - 150, 72, clamp(ck / 0.1), { color: '#fff27a', rot: -0.08, alpha: 1 - clamp((ck - 0.9) / 0.3) }); }
         for (let i = 0; i < 8; i++) { const ph = fract(t * 0.8 + i / 8); bubble(q, cx + sin(i * 2.3) * 40, cy - ph * 160, 5 + ph * 8, 0.8 * (1 - ph), 'fizz'); }
@@ -4286,7 +4266,7 @@
         for (let i = 0; i < 40; i++) { const an = PI + (i / 39) * PI, r = 900 + sin(t * 2 + i) * 20; bubble(q, 800 + cos(an) * r, RF.wall - 40 + sin(an) * r * 0.7, 18 + hash(151, i) * 20, 0.7 * sst(0, 1.2, lt)); }
         for (let i = 0; i < 8; i++) bubbleFirework(q, t, 200 + hash(152, i) * 1400, 150 + hash(153, i) * 250, 260, s.shot.t0 + i * BEAT - 0.3, i + 3);
         // 穿过水雾跳来跳去的小羊 + 跟着一起蹦的老板
-        for (let j = 0; j < 7; j++) { const L = GANG[j], ph = fract(s.beat + j * 0.14), x = 240 + j * 180 + sin(t + j) * 30, [hy, sq] = hop(ph); lamb(q, s, x, RF.wall + 90 - hy * 90, 50 * L.sc, { kind: L.k, pose: 'jump', sq, spin: j % 3 === 0 ? -ph * TAU : 0, expr: 'happy' }); }
+        for (let j = 0; j < 7; j++) { const L = GANG[j], ph = fract(s.beat + j * 0.14), x = 240 + j * 180 + sin(t + j) * 30, [hy, sq] = hop(ph); lamb(q, s, x, RF.wall + 90 - hy * 90, 50 * L.sc, { id: 4289 * 16 + j, kind: L.k, pose: 'jump', sq, spin: j % 3 === 0 ? -ph * TAU : 0, expr: 'happy' }); }
         const [vh] = hop(fract(s.beat * 0.5));
         foamyVendor(q, s, { x: 1500, y: RF.wall + 70 - vh * 40, h: 410, anim: 'Interact', speed: 1.4, flip: true, fb: { x: 1500, y: RF.wall + 70 - vh * 40, h: 420, pose: 'cheer', t, expr: 'laugh', flip: true, look: [-0.5, -0.8] } });
       },
@@ -4314,7 +4294,7 @@
         for (let j = 0; j < 7; j++) {
           const L = GANG[j], x = 360 + j * 110, y = RF.wall + 110 + (j % 2) * 14;
           const hb = 149.6 + j * 0.53 + (j > 3 ? 1.2 : 0), ha = t - hb;
-          lamb(q, s, x, y, 52 * L.sc, { kind: L.k, pose: 'sleep', rot: (j % 2 ? 0.1 : -0.1), sq: ha > 0 && ha < 0.2 ? -0.25 : 0.12, expr: ha > 0 && ha < 0.4 ? 'surprise' : 'closed', t, fx: j === 6 ? ['zzz'] : null });
+          lamb(q, s, x, y, 52 * L.sc, { id: 4317 * 16 + j, kind: L.k, pose: 'sleep', rot: (j % 2 ? 0.1 : -0.1), sq: ha > 0 && ha < 0.2 ? -0.25 : 0.12, expr: ha > 0 && ha < 0.4 ? 'surprise' : 'closed', t, fx: j === 6 ? ['zzz'] : null });
           if (ha > 0 && ha < 2.4) { const G = lambGeo(L.k, 'sleep', 52 * L.sc, x, y, false); bubble(q, G.mouth[0] + ha * 20, G.mouth[1] - ha * 90, 10 + ha * 4, 0.9 * (1 - ha / 2.4)); if (ha < 0.4) sfx(q, '嗝', G.top[0] + 20, G.top[1] - 40, 24, clamp(ha / 0.1), { color: '#ffffff', rot: 0.1, alpha: 1 - clamp((ha - 0.3) / 0.1) }); }
         }
         // 最后一个大一点的泡泡（153.45）往上飘
@@ -4334,11 +4314,11 @@
     if (sdOK(SD_LAMB.pink)) {
       // 官方小羊：三只驮着箱子一起走（箱子压在它们背上，只露出脸和腿）
       const n = 3, VV = V * 0.95, lift = VV * 0.78, wsp = v > 0 ? v / gaitV('run', VV) : 1;
-      for (let i = 0; i < n; i++) { const lx = x - 95 * sc + i * (190 * sc / (n - 1)); lamb(q, s, lx, y, VV, { kind: 'pink', pose: v > 0 ? 'run' : 'stand', t: t + i * 0.23, wspd: wsp, flip: !!o.flip, seed: i }); shadow(q, lx, y + 2, VV * 1.1, 0.3); }
+      for (let i = 0; i < n; i++) { const lx = x - 95 * sc + i * (190 * sc / (n - 1)); lamb(q, s, lx, y, VV, { id: 4337 * 16 + i, kind: 'pink', pose: v > 0 ? 'run' : 'stand', t: t + i * 0.23, wspd: wsp, flip: !!o.flip, seed: i }); shadow(q, lx, y + 2, VV * 1.1, 0.3); }
       const bob = abs(sin(t * 5)) * 2;
       crate(q, s, x, y - lift - bob, sc, { no: 7, hoof: 1, lid: o.lid ?? 0, wob: sin(t * 2.5) * 0.02 });
       const fs = o.flip ? -1 : 1;
-      if (o.pushers !== false) for (let j = 0; j < 2; j++) { const L = GANG[[0, 2][j]], VV2 = V * L.sc, px = x - fs * (175 * sc + j * V * 1.3); const ws = v > 0 ? v / gaitV('run', VV2) : 1.5; lamb(q, s, px, y, VV2, { kind: L.k, pose: j === 0 ? 'push' : 'run', t, wspd: ws, flip: !!o.flip, fx: j === 1 && sleepy > 0.5 ? ['zzz'] : null }); shadow(q, px, y + 2, VV2 * 1.1, 0.35); }
+      if (o.pushers !== false) for (let j = 0; j < 2; j++) { const L = GANG[[0, 2][j]], VV2 = V * L.sc, px = x - fs * (175 * sc + j * V * 1.3); const ws = v > 0 ? v / gaitV('run', VV2) : 1.5; lamb(q, s, px, y, VV2, { id: 4341 * 16 + j, kind: L.k, pose: j === 0 ? 'push' : 'run', t, wspd: ws, flip: !!o.flip, fx: j === 1 && sleepy > 0.5 ? ['zzz'] : null }); shadow(q, px, y + 2, VV2 * 1.1, 0.35); }
       return;
     }
     // 箱子底下的小羊（只看得见脚和一点毛）
@@ -4353,7 +4333,7 @@
     crate(q, s, x, y - bob, sc, { no: 7, hoof: 1, lid: o.lid ?? 0, wob: sin(t * 2.5) * 0.02 });
     // 旁边推着 / 跟着的（o.flip：往左走，推的在右边）
     const fs = o.flip ? -1 : 1;
-    if (o.pushers !== false) for (let j = 0; j < 3; j++) { const L = GANG[[0, 1, 6][j]], VV = V * L.sc, px = x - fs * (170 * sc + j * V * 1.2); const wsp = v > 0 ? v / gaitV('run', VV) : 1.5; lamb(q, s, px, y, VV, { kind: L.k, pose: j === 0 ? 'push' : 'run', t, wspd: wsp, expr: sleepy > 0.5 ? 'sleepy' : 'happy', flip: !!o.flip, fx: j === 2 && sleepy > 0.5 ? ['zzz'] : null }); shadow(q, px, y + 2, VV * 1.1, 0.35); }
+    if (o.pushers !== false) for (let j = 0; j < 3; j++) { const L = GANG[[0, 1, 6][j]], VV = V * L.sc, px = x - fs * (170 * sc + j * V * 1.2); const wsp = v > 0 ? v / gaitV('run', VV) : 1.5; lamb(q, s, px, y, VV, { id: 4356 * 16 + j, kind: L.k, pose: j === 0 ? 'push' : 'run', t, wspd: wsp, expr: sleepy > 0.5 ? 'sleepy' : 'happy', flip: !!o.flip, fx: j === 2 && sleepy > 0.5 ? ['zzz'] : null }); shadow(q, px, y + 2, VV * 1.1, 0.35); }
   }
   /* ---------- 装箱（155.57 → 159.82）：黄昏的汽水摊，一身泡沫；小羊们把剩下的汽水装进 7 号货箱，最小的那只在箱子上按了一个粉色的蹄印 ---------- */
   function shotPack(g, s) {
@@ -4384,12 +4364,12 @@
       const cx = 1180, cy = SG + 50;
       crate(q, s, cx, cy, 0.62, { no: 7, hoof: sk < 0 ? 0 : clamp(sk / 0.4), lid: 0.9, lidFly: [-40, 30, -0.5] });
       for (let k = 0; k < 6; k++) { const a = b - k * 0.9 - 0.3; if (a < 0 || a > 0.7) continue; const u = a / 0.7; bottle(q, s, lerp(cx - 260, cx - 20 + k * 12, u), lerp(cy - 10, cy - 150, u) - sin(PI * u) * 120 + 60, 60, u * 2, { fl: FLAVORS[k % 4] }); }
-      for (let j = 0; j < 5; j++) { const L = GANG[j + 1], x = cx - 290 - j * 70, [hy, sq] = hop(fract(b * 0.5 + j * 0.2)); lamb(q, s, x, cy + 6 - hy * 10, 46 * L.sc, { kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq: sq * 0.4, expr: j % 2 ? 'sleepy' : 'happy', flip: false, t, fx: j === 3 ? ['zzz'] : null }); shadow(q, x, cy + 8, 50, 0.4); }
+      for (let j = 0; j < 5; j++) { const L = GANG[j + 1], x = cx - 290 - j * 70, [hy, sq] = hop(fract(b * 0.5 + j * 0.2)); lamb(q, s, x, cy + 6 - hy * 10, 46 * L.sc, { id: 4387 * 16 + j, kind: L.k, pose: hy > 0.3 ? 'jump' : 'stand', sq: sq * 0.4, expr: j % 2 ? 'sleepy' : 'happy', flip: false, t, fx: j === 3 ? ['zzz'] : null }); shadow(q, x, cy + 8, 50, 0.4); }
       // 最小的那只：跳上箱子，“啪”地按下一个蹄印
       const tx = cx + 90, ty = cy - 150;
       const jump = clamp((t - (stamp - 0.6)) / 0.6);
       const lx = lerp(cx + 260, tx, ease.out(jump)), ly = lerp(cy + 6, ty, ease.out(jump)) - sin(PI * jump) * 60;
-      lamb(q, s, lx, ly, 34, { kind: 'pink', pose: sk > 0 ? 'stand' : 'jump', sq: sk > 0 && sk < 0.2 ? 0.5 : 0, expr: sk > 0 ? 'happy' : 'neutral', flip: true, t });
+      lamb(q, s, lx, ly, 34, { id: 4392 * 16, kind: 'pink', pose: sk > 0 ? 'stand' : 'jump', sq: sk > 0 && sk < 0.2 ? 0.5 : 0, expr: sk > 0 ? 'happy' : 'neutral', flip: true, t });
       if (sk > 0 && sk < 0.6) { sfx(q, '啪', tx + 60, ty - 70, 34, clamp(sk / 0.1), { color: '#ffb0d0', rot: 0.12, alpha: 1 - clamp((sk - 0.45) / 0.15) }); sparkle(q, cx + (221 - 150) * 0.62, cy - (230 - 175) * 0.62, 40 * (1 - sk / 0.6) + 8, 1.2 * (1 - sk / 0.6), 0, '255,200,230'); }
     });
     s.post.vignette(g, 0.42);
@@ -4820,9 +4800,9 @@
             const L = GANG[j], V = 24 * L.sc, sx = j === 0 ? kx : MZC.x - 70 - (j - 1) * 22, sy = MZ.step + 2;
             const dj = lt - dive - j * 0.1;
             if (dj > 0.35) continue;
-            if (dj > 0) { const u = dj / 0.35, x = lerp(sx, MZC.x, u), y = lerp(sy, MZC.y - 50, u) - sin(PI * u) * 40; lamb(q, s, x, y, V, { kind: L.k, pose: 'jump', spin: u * 3, expr: 'happy' }); continue; }
-            if (j === 0) { lamb(q, s, sx, sy - bumpA * 16, V, { kind: L.k, pose: bumpA > 0.05 ? 'jump' : 'stand', rot: -bumpA * 0.35, expr: 'determined', flip: true, t }); shadow(q, sx, sy + 1, V * 1.1, 0.4 * (1 - bumpA * 0.5)); continue; }
-            lamb(q, s, sx, sy, V, { kind: L.k, pose: 'stand', expr: 'happy', flip: false, t });
+            if (dj > 0) { const u = dj / 0.35, x = lerp(sx, MZC.x, u), y = lerp(sy, MZC.y - 50, u) - sin(PI * u) * 40; lamb(q, s, x, y, V, { id: 4823 * 16 + j, kind: L.k, pose: 'jump', spin: u * 3, expr: 'happy' }); continue; }
+            if (j === 0) { lamb(q, s, sx, sy - bumpA * 16, V, { id: 4824 * 16 + j, kind: L.k, pose: bumpA > 0.05 ? 'jump' : 'stand', rot: -bumpA * 0.35, expr: 'determined', flip: true, t }); shadow(q, sx, sy + 1, V * 1.1, 0.4 * (1 - bumpA * 0.5)); continue; }
+            lamb(q, s, sx, sy, V, { id: 4825 * 16 + j, kind: L.k, pose: 'stand', expr: 'happy', flip: false, t });
           }
         }), '#2a1c40', 0.22);
         inCam(gg, cam, 1, (q) => {
