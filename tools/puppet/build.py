@@ -750,6 +750,11 @@ def build(key, check=False):
     os.makedirs(dst, exist_ok=True)
     im = Image.fromarray(np.clip(atlas * 255 + 0.5, 0, 255).astype(np.uint8), 'RGBA')
     im.save(os.path.join(dst, 'atlas.webp'), 'WEBP', quality=92, method=5)
+    # 图集变了：旧的 2 倍高清图集（tools/upscale/upscale.py 生成）对不上了，删掉；需要的话重新跑 upscale.py
+    hi = os.path.join(dst, 'atlas@2x.webp')
+    if os.path.exists(hi):
+        os.remove(hi)
+        print('已删除过期的 atlas@2x.webp，记得重新运行 tools/upscale/upscale.py --keyart', key)
     with open(os.path.join(dst, 'rig.json'), 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
     print(f'{key}: {len(out["layers"])} layers, atlas {AW}x{AH}, source {W}x{H}')

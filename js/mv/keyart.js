@@ -596,9 +596,22 @@ void main(){
     s = Math.min(s, MAXTEX / Math.max(rig.atlasW, rig.atlasH));
     return clamp(s, 0.1, 1);
   }
+  /** 2 倍高清图集（rig.atlas2，超分辨率放大的 atlas@2x.webp）：桌面、内存 ≥ 4GB、放得下 MAX_TEXTURE_SIZE 时才用；没有或加载失败就用原图集 */
+  function hiOK(rig) {
+    if (!rig.atlas2 || opts.hi === false || opts.texScale > 0) return false;
+    if (window.matchMedia && matchMedia('(pointer: coarse)').matches) return false;
+    if (navigator.deviceMemory && navigator.deviceMemory < 4) return false;
+    return Math.max(rig.atlasW, rig.atlasH) * 2 <= MAXTEX;
+  }
   async function fetchAtlas(rig, key) {
-    const url = BASE + key + '/' + rig.atlas + (rig.v ? '?v=' + rig.v : '');
-    const sc = texScaleFor(rig);
+    if (hiOK(rig)) {
+      const r = await fetchAtlasAt(rig, key, rig.atlas2, 2).catch(() => null);
+      if (r) return r;
+    }
+    return fetchAtlasAt(rig, key, rig.atlas, texScaleFor(rig));
+  }
+  async function fetchAtlasAt(rig, key, file, sc) {
+    const url = BASE + key + '/' + file + (rig.v ? '?v=' + rig.v : '');
     const tw = Math.max(1, Math.floor(rig.atlasW * sc)), th = Math.max(1, Math.floor(rig.atlasH * sc));
     // 优先 createImageBitmap：后台线程解码并预乘，主线程只剩一次上传
     if (window.createImageBitmap && !opts.noBitmap) {
@@ -607,7 +620,7 @@ void main(){
         if (res.ok) {
           const blob = await res.blob();
           const o = { premultiplyAlpha: 'premultiply', colorSpaceConversion: 'none' };
-          if (sc < 1) { o.resizeWidth = tw; o.resizeHeight = th; o.resizeQuality = 'high'; }
+          if (sc !== 1 && sc !== 2) { o.resizeWidth = tw; o.resizeHeight = th; o.resizeQuality = 'high'; }
           let bm = await createImageBitmap(blob, o);
           if (bm.width !== tw || bm.height !== th) { const c = resizeTo(bm, tw, th); bm.close(); return c ? { img: c, bitmap: false, w: tw, h: th, sc } : null; }
           return { img: bm, bitmap: true, w: tw, h: th, sc };
@@ -616,8 +629,8 @@ void main(){
     }
     const img = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = url; });
     if (!img) return null;
-    if (sc < 1) { const c = resizeTo(img, tw, th); return c ? { img: c, bitmap: false, w: tw, h: th, sc } : null; }
-    return { img, bitmap: false, w: img.naturalWidth, h: img.naturalHeight, sc: 1 };
+    if (img.naturalWidth !== tw || img.naturalHeight !== th) { const c = resizeTo(img, tw, th); return c ? { img: c, bitmap: false, w: tw, h: th, sc } : null; }
+    return { img, bitmap: false, w: tw, h: th, sc };
   }
   function resizeTo(src, w, h) {
     try { const c = E.mk(w, h), q = c.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(src, 0, 0, w, h); return c; } catch (e) { return null; }

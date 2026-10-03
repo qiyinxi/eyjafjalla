@@ -133,7 +133,7 @@
   // cacheFps / cacheMaxPx / cacheMB：drawCached 的帧率（动画时间）、只缓存身高不超过多少设备像素的、缓存上限（0 = 桌面 24MB、触屏 12MB）
   // warmMs：每帧最多花多少毫秒生成预热队列里的帧（见 drawCached 的 o.warm）；warmAhead：每个动作预热从镜头开头起的多少帧（0 = 一整圈）。
   //   一整圈在小羊多的片子里会把缓存顶到上限、把当前镜头要用的帧挤掉（第二部实测：最坏一帧 65ms → 半秒 16 帧时 27ms）
-  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5, warmAhead: 16, sharp: true };
+  const opts = { maxDim: 2048, budget: 32, budgetMB: 0, idleSec: 300, debug: false, mip: true, cacheFps: 30, cacheMaxPx: 150, cacheMB: 0, warmMs: 1.5, warmAhead: 16, sharp: true, hiTex: true };
   const stats = { draws: 0, lastMs: 0, avgMs: 0, canvas: [1, 1], loads: {} };
   const OFF = /[?&]sd=off\b/.test(location.search);
 
@@ -476,12 +476,31 @@ void main(){
     });
     return pages;
   }
+  /** 高清贴图：本地的贴图是图集声明尺寸的整数倍（2～4 倍，超分辨率放大过的）时保留原尺寸，图集坐标同比放大（见 scaleAtlas）。
+   * 触屏设备（画面小、显存紧）照旧缩回声明尺寸 */
+  const hiK = (nw, nh, w, h) => {
+    if (!opts.hiTex || !w || !h || (window.matchMedia && matchMedia('(pointer: coarse)').matches)) return 1;
+    const k = nw / w;
+    return k >= 2 && k <= 4 && Number.isInteger(k) && nh === h * k ? k : 1;
+  };
+  /** 图集文本里每一页的 size / xy / orig / offset 乘以这一页的放大倍数 ks[页名] */
+  function scaleAtlas(txt, ks) {
+    let k = 1;
+    const lines = txt.split(/\r?\n/);
+    return lines.map((l, i) => {
+      const name = l.trim();
+      if (name && /\.png$/i.test(name) && (i === 0 || !lines[i - 1].trim())) { k = ks[name] || 1; return l; }
+      if (k === 1) return l;
+      return l.replace(/^(\s*(?:size|xy|orig|offset):\s*)(-?\d+)\s*,\s*(-?\d+)/, (m, p, a, b) => p + (+a * k) + ', ' + (+b * k));
+    }).join('\n');
+  }
   /** 贴图：后台线程解码，保持原始（预乘过的）像素；资源站的贴图可能被缩小过，按图集声明的尺寸放大回去（spine-ts 3.8 按实际尺寸归一化 UV） */
   async function decode(blob, w, h) {
     if (window.createImageBitmap) {
       try {
         let bm = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
         const nat = [bm.width, bm.height];
+        if (hiK(bm.width, bm.height, w, h) > 1) return { img: bm, nat };
         if (w && h && (bm.width !== w || bm.height !== h)) {
           const b2 = await createImageBitmap(bm, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high', premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
           bm.close(); bm = b2;
@@ -493,6 +512,7 @@ void main(){
     try {
       const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
       const nat = [im.naturalWidth, im.naturalHeight];
+      if (hiK(im.naturalWidth, im.naturalHeight, w, h) > 1) return { img: im, nat };
       if (w && h && (im.naturalWidth !== w || im.naturalHeight !== h)) {
         const c = document.createElement('canvas'); c.width = w; c.height = h;
         const q = c.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(im, 0, 0, w, h);
@@ -524,7 +544,10 @@ void main(){
     const S = window.spine, W = S.webgl;
     let bytes = 0;
     const texs = [];
-    const atlas = new S.TextureAtlas(atlasTxt, (path) => {
+    const ks = {};
+    let hi = false;
+    for (const p of pages) { const n = nat[p.name], im = imgs[p.name]; ks[p.name] = n && im && im.width === n[0] ? hiK(n[0], n[1], p.w, p.h) : 1; if (ks[p.name] > 1) hi = true; }
+    const atlas = new S.TextureAtlas(hi ? scaleAtlas(atlasTxt, ks) : atlasTxt, (path) => {
       const im = imgs[path] || Object.values(imgs)[0];
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
       const tx = new W.GLTexture(mctx, im, false);
